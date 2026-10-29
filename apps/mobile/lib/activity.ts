@@ -50,7 +50,8 @@ export function matchesFamily(row: ActivityRow, family: ActivityFamily): boolean
     case "status":
       return (
         row.entity_kind === "task" &&
-        ["status_changed", "completed", "reopened", "priority_changed"].includes(row.verb)
+        (["status_changed", "completed", "reopened", "priority_changed"].includes(row.verb) ||
+          row.verb.startsWith("checklist_"))
       );
     case "assignments":
       return row.verb === "assigned" || row.verb === "unassigned";
@@ -308,6 +309,12 @@ export function describeActivity(row: ActivityRow, L: ActivityLookup): ActivityD
         verb: "moved",
         extra: `to ${typeof d.to_name === "string" ? d.to_name : (STATUS_LABEL[s(d.to) as keyof typeof STATUS_LABEL] ?? s(d.to))}`,
       };
+    case "checklist_added":
+      return { ...base, verb: `added the ${s(d.name) || "a"} checklist to` };
+    case "checklist_removed":
+      return { ...base, verb: `removed the ${s(d.name) || "a"} checklist from` };
+    case "checklist_completed":
+      return { ...base, verb: `completed the ${s(d.name) || "a"} checklist on` };
     case "list_changed":
       return { ...base, verb: "moved", extra: "to another list" };
     case "priority_changed":
@@ -315,7 +322,11 @@ export function describeActivity(row: ActivityRow, L: ActivityLookup): ActivityD
     case "assigned":
       return { ...base, verb: "assigned", extra: `to ${person(d.to)}` };
     case "unassigned":
-      return { ...base, verb: "unassigned" };
+      // 0115: one row per person removed; `from` names them.
+      return {
+        ...base,
+        verb: d.from ? `removed ${person(d.from)} from` : "unassigned",
+      };
     case "due_changed": {
       const to = shortDate(d.to);
       return to

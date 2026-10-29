@@ -153,8 +153,16 @@ const TRIGGER_EXTRAS: Record<
     { path: "trigger.to", label: "New list id", type: "string" },
   ],
   "task.assigned": [
-    { path: "trigger.from", label: "Previously assigned to", type: "string" },
-    { path: "trigger.to", label: "Now assigned to", type: "string" },
+    { path: "trigger.to", label: "Person added", type: "string" },
+    { path: "trigger.assignee_ids", label: "Everyone assigned now", type: "string[]" },
+  ],
+  "task.unassigned": [
+    { path: "trigger.from", label: "Person removed", type: "string" },
+    { path: "trigger.assignee_ids", label: "Everyone still assigned", type: "string[]" },
+  ],
+  "task.checklist_completed": [
+    { path: "trigger.checklist_id", label: "Checklist id", type: "string" },
+    { path: "trigger.name", label: "Checklist name", type: "string" },
   ],
   "task.label_added": [{ path: "trigger.added_labels", label: "Labels added", type: "string[]" }],
   "task.added_to_space": [

@@ -136,7 +136,7 @@ const actions: StepCatalogEntry[] = [
       "Runs the personal assistant on a brief and files the result as a conversation the recipient can open and reply to. Point it at an Assistant project to inherit that project's instructions, memory, and attached documents. Pair with a schedule trigger for recurring briefings — a Monday review, a nightly check.",
     examplePrompts: [
       "every Monday, review the villa's open tasks and flag what is at risk",
-      "each morning, brief me on today's bookings and arrivals",
+      "each morning, brief me on today's tasks and meetings",
       "weekly summary of what changed in this project",
     ],
     outputSchema: z.object({

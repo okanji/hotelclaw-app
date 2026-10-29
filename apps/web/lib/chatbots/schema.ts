@@ -81,22 +81,35 @@ export const ChatbotActionZod = z.discriminatedUnion("type", [
         .default(["owner", "manager"]),
     }),
   }),
-  z.object({
-    type: z.literal("book_service"),
-    ...actionBase,
-    config: z.object({
-      /** Bookable services this bot may offer. Empty = every active service. */
-      serviceIds: z.array(z.string()).default([]),
-      /** Confirm instantly vs hold as pending for staff review. */
-      autoConfirm: z.boolean().default(true),
-      /** Stream channel that gets a card for each new booking. */
-      notifyChannelId: z.string().optional(),
-    }),
-  }),
 ]);
 
 export type ChatbotAction = z.infer<typeof ChatbotActionZod>;
 export type ChatbotActionType = ChatbotAction["type"];
+
+/** Every action type this build understands — the discriminator values. */
+const KNOWN_ACTION_TYPES = new Set<string>(
+  ChatbotActionZod.options.map((o) => o.shape.type.value),
+);
+
+/**
+ * Saved configs can carry action types this build no longer ships (the
+ * `book_service` action was removed with the Bookings feature on
+ * 2026-10-29). Drop them BEFORE validation: one unknown discriminator would
+ * otherwise fail the whole config, and `parseChatbotConfig` falls back to an
+ * empty bot — wiping the persona and every other action on screen.
+ */
+const ActionsListZod = z.preprocess(
+  (raw) =>
+    Array.isArray(raw)
+      ? raw.filter(
+          (a) =>
+            !!a &&
+            typeof a === "object" &&
+            KNOWN_ACTION_TYPES.has(String((a as { type?: unknown }).type)),
+        )
+      : raw,
+  z.array(ChatbotActionZod),
+);
 
 export const ChatbotAppearanceZod = z.object({
   /** Name guests see in the chat header (often differs from internal name). */
@@ -138,7 +151,7 @@ export const ChatbotConfigZod = z.object({
     fallbackMessage: DEFAULT_FALLBACK_MESSAGE,
     handoffMessage: DEFAULT_HANDOFF_MESSAGE,
   }),
-  actions: z.array(ChatbotActionZod).default([]),
+  actions: ActionsListZod.default([]),
   /** Default team (space id) that tickets from this bot land on when the
    *  create_ticket action doesn't set its own. Bare tickets (no team) still
    *  get org-chart-routed by triage; this is the deterministic fallback. */
@@ -183,11 +196,6 @@ export const ACTION_TYPE_META: Record<
   escalate_to_human: {
     label: "Escalate to a human",
     description: "Hand the conversation to your team and notify them",
-  },
-  book_service: {
-    label: "Take bookings",
-    description:
-      "Check real availability and book tables, spa slots, or tours from the Bookings feature",
   },
 };
 

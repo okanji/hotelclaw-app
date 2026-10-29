@@ -60,7 +60,7 @@ export default defineDynamic({
       if (grants.has("list_open_tasks")) {
         tools.list_open_tasks = defineTool({
           description:
-            "List open (unfinished) tasks in this property. Returns count and tasks (title, status — the list's own status name, status_category, list, priority, due, assignee). `status` filters by CATEGORY (todo = not started, in_progress = active, blocked); `list` narrows to one list by name (on no match you get the valid list names back). If empty, say so plainly — don't fabricate.",
+            "List open (unfinished) tasks in this property. Returns count and tasks (title, status — the list's own status name, status_category, list, priority, due, assignee = the primary, assignees = everyone on it). `status` filters by CATEGORY (todo = not started, in_progress = active, blocked); `list` narrows to one list by name (on no match you get the valid list names back). If empty, say so plainly — don't fabricate.",
           inputSchema: z.object({
             status: z.enum(["todo", "in_progress", "blocked"]).optional(),
             list: z.string().max(120).optional().describe("List name to narrow to (fuzzy match)."),
@@ -90,7 +90,7 @@ export default defineDynamic({
             let query = supabase
               .from("tasks")
               .select(
-                "id, title, status, priority, due_at, assignee_id, list_id, status_ref:statuses!tasks_status_id_fkey(name, category), list_ref:lists!tasks_list_id_fkey(name)",
+                "id, title, status, priority, due_at, assignee_id, list_id, status_ref:statuses!tasks_status_id_fkey(name, category), list_ref:lists!tasks_list_id_fkey(name), task_assignees(user_id, position)",
               )
               .eq("property_id", propertyId)
               .order("updated_at", { ascending: false })
@@ -104,7 +104,10 @@ export default defineDynamic({
             const assigneeIds = Array.from(
               new Set(
                 (tasks ?? [])
-                  .map((t) => t.assignee_id)
+                  .flatMap((t) => [
+                    t.assignee_id,
+                    ...((t.task_assignees ?? []) as { user_id: string }[]).map((a) => a.user_id),
+                  ])
                   .filter((id): id is string => !!id),
               ),
             );
@@ -142,6 +145,12 @@ export default defineDynamic({
                 assignee: t.assignee_id
                   ? (nameById.get(t.assignee_id) ?? null)
                   : null,
+                // 0115: everyone on it, primary first.
+                assignees: ((t.task_assignees ?? []) as { user_id: string; position: number }[])
+                  .slice()
+                  .sort((a, b) => a.position - b.position)
+                  .map((a) => nameById.get(a.user_id) ?? null)
+                  .filter((n): n is string => !!n),
                 };
               }),
             };
@@ -390,44 +399,6 @@ export default defineDynamic({
         });
       }
 
-      if (grants.has("list_today_bookings")) {
-        tools.list_today_bookings = defineTool({
-          description:
-            "List this property's bookings in the next 24 hours across all services (service, time, party size, status, reference). Use for questions about tonight's covers, arrivals, or capacity.",
-          inputSchema: z.object({
-            limit: z.number().int().min(1).max(50).default(25),
-          }),
-          async execute({ limit }) {
-            const now = new Date();
-            const { data, error } = await serviceClient()
-              .from("bookings")
-              .select(
-                "id, reference, guest_name, party_size, status, starts_at, service_id, bookable_services(name)",
-              )
-              .eq("property_id", propertyId)
-              .gte("starts_at", now.toISOString())
-              .lte("starts_at", new Date(now.getTime() + 86_400_000).toISOString())
-              .not("status", "in", "(cancelled,no_show)")
-              .order("starts_at", { ascending: true })
-              .limit(limit);
-            if (error) return { error: error.message };
-            return {
-              count: (data ?? []).length,
-              bookings: (data ?? []).map((b) => ({
-                reference: b.reference,
-                guest: b.guest_name,
-                party: b.party_size,
-                status: b.status,
-                starts_at: b.starts_at,
-                service:
-                  (b.bookable_services as { name?: string } | null)?.name ??
-                  null,
-              })),
-            };
-          },
-        });
-      }
-
       if (grants.has("get_org_chart")) {
         tools.get_org_chart = defineTool({
           description:
@@ -526,7 +497,7 @@ export default defineDynamic({
       if (grants.has("update_task")) {
         tools.update_task = defineTool({
           description:
-            "Update a task's status, priority, due date, assignee, title, description, labels, project, or list. Get the task id from list_open_tasks/search_tasks first. `status` is a status NAME of the task's list (each list has its own pipeline — on no match you get the valid names back; the legacy words todo / in_progress / blocked / done also work and map onto the pipeline). `list` moves the task to another list by name (its status is remapped by category). Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
+            "Update a task's status, priority, due date, assignee, title, description, labels, project, or list. Get the task id from list_open_tasks/search_tasks first. `status` is a status NAME of the task's list (each list has its own pipeline — on no match you get the valid names back; the legacy words todo / in_progress / blocked / done also work and map onto the pipeline). `list` moves the task to another list by name (its status is remapped by category). Tasks can have SEVERAL assignees: `assignee_name` sets the PRIMARY (replacing the old primary, others stay; null clears everyone), `assignees_add` / `assignees_remove` add or take people off without touching the rest. Names are fuzzy-matched (on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
           inputSchema: z.object({
             task_id: z.string().uuid(),
             status: z
@@ -545,7 +516,17 @@ export default defineDynamic({
               .string()
               .max(120)
               .nullish()
-              .describe("Person to assign (fuzzy name match); null to unassign."),
+              .describe("Person to make the PRIMARY assignee (fuzzy name match); null to unassign everyone."),
+            assignees_add: z
+              .array(z.string().min(1).max(120))
+              .max(10)
+              .optional()
+              .describe("People to ADD as assignees, keeping whoever is already on it."),
+            assignees_remove: z
+              .array(z.string().min(1).max(120))
+              .max(10)
+              .optional()
+              .describe("People to take OFF the task."),
             title: z.string().min(3).max(200).optional(),
             description: z.string().max(4000).optional(),
             labels_add: z.array(z.string().min(1).max(40)).max(10).optional(),
@@ -556,7 +537,7 @@ export default defineDynamic({
               .optional()
               .describe("Project to move the task into (fuzzy name match); empty string to remove from its project."),
           }),
-          async execute({ task_id, status, list, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
+          async execute({ task_id, status, list, priority, due_at, assignee_name, assignees_add, assignees_remove, title, description, labels_add, labels_remove, project_name }) {
             const supabase = serviceClient();
             const { data: task } = await supabase
               .from("tasks")
@@ -662,69 +643,138 @@ export default defineDynamic({
               patch.project_id = proj.id;
             }
 
+            // Property members, loaded once for every name this call resolves.
+            let roster: { id: string; full_name: string | null }[] | null = null;
+            const findMember = async (name: string) => {
+              if (!roster) {
+                const { data: members } = await supabase
+                  .from("memberships")
+                  .select("user_id")
+                  .eq("property_id", propertyId);
+                const ids = (members ?? []).map((m) => m.user_id);
+                const { data: profiles } = ids.length
+                  ? await supabase.from("profiles").select("id, full_name").in("id", ids)
+                  : { data: [] };
+                roster = (profiles ?? []) as { id: string; full_name: string | null }[];
+              }
+              const needle = name.trim().toLowerCase();
+              return (
+                roster.find((p) => (p.full_name ?? "").toLowerCase() === needle) ??
+                roster.find((p) => (p.full_name ?? "").toLowerCase().includes(needle)) ??
+                null
+              );
+            };
+            const noMatch = (name: string) => ({
+              error: `No member matches "${name}".`,
+              members: (roster ?? []).map((p) => p.full_name).filter(Boolean),
+            });
+
             let assigneeId: string | null | undefined;
             if (assignee_name === null) assigneeId = null;
             else if (typeof assignee_name === "string") {
-              const { data: members } = await supabase
-                .from("memberships")
-                .select("user_id")
-                .eq("property_id", propertyId);
-              const ids = (members ?? []).map((m) => m.user_id);
-              const { data: profiles } = ids.length
-                ? await supabase.from("profiles").select("id, full_name").in("id", ids)
-                : { data: [] };
-              const needle = assignee_name.trim().toLowerCase();
-              const match =
-                (profiles ?? []).find((p) => (p.full_name ?? "").toLowerCase() === needle) ??
-                (profiles ?? []).find((p) =>
-                  (p.full_name ?? "").toLowerCase().includes(needle),
-                );
-              if (!match) {
-                return {
-                  error: `No member matches "${assignee_name}".`,
-                  members: (profiles ?? []).map((p) => p.full_name).filter(Boolean),
-                };
-              }
+              const match = await findMember(assignee_name);
+              if (!match) return noMatch(assignee_name);
               assigneeId = match.id;
             }
+            const addIds: string[] = [];
+            for (const name of assignees_add ?? []) {
+              const match = await findMember(name);
+              if (!match) return noMatch(name);
+              addIds.push(match.id);
+            }
+            const removeIds: string[] = [];
+            for (const name of assignees_remove ?? []) {
+              const match = await findMember(name);
+              if (!match) return noMatch(name);
+              removeIds.push(match.id);
+            }
             if (assigneeId !== undefined) patch.assignee_id = assigneeId;
-            if (Object.keys(patch).length === 0) {
+            if (Object.keys(patch).length === 0 && addIds.length === 0 && removeIds.length === 0) {
               return { error: "Nothing to update — pass at least one field." };
             }
+            const { data: beforeSet } = await supabase
+              .from("task_assignees")
+              .select("user_id")
+              .eq("task_id", task_id);
+            const before = new Set((beforeSet ?? []).map((r) => r.user_id as string));
 
-            const { error } = await supabase
-              .from("tasks")
-              .update(patch)
-              .eq("id", task_id)
-              .eq("property_id", propertyId);
-            if (error) return { error: error.message };
+            if (Object.keys(patch).length > 0) {
+              const { error } = await supabase
+                .from("tasks")
+                .update(patch)
+                .eq("id", task_id)
+                .eq("property_id", propertyId);
+              if (error) return { error: error.message };
+            }
+            // The set (0115): write task_assignees only — the DB derives the
+            // primary and logs / emits one row per person.
+            if (addIds.length > 0) {
+              const { data: last } = await supabase
+                .from("task_assignees")
+                .select("position")
+                .eq("task_id", task_id)
+                .order("position", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              const start = ((last?.position as number | undefined) ?? -1) + 1;
+              const { error: addErr } = await supabase.from("task_assignees").upsert(
+                addIds.map((user_id, i) => ({
+                  task_id,
+                  user_id,
+                  property_id: propertyId,
+                  position: start + i,
+                })),
+                { onConflict: "task_id,user_id", ignoreDuplicates: true },
+              );
+              if (addErr) return { error: addErr.message };
+            }
+            if (removeIds.length > 0) {
+              const { error: rmErr } = await supabase
+                .from("task_assignees")
+                .delete()
+                .eq("task_id", task_id)
+                .in("user_id", removeIds);
+              if (rmErr) return { error: rmErr.message };
+            }
 
-            // Mirror the app's assignment notification (workflow events are
-            // covered by the tasks DB triggers; notifications are app-level).
-            // The payload shape matches emitTaskAssignmentNotifications —
-            // the feed renders byUserName, falling back to "Someone".
-            if (assigneeId && assigneeId !== task.assignee_id) {
+            // Mirror the app's assignment notifications (workflow events are
+            // covered by the DB triggers; notifications are app-level). One
+            // per person who JOINED. The payload shape matches
+            // emitTaskAssignmentNotifications — the feed renders byUserName.
+            const { data: afterSet } = await supabase
+              .from("task_assignees")
+              .select("user_id")
+              .eq("task_id", task_id);
+            const joined = (afterSet ?? [])
+              .map((r) => r.user_id as string)
+              .filter((id) => !before.has(id) && id !== senderId);
+            if (joined.length > 0) {
               const { data: senderProfile } = await supabase
                 .from("profiles")
                 .select("full_name")
                 .eq("id", senderId)
                 .maybeSingle();
-              await supabase.from("notifications").insert({
-                user_id: assigneeId,
-                property_id: propertyId,
-                type: "task_assigned",
-                payload: {
-                  taskId: task_id,
-                  taskTitle: title ?? task.title,
-                  byUserId: senderId,
-                  byUserName: senderProfile?.full_name ?? "Hotelclaw AI",
-                },
-              });
+              await supabase.from("notifications").insert(
+                joined.map((user_id) => ({
+                  user_id,
+                  property_id: propertyId,
+                  type: "task_assigned",
+                  payload: {
+                    taskId: task_id,
+                    taskTitle: title ?? task.title,
+                    byUserId: senderId,
+                    byUserName: senderProfile?.full_name ?? "Hotelclaw AI",
+                  },
+                })),
+              );
             }
             return {
               updated: true,
               task_id,
-              changed: Object.keys(patch),
+              changed: [
+                ...Object.keys(patch),
+                ...(addIds.length || removeIds.length ? ["assignees"] : []),
+              ],
               link: `/p/${propertyId}/tasks/${task_id}`,
             };
           },
@@ -1321,56 +1371,6 @@ export default defineDynamic({
         });
       }
 
-      if (grants.has("list_bookings")) {
-        tools.list_bookings = defineTool({
-          description:
-            "List bookings across all services for a window — past history included (service, time, party, status, reference). Defaults to the next 24h; raise past_days for history questions ('how many no-shows last week').",
-          inputSchema: z.object({
-            past_days: z.number().int().min(0).max(60).default(0),
-            next_days: z.number().int().min(0).max(60).default(1),
-            status: z
-              .enum([
-                "pending",
-                "confirmed",
-                "seated",
-                "completed",
-                "cancelled",
-                "no_show",
-              ])
-              .optional(),
-            limit: z.number().int().min(1).max(50).default(25),
-          }),
-          async execute({ past_days, next_days, status, limit }) {
-            const now = Date.now();
-            let query = serviceClient()
-              .from("bookings")
-              .select(
-                "id, reference, guest_name, party_size, status, starts_at, bookable_services(name)",
-              )
-              .eq("property_id", propertyId)
-              .gte("starts_at", new Date(now - past_days * 86_400_000).toISOString())
-              .lte("starts_at", new Date(now + next_days * 86_400_000).toISOString())
-              .order("starts_at", { ascending: true })
-              .limit(limit);
-            if (status) query = query.eq("status", status);
-            const { data, error } = await query;
-            if (error) return { error: error.message };
-            return {
-              count: (data ?? []).length,
-              bookings: (data ?? []).map((b) => ({
-                reference: b.reference,
-                guest: b.guest_name,
-                party: b.party_size,
-                status: b.status,
-                starts_at: b.starts_at,
-                service:
-                  (b.bookable_services as { name?: string } | null)?.name ?? null,
-              })),
-            };
-          },
-        });
-      }
-
       if (grants.has("search_chat_messages")) {
         tools.search_chat_messages = defineTool({
           description:
@@ -1871,6 +1871,257 @@ export default defineDynamic({
         });
       }
 
+      if (grants.has("list_custom_fields")) {
+        tools.list_custom_fields = defineTool({
+          description:
+            "List this property's custom task fields — name, type (text, long_text, number, currency, select, multi_select, date, checkbox, url, email, phone, people, files, relation, progress), options for dropdowns/labels, currency code, and which team/list a field is scoped to. Pass task_id to also get that task's current values as readable labels. Use before set_task_field so you use a real field name and a valid option.",
+          inputSchema: z.object({
+            task_id: z.string().uuid().optional(),
+          }),
+          async execute({ task_id }) {
+            const supabase = serviceClient();
+            const { data: fields, error } = await supabase
+              .from("custom_fields")
+              .select("id, name, type, options, config, space_id, list_id")
+              .eq("property_id", propertyId)
+              .is("archived_at", null)
+              .order("position", { ascending: true });
+            if (error) return { error: error.message };
+            const rows = (fields ?? []) as {
+              id: string;
+              name: string;
+              type: string;
+              options: { id: string; label: string }[] | null;
+              config: { code?: string; multiple?: boolean } | null;
+              space_id: string | null;
+              list_id: string | null;
+            }[];
+            const out: Record<string, unknown> = {
+              count: rows.length,
+              fields: rows.map((f) => ({
+                name: f.name,
+                type: f.type,
+                ...(f.options && f.options.length ? { options: f.options.map((o) => o.label) } : {}),
+                ...(f.type === "currency" && f.config?.code ? { currency: f.config.code } : {}),
+                ...(f.type === "people" && f.config?.multiple === false ? { single_person: true } : {}),
+                ...(f.type === "files" || f.type === "progress" ? { read_only: true } : {}),
+                scoped: f.list_id ? "one list" : f.space_id ? "one team" : "every task",
+              })),
+            };
+            if (task_id) {
+              const { data: task } = await supabase
+                .from("tasks")
+                .select("id")
+                .eq("id", task_id)
+                .eq("property_id", propertyId)
+                .maybeSingle();
+              if (!task) return { error: "Task not found." };
+              const { data: values } = await supabase
+                .from("task_field_values")
+                .select("field_id, value")
+                .eq("task_id", task_id);
+              const personIds = new Set<string>();
+              const taskIds = new Set<string>();
+              const fileIds = new Set<string>();
+              for (const v of values ?? []) {
+                const f = rows.find((r) => r.id === v.field_id);
+                if (!f || !Array.isArray(v.value)) continue;
+                const bucket = f.type === "people" ? personIds : f.type === "relation" ? taskIds : f.type === "files" ? fileIds : null;
+                for (const id of v.value as string[]) bucket?.add(id);
+              }
+              const [people, linked, files] = await Promise.all([
+                personIds.size
+                  ? supabase.from("profiles").select("id, full_name").in("id", [...personIds])
+                  : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+                taskIds.size
+                  ? supabase.from("tasks").select("id, title").in("id", [...taskIds])
+                  : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+                fileIds.size
+                  ? supabase.from("task_attachments").select("id, file_name").in("id", [...fileIds])
+                  : Promise.resolve({ data: [] as { id: string; file_name: string }[] }),
+              ]);
+              const nameOf = new Map<string, string>();
+              for (const p of people.data ?? []) nameOf.set(p.id, p.full_name ?? "Member");
+              for (const t of linked.data ?? []) nameOf.set(t.id, t.title);
+              for (const a of files.data ?? []) nameOf.set(a.id, a.file_name);
+              out.values = Object.fromEntries(
+                (values ?? []).flatMap((v) => {
+                  const f = rows.find((r) => r.id === v.field_id);
+                  if (!f) return [];
+                  const raw = v.value as unknown;
+                  let shown: unknown = raw;
+                  if (f.type === "select") {
+                    shown = (f.options ?? []).find((o) => o.id === raw)?.label ?? raw;
+                  } else if (f.type === "multi_select" && Array.isArray(raw)) {
+                    shown = (raw as string[]).map((id) => (f.options ?? []).find((o) => o.id === id)?.label ?? id);
+                  } else if (Array.isArray(raw)) {
+                    shown = (raw as string[]).map((id) => nameOf.get(id) ?? id);
+                  } else if (f.type === "currency" && typeof raw === "number") {
+                    shown = `${f.config?.code ?? ""} ${raw.toLocaleString("en-US")}`.trim();
+                  }
+                  return [[f.name, shown]];
+                }),
+              );
+            }
+            return out;
+          },
+        });
+      }
+
+      if (grants.has("set_task_field")) {
+        tools.set_task_field = defineTool({
+          description:
+            "Set or clear ONE custom field on a task. `field` is the field's name (from list_custom_fields). `value` is plain text the app coerces by type: currency/number \"12,500\"; date YYYY-MM-DD; checkbox yes/no; select = one option label; multi_select = comma-separated labels; people = comma-separated member names; relation = task keys (GHV-12) or exact titles; url/email/phone as written. Empty string clears it. Files and progress fields are read-only (files are attached in the app). On a bad value you get the reason back — fix it, don't guess.",
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            field: z.string().min(1).max(120),
+            value: z.string().max(5000),
+          }),
+          async execute({ task_id, field, value }) {
+            const response = await fetch(
+              `${eveSelfOrigin()}/api/internal/tasks/${task_id}/fields`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
+                },
+                body: JSON.stringify({ propertyId, field, value, actorId: senderId ?? null }),
+                signal: AbortSignal.timeout(30_000),
+              },
+            ).catch(() => null);
+            if (!response) return { error: "Field service unreachable." };
+            const body = (await response.json().catch(() => null)) as {
+              error?: string;
+              fieldName?: string;
+              value?: unknown;
+            } | null;
+            if (!response.ok) return { error: body?.error ?? `Update failed (${response.status}).` };
+            return {
+              updated: true,
+              task_id,
+              field: body?.fieldName ?? field,
+              cleared: body?.value === null,
+              link: `/p/${propertyId}/tasks/${task_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("add_checklist_items")) {
+        tools.add_checklist_items = defineTool({
+          description:
+            "Add items to a named checklist on a task — creates the checklist if the task has none by that name (e.g. \"Task Prep\"), otherwise appends. Items are short imperative lines (\"Collect keys\", \"Check radios\"). Get the task id from list_open_tasks/search_tasks first. Returns the checklist and how many items were added.",
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            checklist_name: z.string().min(1).max(120),
+            items: z.array(z.string().min(1).max(500)).min(1).max(50),
+          }),
+          async execute({ task_id, checklist_name, items }) {
+            const supabase = serviceClient();
+            const { data: task } = await supabase
+              .from("tasks")
+              .select("id")
+              .eq("id", task_id)
+              .eq("property_id", propertyId)
+              .maybeSingle();
+            if (!task) return { error: "Task not found." };
+            const name = checklist_name.trim();
+            const { data: lists } = await supabase
+              .from("task_checklists")
+              .select("id, name, position")
+              .eq("task_id", task_id)
+              .order("position", { ascending: true });
+            let checklist = (lists ?? []).find(
+              (c) => (c.name as string).toLowerCase() === name.toLowerCase(),
+            ) as { id: string; name: string } | undefined;
+            let created = false;
+            if (!checklist) {
+              const last = ((lists ?? []).at(-1)?.position as number | undefined) ?? 0;
+              const { data, error } = await supabase
+                .from("task_checklists")
+                .insert({ task_id, property_id: propertyId, name, position: last + 1024, created_by: senderId ?? null })
+                .select("id, name")
+                .single();
+              if (error || !data) return { error: error?.message ?? "Couldn't create the checklist." };
+              checklist = data as { id: string; name: string };
+              created = true;
+            }
+            const { data: lastItem } = await supabase
+              .from("task_checklist_items")
+              .select("position")
+              .eq("checklist_id", checklist.id)
+              .is("parent_item_id", null)
+              .order("position", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            const start = ((lastItem?.position as number | undefined) ?? 0) + 1024;
+            const { error: insErr } = await supabase.from("task_checklist_items").insert(
+              items.map((text, i) => ({
+                checklist_id: checklist!.id,
+                task_id,
+                property_id: propertyId,
+                text: text.trim(),
+                position: start + i * 1024,
+                created_by: senderId ?? null,
+              })),
+            );
+            if (insErr) return { error: insErr.message };
+            return {
+              checklist: checklist.name,
+              created,
+              added: items.length,
+              link: `/p/${propertyId}/tasks/${task_id}`,
+            };
+          },
+        });
+      }
+
+      if (grants.has("check_checklist_item")) {
+        tools.check_checklist_item = defineTool({
+          description:
+            "Tick (done=true) or untick an item on one of a task's checklists, matched by its text (exact, then partial). Ticking the last open item completes the checklist, which fires the 'checklist completed' automation. On no match you get the task's items back. If you are also adding items to the same task this turn, call add_checklist_items FIRST and wait for it — never in parallel — or the progress you report will miss them.",
+          inputSchema: z.object({
+            task_id: z.string().uuid(),
+            item_text: z.string().min(1).max(500),
+            done: z.boolean().default(true),
+          }),
+          async execute({ task_id, item_text, done }) {
+            const supabase = serviceClient();
+            const { data: rows } = await supabase
+              .from("task_checklist_items")
+              .select("id, text, done, checklist_id")
+              .eq("task_id", task_id)
+              .eq("property_id", propertyId);
+            const items = (rows ?? []) as { id: string; text: string; done: boolean }[];
+            if (items.length === 0) return { error: "This task has no checklist items." };
+            const needle = item_text.trim().toLowerCase();
+            const hit =
+              items.find((i) => i.text.toLowerCase() === needle) ??
+              items.find((i) => i.text.toLowerCase().includes(needle));
+            if (!hit) {
+              return { error: `No item matches "${item_text}".`, items: items.map((i) => i.text) };
+            }
+            const { error } = await supabase
+              .from("task_checklist_items")
+              .update({ done })
+              .eq("id", hit.id);
+            if (error) return { error: error.message };
+            const { data: t } = await supabase
+              .from("tasks")
+              .select("checklist_done, checklist_total")
+              .eq("id", task_id)
+              .maybeSingle();
+            return {
+              item: hit.text,
+              done,
+              progress: t ? `${t.checklist_done}/${t.checklist_total}` : null,
+              link: `/p/${propertyId}/tasks/${task_id}`,
+            };
+          },
+        });
+      }
+
       if (grants.has("escalate_task")) {
         tools.escalate_task = defineTool({
           description:
@@ -2149,111 +2400,6 @@ export default defineDynamic({
               .eq("property_id", propertyId);
             if (error) return { error: error.message };
             return { cancelled: true, title: meeting.title };
-          },
-        });
-      }
-
-      if (grants.has("create_booking")) {
-        tools.create_booking = defineTool({
-          description:
-            "Create a booking through the REAL availability engine (revalidates the slot, assigns tables, emits workflow events — never a raw insert). service_name is fuzzy-matched against the property's bookable services. starts_at without an offset is wall time in the SERVICE's timezone. On a full slot you get alternatives back — offer them. Confirm details with the requester before booking.",
-          inputSchema: z.object({
-            service_name: z.string().min(2).max(200),
-            starts_at: z.string().min(10).describe("ISO start, e.g. 2026-07-24T19:00 (service-local) or with offset"),
-            party_size: z.number().int().min(1).max(200),
-            guest_name: z.string().min(1).max(200),
-            guest_phone: z.string().max(40).optional(),
-            notes: z.string().max(1000).optional(),
-            duration_minutes: z.number().int().min(15).max(1440).optional(),
-          }),
-          async execute({ service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
-            const supabase = serviceClient();
-            const { data: services } = await supabase
-              .from("bookable_services")
-              .select("id, name")
-              .eq("property_id", propertyId)
-              .eq("active", true);
-            const svcNeedle = service_name.trim().toLowerCase();
-            const svc =
-              (services ?? []).find((s) => s.name.toLowerCase() === svcNeedle) ??
-              (services ?? []).find((s) => s.name.toLowerCase().includes(svcNeedle));
-            if (!svc) {
-              return {
-                error: `No bookable service matches "${service_name}".`,
-                services: (services ?? []).map((s) => s.name),
-              };
-            }
-            const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
-              },
-              body: JSON.stringify({
-                propertyId,
-                serviceId: svc.id,
-                startsAt: starts_at,
-                partySize: party_size,
-                guestName: guest_name,
-                guestPhone: guest_phone ?? null,
-                notes: notes ?? null,
-                durationMinutes: duration_minutes ?? null,
-              }),
-              signal: AbortSignal.timeout(30_000),
-            }).catch(() => null);
-            if (!response) return { error: "Booking service unreachable." };
-            const body = (await response.json().catch(() => null)) as {
-              error?: string;
-              alternatives?: unknown[];
-              booking?: Record<string, unknown>;
-            } | null;
-            if (!response.ok || !body?.booking) {
-              return {
-                error: body?.error ?? `Booking failed (${response.status}).`,
-                alternatives: body?.alternatives ?? [],
-              };
-            }
-            return {
-              booked: true,
-              service: svc.name,
-              ...body.booking,
-              link: `/p/${propertyId}/bookings`,
-            };
-          },
-        });
-      }
-
-      if (grants.has("update_booking_status")) {
-        tools.update_booking_status = defineTool({
-          // Approval-gated: the SYSTEM parks this call and the channel shows an
-          // action preview before it runs (channel-delivery.ts). Proportional
-          // friction — outward-facing or hard-to-undo actions only; creating a
-          // task or a doc stays unblocked.
-          approval: always(),
-          description:
-            "Move a booking through its lifecycle by reference (BKG-XXXXXX): pending→confirmed/cancelled, confirmed→seated/completed/no_show/cancelled, seated→completed. Get references from list_bookings. Cancelling emits the booking.cancelled workflow event.",
-          inputSchema: z.object({
-            reference: z.string().min(4).max(20),
-            status: z.enum(["confirmed", "seated", "completed", "no_show", "cancelled"]),
-          }),
-          async execute({ reference, status }) {
-            const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
-              method: "PATCH",
-              headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
-              },
-              body: JSON.stringify({ propertyId, reference, status }),
-              signal: AbortSignal.timeout(20_000),
-            }).catch(() => null);
-            if (!response) return { error: "Booking service unreachable." };
-            const body = (await response.json().catch(() => null)) as {
-              error?: string;
-            } | null;
-            if (!response.ok) {
-              return { error: body?.error ?? `Status change failed (${response.status}).` };
-            }
-            return { updated: true, reference, status, link: `/p/${propertyId}/bookings` };
           },
         });
       }

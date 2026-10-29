@@ -48,13 +48,7 @@ const { data: members } = await supabase
 const memberIds = (members ?? []).map((m) => m.user_id);
 const creator = memberIds[0] ?? null;
 
-// Real service / space ids on this property (wired into bot actions).
-const { data: services } = await supabase
-  .from("bookable_services")
-  .select("id, name")
-  .eq("property_id", PROPERTY_ID);
-const svc = (name) =>
-  services?.find((s) => s.name.toLowerCase().includes(name))?.id;
+// Real space ids on this property (wired into bot actions).
 const { data: spaces } = await supabase
   .from("spaces")
   .select("id, name")
@@ -81,10 +75,10 @@ const BOTS = [
     config: {
       version: 1,
       instructions:
-        "You are the front-desk concierge for Solana Cove Resort & Spa, a luxury beachfront resort. Answer guest questions warmly and concisely from the knowledge base. You can book the spa, the sunset kayak tour, and a table at The Terrace. Escalate anything you can't resolve to the front-office team. Never invent rates or availability — use your tools.",
+        "You are the front-desk concierge for Solana Cove Resort & Spa, a luxury beachfront resort. Answer guest questions warmly and concisely from the knowledge base. You can take requests for the spa, the sunset kayak tour, and a table at The Terrace and file them for the team to confirm. Escalate anything you can't resolve to the front-office team. Never invent rates or availability — use your tools.",
       modelTier: "advanced",
       greeting:
-        "Welcome to Solana Cove! 🌊 I can help with check-in, amenities, or booking the spa, a kayak tour, or dinner. What can I do for you?",
+        "Welcome to Solana Cove! 🌊 I can help with check-in, amenities, or requests for the spa, a kayak tour, or dinner. What can I do for you?",
       suggestedQuestions: [
         "What time is check-in?",
         "Book a couples massage",
@@ -109,22 +103,8 @@ const BOTS = [
         {
           type: "collect_guest_info",
           enabled: true,
-          whenToUse: "Before booking, get the guest's name and room number.",
+          whenToUse: "Before filing a request, get the guest's name and room number.",
           config: { name: true, email: true, phone: false, room: true },
-        },
-        {
-          type: "book_service",
-          enabled: true,
-          whenToUse:
-            "When the guest wants the spa, kayak tour, or a dinner table.",
-          config: {
-            serviceIds: [
-              svc("serenity spa"),
-              svc("kayak"),
-              svc("terrace"),
-            ].filter(Boolean),
-            autoConfirm: false,
-          },
         },
         {
           type: "escalate_to_human",
@@ -404,7 +384,7 @@ const BOTS = [
     config: {
       version: 1,
       instructions:
-        "You take dinner reservations for The Terrace, Solana Cove's Mediterranean sea-view restaurant. Answer questions about hours, menu highlights, and dress code from the knowledge base, then book a table using your booking tool. Confirm party size and time. Keep it warm and brief.",
+        "You take dinner reservations for The Terrace, Solana Cove's Mediterranean sea-view restaurant. Answer questions about hours, menu highlights, and dress code from the knowledge base, then file a reservation request for the team to confirm. Collect party size, time, and a name. Keep it warm and brief.",
       modelTier: "standard",
       greeting: "Ciao! 🌅 I can book you a sea-view table at The Terrace.",
       suggestedQuestions: [
@@ -425,12 +405,6 @@ const BOTS = [
       },
       actions: [
         { type: "answer_from_knowledge", enabled: true },
-        {
-          type: "book_service",
-          enabled: true,
-          whenToUse: "When the guest wants a table — confirm party size and time.",
-          config: { serviceIds: [svc("terrace")].filter(Boolean), autoConfirm: true },
-        },
         {
           type: "collect_guest_info",
           enabled: true,
@@ -518,13 +492,13 @@ const BOTS = [
   },
   {
     // Draft — shows in the "Drafts" filter, demonstrates unpublished state.
-    name: "Spa Booking Assistant",
+    name: "Spa Assistant",
     template: "custom",
     status: "draft",
     config: {
       version: 1,
       instructions:
-        "Help guests browse and book Serenity Spa treatments. (Draft — knowledge and booking flow still being set up by the spa team.)",
+        "Help guests browse and book Serenity Spa treatments. (Draft — knowledge still being set up by the spa team.)",
       modelTier: "standard",
       greeting: "Hi! I can help you find the perfect spa treatment. 💆",
       suggestedQuestions: ["What treatments do you offer?"],

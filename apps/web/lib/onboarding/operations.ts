@@ -9,12 +9,10 @@
  * imported by both.
  *
  * `blurb` says what WE set up, not what the thing is — the user knows what a
- * spa is; what they can't know is that ticking it creates an appointment
- * service with therapists and durations.
+ * spa is; what they can't know is what ticking it sets up downstream.
  *
- * Adding an id here is safe end to end: `starterBookingServices()` matches
- * only the handful it has templates for, and everything else flows to the AI
- * planner as context.
+ * Adding an id here is safe end to end: every id flows to the AI planner as
+ * context.
  */
 
 export type OperationOption = {

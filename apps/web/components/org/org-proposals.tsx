@@ -6,6 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { Check, GitPullRequestArrow, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Dialog,
   DialogContent,
@@ -140,66 +141,71 @@ export function OrgProposals({
   return (
     <div className="flex flex-col gap-3">
       {proposals.length > 0 ? (
-        <div className="flex flex-col gap-1.5 rounded-md bg-muted p-4">
-          <p className="text-sm font-medium text-foreground">
-            Proposed changes
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
+        <section className="panel" style={{ overflow: "hidden" }}>
+          <div className="panel-h">
+            <h2>Proposed changes</h2>
+            <span className="badge amber">{proposals.length}</span>
+            <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
               {isOwner ? "your approval applies them" : "waiting for an owner"}
             </span>
-          </p>
-          <ul className="flex flex-col divide-y divide-border">
+          </div>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {proposals.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 py-2">
-                <GitPullRequestArrow className="size-4 shrink-0 text-muted-foreground" />
+              <li
+                key={p.id}
+                className="row"
+                style={{ gap: 12, padding: "9px 14px", borderTop: "1px solid var(--g8-divider)" }}
+              >
+                <span className="faint" style={{ display: "inline-flex" }}>
+                  <Gi icon={GitPullRequestArrow} size={15} />
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">
+                  <p className="trunc" style={{ margin: 0 }}>
                     {describe(p)}
                   </p>
-                  <p className="truncate text-xs text-faint-foreground">
+                  <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
                     Proposed by {personName(p.created_by)}
                     {p.note ? ` — ${p.note}` : ""}
                   </p>
                 </div>
                 {isOwner ? (
-                  <span className="flex shrink-0 items-center gap-1">
-                    <Button
+                  <span className="row" style={{ gap: 4, flexShrink: 0 }}>
+                    <button
                       type="button"
-                      size="sm"
-                      className="h-7 text-xs"
+                      className="btn btn-primary btn-sm"
                       disabled={pending}
                       onClick={() => decide(p.id, true)}
                     >
-                      <Check className="size-3.5" />
+                      <Gi icon={Check} size={13} />
                       Approve
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                       type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs text-faint-foreground"
+                      className="ibtn ibtn-sm"
+                      aria-label="Reject"
+                      title="Reject"
                       disabled={pending}
                       onClick={() => decide(p.id, false)}
                     >
-                      <X className="size-3.5" />
-                    </Button>
+                      <Gi icon={X} size={13} />
+                    </button>
                   </span>
                 ) : null}
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       ) : null}
 
-      <Button
+      <button
         type="button"
-        size="sm"
-        variant="outline"
-        className="w-fit"
+        className="btn btn-secondary btn-sm"
+        style={{ width: "fit-content" }}
         onClick={() => setDialogOpen(true)}
       >
-        <GitPullRequestArrow className="size-4" />
+        <Gi icon={GitPullRequestArrow} size={14} />
         Propose a change
-      </Button>
+      </button>
 
       <ProposeDialog
         propertyId={propertyId}

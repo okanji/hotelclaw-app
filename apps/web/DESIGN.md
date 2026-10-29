@@ -1,5 +1,41 @@
 # Hotelclaw design system
 
+> **The staff app is gr8r-studio's design system (ported 2026-10-29).** Read
+> the "gr8r system" section first. The older token / type / geometry rules
+> further down now describe only (a) the shadcn primitives in
+> `components/ui/*` — whose semantic tokens `globals.css` remaps to gr8r's
+> palette, so portaled menus / dialogs / toasts match — and (b) the guest
+> world (guest chatbot, onboarding), which keeps its warm-cream palette.
+
+## gr8r system (staff app)
+
+- **Source of truth:** gr8r's own CSS, vendored verbatim in `styles/gr8r/`
+  and compiled by `node scripts/build-gr8r-css.mjs` → `app/gr8r.css`
+  (generated — never edit). Scoped under `.g8` (the property shell root;
+  `AuthShell` for sign-in / onboarding / errors), custom properties renamed
+  `--g8-*`, dark mode via `.dark .g8`, all in `@layer components`.
+  Additions that exist because our markup differs live in `app/gr8r-ext.css`.
+- **Write gr8r's markup.** Pages: `PageHeader` (= gr8r `.topbar`), then
+  `.page` / `.page.wide` / `.page.flush` with a `.ph` header (`h1`, lede,
+  `.acts`). Building blocks: `.panel` (`.panel-h` / `.panel-b`), `.grid2`,
+  `.stats`/`.stat`, `.toolbar`, `.tabs`/`.tab`, `.seg`, `.nrow` / `.mini`
+  rows, `.pgrid`/`.pcard`, `.kv`, `.badge`, `.pstatus`, `.alert`,
+  `.empty-state`, `.fullstate`, `.sk` skeletons; controls `.btn`
+  (`btn-primary` / `btn-secondary` / `btn-ghost` / `btn-danger-ghost`,
+  `btn-sm`), `.ibtn`, `.input` / `.select` / `.textarea` / `.field`,
+  `input.toggle`. Look at `components/gr8r/*` before inventing anything.
+- **Glyphs + people:** `Gi` (`components/gr8r/icon.tsx`) = Lucide at stroke
+  1.8 with class `i`, named as gr8r's `ic('kebab-name')`. Status / priority /
+  avatar / progress helpers in `components/gr8r/*-glyphs.tsx`.
+- **Per-element parameters** use the renamed names: `style={{"--g8-c": …}}`
+  (colour), `--g8-p` (progress), `--g8-sz` (avatar size), `--g8-cols`.
+- **Colours:** never hex. `var(--g8-…)` in gr8r markup; our remapped
+  semantic Tailwind tokens (`bg-surface-2`, `text-ink-3`…) on shadcn
+  primitives. Appearance prefs (accent / density / motion) are `data-*` on
+  the `.g8` root (Settings → Appearance).
+- **Portals** (dialogs, menus, sheets) render outside `.g8`: they're styled by
+  the primitives; a portal that wants gr8r classes adds `g8 g8-port`.
+
 Two visual worlds, one token source. Read this before building any UI.
 
 The app shell follows **`docs/notion-spec-v2.md`** — measured values pulled off
@@ -35,7 +71,7 @@ the spec disagree, the spec wins.** Every number below traces back to it.
 | | **App shell** | **Guest world** |
 |---|---|---|
 | Who | Staff, managers, owners | Hotel guests + first-run owners |
-| Where | Everything under `/p/[propertyId]` | Onboarding wizard, `/welcome`, `/book`, `/g/[botSlug]`, event pages, booking emails |
+| Where | Everything under `/p/[propertyId]` | Onboarding wizard, `/welcome`, `/g/[botSlug]` |
 | Look | Notion-quiet: warm near-white chrome, white content, almost no strokes, a 720px document column, five radii, sentence-case labels, system font | Warm cream, serif display questions, rust accent, one decision per screen |
 | Theming | Light + dark (`.dark` class) | **Never theme-switches** — always cream |
 | Tokens | `background/card/muted/border/accent…` | `guest-*` |
@@ -353,8 +389,8 @@ transparent bar, `px-(--page-gutter)`, full width of the content plane**. There 
 mastheads: no 40px page title, no lede paragraph under it.
 
 - **Left** — an index page passes `title` + `icon` (the app's nav icon:
-  "Projects", "Bookings", "Docs"…, 14px / 500). A detail or nested page passes
-  `breadcrumbs` (`Bookings / 🍽 Dinner`, `Agents / Memory`), or a bespoke trail
+  "Projects", "Meetings", "Docs"…, 14px / 500). A detail or nested page passes
+  `breadcrumbs` (`Chatbots / 🛎️ Concierge`, `Agents / Memory`), or a bespoke trail
   through `start` when a crumb needs an emoji, a color dot or an inline-editable
   name (chatbot editor). `meta` is the quiet 14px faint slot beside it — a count,
   a cadence, a date ("12 issues to triage", "Weekly · starts Mon").
@@ -400,7 +436,7 @@ in exactly one place —
 |---|---|---|
 | `page` | **960px** | **the default** — index, list, detail, settings |
 | `prose` | 720px | reading surfaces: document editor + header, brain page detail, `ReportMarkdown`, meeting notes |
-| `bleed` | none | surfaces that ARE the data canvas: kanban board / timeline / workload, calendar grids, bookings floor plan + timetable, the workflow builder, two-pane workspaces (agent, pod-bot, chatbot detail). Their toolbar goes full width too, so the edge still holds. |
+| `bleed` | none | surfaces that ARE the data canvas: kanban board / timeline / workload, calendar grids, the workflow builder, two-pane workspaces (agent, pod-bot, chatbot detail). Their toolbar goes full width too, so the edge still holds. |
 
 Rules:
 - **Never** put a `max-w-*` page container on a surface — `PageShell` owns it.
@@ -468,12 +504,12 @@ primitives — **use these instead of hand-rolling**:
 | `StatGroup` + `Stat` | dashboard/agenda metric strips | stat *cards*; **vertical rules between columns**; icons inside stats |
 | `StatusBadge` (`tone="neutral \| success \| warning \| info \| danger \| violet"`) | domain lifecycle states — renders as a **pill**: `rounded-pill bg-pill-<tone> text-pill-<tone>-ink` | picking badge colors per domain; a `border-<tone>/30` stroke; a Tailwind-palette wash |
 | `Chip` (`tone="app" \| "guest"`, `selected`) | toggleable filter/option pills | bespoke `rounded-full border` toggles; hover that changes the border |
-| `TintIcon` (`tone`, from `ui/tint-card`) | the tinted icon plate on a neutral card; tone by domain: tasks=blue · bookings=coral · calendar=sage · docs/AI=lavender · forms/reports=honey | hand-rolled `rounded-lg bg-*/10` plates |
+| `TintIcon` (`tone`, from `ui/tint-card`) | the tinted icon plate on a neutral card; tone by domain: tasks=blue · calendar=sage · docs/AI=lavender · forms/reports=honey | hand-rolled `rounded-lg bg-*/10` plates |
 
 `Eyebrow`'s `guest` tone keeps its uppercase + tracking — that is the guest
 world's voice and it stays. Only the `app` / `brand` tones changed.
 
-Domain status maps stay in the domain (`lib/bookings/status-colors.ts` is the
+Domain status maps stay in the domain (`lib/fleet/status-colors.ts` is the
 model: statuses → tones/classes in ONE file, every surface derives from it).
 
 **Adding a fresh shadcn component:** it will scaffold with
@@ -490,8 +526,8 @@ least scaffold on a warm ramp.)
 
 **Unchanged.** The warm-cream serif world is deliberate and must not be
 normalized. Do not touch `components/guest/**`,
-`components/public-booking/**`, `components/guest-chat/**`, `app/g/**`,
-`app/book/**`, `app/onboarding/**`, `app/welcome/**`, `lib/**/email*`, or any
+`components/guest-chat/**`, `app/g/**`,
+`app/onboarding/**`, `app/welcome/**`, `lib/**/email*`, or any
 `guest-*` token.
 
 **Guest palette** — `bg-guest-bg`, `bg-guest-card`, `text-guest-ink`,

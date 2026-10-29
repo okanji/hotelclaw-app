@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown, IterationCcw, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { StatGroup, Stat } from "@/components/ui/stat";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
+import { G8_COLOR } from "@/components/gr8r/home-glyphs";
+import { G8Stats } from "@/components/insights/g8-insights";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import { cyclesHref } from "@/lib/query/cycle-queries";
 import {
@@ -39,7 +36,6 @@ import { cycleLabel, cyclePhase } from "@/lib/cycles/plan";
 import { capacity, pct, successPct } from "@/lib/cycles/scope";
 import type { CycleRow, CycleSettingsRow, CycleTask } from "@/lib/cycles/types";
 import type { EntityColor } from "@/lib/db/types";
-import { cn } from "@/lib/utils";
 import { BurnupChart, BurnupLegend } from "./burnup-chart";
 import { CycleSettingsForm } from "./cycle-settings-form";
 
@@ -94,60 +90,82 @@ export function CyclesView({
   const recentCompleted = past.map((c) => burnups.get(c.id)?.stats.completed ?? 0);
   const refYear = Number(today.slice(0, 4));
 
+  const cadence =
+    enabled && settings
+      ? `${settings.duration_weeks === 1 ? "Weekly" : `${settings.duration_weeks}-week`} cycles · start ${WEEKDAY[settings.start_weekday]}${settings.auto_rollover ? " · open work rolls over" : ""}`
+      : undefined;
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <PageHeader
-        title="Cycles"
-        icon={<IterationCcw />}
-        meta={
-          enabled && settings
-            ? `${settings.duration_weeks === 1 ? "Weekly" : `${settings.duration_weeks}-week`} · starts ${WEEKDAY[settings.start_weekday]}${settings.auto_rollover ? " · open work rolls over" : ""}`
-            : undefined
-        }
-        actions={
-          <div className="flex items-center gap-1">
-            <ScopePicker
-              propertyId={propertyId}
-              spaceId={spaceId}
-              scopeName={scopeName}
-              allSettings={allSettings}
-              spaces={spaces}
-            />
-            {enabled ? (
-              <SettingsPopover
+      <PageHeader title="Cycles" icon={<IterationCcw />} meta={cadence} />
+      <div className="flex-1 overflow-y-auto">
+        <div className="page" style={{ maxWidth: 1000 }}>
+          <div className="ph">
+            <div>
+              <h1>Cycles · {scopeName}</h1>
+              <p>
+                {cadence ??
+                  "Plan the work in short, repeating windows that roll forward on their own."}
+              </p>
+            </div>
+            <div className="acts">
+              <ScopePicker
                 propertyId={propertyId}
                 spaceId={spaceId}
-                settings={settings}
+                scopeName={scopeName}
+                allSettings={allSettings}
+                spaces={spaces}
               />
-            ) : null}
+              {enabled ? (
+                <SettingsPopover
+                  propertyId={propertyId}
+                  spaceId={spaceId}
+                  settings={settings}
+                />
+              ) : null}
+            </div>
           </div>
-        }
-      />
-      <div className="flex-1 overflow-y-auto pb-16">
-        <PageShell width="full" className="pt-2">
           {!enabled ? (
-            <EmptyState
-              icon={IterationCcw}
-              title={`Enable cycles for ${scopeName}`}
-              className="mt-6"
-              action={
-                <div className="w-80 max-w-full rounded-card bg-card p-4 shadow-card">
+            <div className="panel">
+              <div className="empty-state">
+                <div className="glyph">
+                  <Gi icon={IterationCcw} size={22} />
+                </div>
+                <h2 className="es-h">Enable cycles for {scopeName}</h2>
+                <p>
+                  Plan the work in short, repeating windows. Cycles roll
+                  forward on their own: the next one is created when this one
+                  ends, and anything unfinished moves with it.
+                </p>
+                <div className="panel" style={{ width: 320, maxWidth: "100%", padding: 16, textAlign: "left" }}>
                   <CycleSettingsForm
                     propertyId={propertyId}
                     spaceId={spaceId}
                     settings={settings}
                   />
                 </div>
-              }
-            >
-              Plan the work in short, repeating windows. Cycles roll forward on
-              their own: the next one is created when this one ends, and
-              anything unfinished moves with it.
-            </EmptyState>
+              </div>
+            </div>
           ) : (
-            <ol role="list" className="flex flex-col">
+            <div className="stack">
+              {current ? (
+                <CurrentCycleCard
+                  propertyId={propertyId}
+                  cycle={current}
+                  today={today}
+                  refYear={refYear}
+                  burnup={burnups.get(current.id)!}
+                  capacityPct={
+                    capacity(
+                      burnups.get(current.id)?.stats.scope ?? 0,
+                      recentCompleted,
+                    ).pct
+                  }
+                />
+              ) : null}
+
               {upcoming.length > 0 ? (
-                <TimelineGroup label="Upcoming">
+                <TimelineGroup label="Upcoming" count={upcoming.length}>
                   {upcoming.map((c) => {
                     const stats = burnups.get(c.id)?.stats;
                     return (
@@ -156,6 +174,7 @@ export function CyclesView({
                         propertyId={propertyId}
                         cycle={c}
                         refYear={refYear}
+                        tone="upcoming"
                         meta={`Starts in ${diffDays(today, c.starts_on)}d`}
                         stats={[
                           `${stats?.count ?? 0} ${stats?.count === 1 ? "task" : "tasks"}`,
@@ -167,26 +186,8 @@ export function CyclesView({
                 </TimelineGroup>
               ) : null}
 
-              {current ? (
-                <TimelineGroup label="Current">
-                  <CurrentCycleCard
-                    propertyId={propertyId}
-                    cycle={current}
-                    today={today}
-                    refYear={refYear}
-                    burnup={burnups.get(current.id)!}
-                    capacityPct={
-                      capacity(
-                        burnups.get(current.id)?.stats.scope ?? 0,
-                        recentCompleted,
-                      ).pct
-                    }
-                  />
-                </TimelineGroup>
-              ) : null}
-
               {past.length > 0 ? (
-                <TimelineGroup label="Completed">
+                <TimelineGroup label="Completed" count={past.length}>
                   {past.map((c) => {
                     const stats = burnups.get(c.id)!.stats;
                     return (
@@ -195,8 +196,9 @@ export function CyclesView({
                         propertyId={propertyId}
                         cycle={c}
                         refYear={refYear}
+                        tone="past"
+                        success={successPct(stats)}
                         stats={[
-                          `${successPct(stats)}% success`,
                           `${stats.completedCount} completed`,
                           `${stats.scope} scope`,
                         ]}
@@ -205,9 +207,9 @@ export function CyclesView({
                   })}
                 </TimelineGroup>
               ) : null}
-            </ol>
+            </div>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -215,18 +217,25 @@ export function CyclesView({
 
 function TimelineGroup({
   label,
+  count,
   children,
 }: {
   label: string;
+  count: number;
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex flex-col gap-1 pb-6">
-      <Eyebrow className="px-2 pb-1.5">{label}</Eyebrow>
-      <ol role="list" className="flex flex-col gap-px">
+    <section className="panel">
+      <div className="panel-h">
+        <h2>{label}</h2>
+        <span className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
+          {count}
+        </span>
+      </div>
+      <ol role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
         {children}
       </ol>
-    </li>
+    </section>
   );
 }
 
@@ -234,40 +243,62 @@ function CycleRowLink({
   propertyId,
   cycle,
   refYear,
+  tone,
   meta,
+  success,
   stats,
 }: {
   propertyId: string;
   cycle: CycleRow;
   refYear: number;
+  tone: "upcoming" | "past";
   meta?: string;
+  /** Finished cycles: % of scope completed. */
+  success?: number;
   stats: string[];
 }) {
   return (
     <li>
-      <Link
-        href={`/p/${propertyId}/cycles/${cycle.id}`}
-        className="flex h-[37px] items-center gap-3 rounded-md px-2 text-sm transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-      >
-        <span className="size-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
-        <span className="min-w-0 truncate font-medium text-foreground">
+      <Link href={`/p/${propertyId}/cycles/${cycle.id}`} className="mini">
+        <span
+          className="pdot"
+          style={
+            {
+              "--g8-c": tone === "upcoming" ? "var(--g8-st-backlog)" : "var(--g8-st-done)",
+              borderRadius: "50%",
+            } as React.CSSProperties
+          }
+          aria-hidden
+        />
+        <span className="trunc" style={{ fontWeight: 500 }}>
           {cycleLabel(cycle)}
         </span>
-        <span className="shrink-0 text-muted-foreground tabular-nums">
+        <span className="muted num" style={{ flexShrink: 0 }}>
           {formatRange(cycle.starts_on, cycle.ends_on, refYear)}
         </span>
         {meta ? (
-          <span className="hidden shrink-0 text-xs text-faint-foreground sm:inline">
+          <span className="faint hidden sm:inline" style={{ flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}>
             {meta}
           </span>
         ) : null}
-        <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-muted-foreground tabular-nums">
-          {stats.map((s, i) => (
-            <span key={s} className={cn(i > 0 && "hidden sm:inline")}>
-              {s}
-            </span>
-          ))}
-        </span>
+        <span className="sp" />
+        {stats.map((s, i) => (
+          <span
+            key={s}
+            className={i > 0 ? "faint num hidden sm:inline" : "faint num"}
+            style={{ flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}
+          >
+            {s}
+          </span>
+        ))}
+        {success !== undefined ? (
+          <span
+            className={success >= 80 ? "badge green" : success >= 50 ? "badge amber" : "badge red"}
+            style={{ flexShrink: 0 }}
+          >
+            {success}%
+          </span>
+        ) : null}
       </Link>
     </li>
   );
@@ -291,40 +322,49 @@ function CurrentCycleCard({
   const s = burnup.stats;
   const daysLeft = diffDays(today, cycle.ends_on);
   return (
-    <li className="rounded-card bg-card p-4 shadow-card">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <section className="panel">
+      <div className="panel-h" style={{ flexWrap: "wrap" }}>
+        <span className="eyebrow">Current</span>
         <Link
           href={`/p/${propertyId}/cycles/${cycle.id}`}
-          className="text-base font-semibold text-foreground hover:underline"
+          style={{ fontWeight: 600, fontSize: "var(--g8-fs-md)" }}
+          className="hover:underline"
         >
           {cycleLabel(cycle)}
         </Link>
-        <span className="text-sm text-muted-foreground tabular-nums">
+        <span className="muted num" style={{ fontSize: "var(--g8-fs-sm)" }}>
           {formatRange(cycle.starts_on, cycle.ends_on, refYear)}
         </span>
-        <StatusBadge tone="info">
-          {daysLeft === 0 ? "Ends today" : `${daysLeft}d left`}
-        </StatusBadge>
+        <div className="acts">
+          <span className="badge accent">
+            <span className="dot" />
+            {daysLeft === 0 ? "Ends today" : `${daysLeft}d left`}
+          </span>
+        </div>
       </div>
-      <StatGroup cols={4} className="mt-4">
-        <Stat label="Scope" value={s.scope} delta={`${s.count} tasks`} />
-        <Stat label="Started" value={s.started} delta={`${pct(s.started, s.scope)}%`} />
-        <Stat
-          label="Completed"
-          value={s.completed}
-          delta={`${pct(s.completed, s.scope)}%`}
-          tone={s.completed > 0 ? "success" : "neutral"}
+      <div className="panel-b">
+        <G8Stats
+          items={[
+            { k: "Scope", v: s.scope, d: `${s.count} tasks` },
+            { k: "Started", v: s.started, d: `${pct(s.started, s.scope)}%` },
+            {
+              k: "Completed",
+              v: s.completed,
+              d: `${pct(s.completed, s.scope)}%`,
+              tone: s.completed > 0 ? "up" : undefined,
+            },
+            {
+              k: "Capacity",
+              v: capacityPct === null ? "—" : `${capacityPct}%`,
+              d: capacityPct === null ? "No finished cycles yet" : "of recent throughput",
+              tone: capacityPct !== null && capacityPct > 110 ? "bad" : undefined,
+            },
+          ]}
         />
-        <Stat
-          label="Capacity"
-          value={capacityPct === null ? "—" : `${capacityPct}%`}
-          delta={capacityPct === null ? "No finished cycles yet" : "of recent throughput"}
-          tone={capacityPct !== null && capacityPct > 110 ? "warning" : "neutral"}
-        />
-      </StatGroup>
-      <BurnupChart points={burnup.points} className="mt-5" />
-      <BurnupLegend className="mt-2" />
-    </li>
+        <BurnupChart points={burnup.points} className="mt-5" />
+        <BurnupLegend className="mt-2" />
+      </div>
+    </section>
   );
 }
 
@@ -357,7 +397,10 @@ function ScopePicker({
       onClick={() => router.push(cyclesHref(propertyId, r.id))}
       className="gap-2"
     >
-      <span className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[r.color])} />
+      <span
+        className="size-2 shrink-0 rounded-full"
+        style={{ background: G8_COLOR[r.color] }}
+      />
       <span className="flex-1 truncate">{r.name}</span>
       {r.id === spaceId ? <Check className="size-3.5" /> : null}
     </DropdownMenuItem>
@@ -366,10 +409,10 @@ function ScopePicker({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" className="text-secondary-ink">
+          <button type="button" className="btn btn-secondary btn-sm">
             {scopeName}
-            <ChevronDown className="size-3.5" />
-          </Button>
+            <Gi icon={ChevronDown} size={13} />
+          </button>
         }
       />
       <DropdownMenuContent align="end" className="w-56">
@@ -405,14 +448,14 @@ function SettingsPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <button
+            type="button"
+            className="ibtn"
             aria-label="Cycle settings"
-            className="text-muted-foreground"
+            title="Cycle settings"
           >
-            <Settings2 />
-          </Button>
+            <Gi icon={Settings2} size={15} />
+          </button>
         }
       />
       <PopoverContent align="end" className="w-80 p-4">

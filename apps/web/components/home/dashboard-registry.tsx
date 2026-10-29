@@ -8,7 +8,6 @@ import { PinnedForYouWidget } from "./widgets/pinned-for-you-widget";
 import { TeamWidget } from "./widgets/team-widget";
 import { RecentDocsWidget } from "./widgets/recent-docs-widget";
 import { WorkflowHealthWidget } from "./widgets/workflow-health-widget";
-import { BookingsWidget } from "./widgets/bookings-widget";
 import { PinnedResourcesWidget } from "./widgets/pinned-resources-widget";
 import { AttentionWidget } from "./widgets/attention-widget";
 import { ShiftBriefWidget } from "./widgets/shift-brief-widget";
@@ -111,12 +110,6 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
     kicker: "Automations",
     title: "Workflow health",
     Component: WorkflowHealthWidget,
-  },
-  {
-    id: "bookings-today",
-    kicker: "Guests",
-    title: "Today's bookings",
-    Component: BookingsWidget,
   },
   {
     id: "pinned",

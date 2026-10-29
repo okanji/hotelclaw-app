@@ -2,33 +2,49 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { FavoriteStar } from "@/components/gr8r/favorite-star";
 import {
   useChannelStateContext,
   useChatContext,
   useChannelPreviewInfo,
 } from "stream-chat-react";
-import { Button } from "@/components/ui/button";
 import {
-  Bell,
   Hash,
+  Info,
   Lock,
-  MoreVertical,
+  MoreHorizontal,
   Search,
   Star,
   Users,
 } from "lucide-react";
 import { useInfoPanel } from "../info-panel/context";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
+import { PageHeader } from "@/components/shell/page-header";
 import { HuddleButton } from "@/components/chat/huddle/huddle-button";
 import { MeetingButton } from "@/components/chat/meeting/meeting-button";
 import { AiButton } from "./ai-button";
 import { AutomationsButton } from "@/components/workflows/automations-button";
 
 /**
- * Custom replacement for Stream's default <ChannelHeader>.
- * Renders inside <Window>, before <MessageList>. Slack-style:
- *   #channel-name · members · ●●● online dots · ℹ︎ info-toggle
- * For DMs, shows the other user's name (or comma-joined names for group DMs).
+ * Custom replacement for Stream's default <ChannelHeader>, rendered as the
+ * page's gr8r topbar (`PageHeader` → `.topbar` › `.crumbs`): "Chat / #name"
+ * with the presence dot and the channel topic as quiet meta, then the
+ * channel's own actions — AI + Automations (the app doing work for you),
+ * a divider, members, huddle, meeting, in-channel search, info — before the
+ * shared topbar cluster (search / bell / New).
+ * For DMs, shows the other user's `Av` + name (comma-joined for group DMs).
+ *
+ * Narrow widths (≤900px, `g8-ch-*` in gr8r-ext.css): the "Chat /" crumb, the
+ * star and the divider drop out, AI / huddle / meeting collapse to their
+ * icons, and members + in-channel search + details fold into one "…" menu,
+ * so the topbar never overflows.
  */
 export function ChannelHeader() {
   const { channel } = useChannelStateContext();
@@ -57,108 +73,162 @@ export function ChannelHeader() {
     ? dmTitle(channel, client?.user?.id)
     : displayTitle ?? channel.id ?? "Untitled";
 
+  function searchInChannel() {
+    if (!propertyId || !channel.id) return;
+    router.push(`/p/${propertyId}/search?in=${encodeURIComponent(channel.id)}`);
+  }
+
+  const start = (
+    <>
+      <span className="crumb g8-ch-wide">{isDm ? "Direct messages" : "Chat"}</span>
+      <span aria-hidden="true" className="sep g8-ch-wide">
+        /
+      </span>
+      <h1 className="crumb cur">
+        {isDm ? (
+          <DmAvatar channel={channel} currentUserId={client?.user?.id} />
+        ) : (
+          <Gi icon={isPrivate ? Lock : Hash} size={14} />
+        )}
+        <span className="trunc">{title}</span>
+        <PresenceDot channel={channel} currentUserId={client?.user?.id} />
+      </h1>
+      <button
+        type="button"
+        className="ibtn ibtn-xs g8-ch-wide"
+        title="Star channel"
+        aria-label="Star channel"
+      >
+        <Gi icon={Star} size={13} />
+      </button>
+    </>
+  );
+
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          title="Star channel"
-          aria-label="Star channel"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Star className="size-[15px]" />
-        </Button>
-        <div className="flex min-w-0 items-center gap-1.5 pl-0.5">
-          {isDm ? (
-            <DmAvatar channel={channel} currentUserId={client?.user?.id} />
-          ) : isPrivate ? (
-            <Lock className="size-[18px] text-foreground" />
-          ) : (
-            <Hash className="size-[18px] text-foreground" strokeWidth={2.5} />
-          )}
-          <h1 className="truncate text-base font-semibold text-foreground">
-            {title}
-          </h1>
-          <PresenceDots channel={channel} currentUserId={client?.user?.id} />
-          {!isDm && description ? (
-            <span
-              className="ml-2 min-w-0 truncate text-sm text-muted-foreground"
-              title={description}
-            >
-              {description}
+    <PageHeader
+      start={start}
+      meta={
+        !isDm && description ? (
+          <span title={description}>{description}</span>
+        ) : undefined
+      }
+      actions={
+        <div className="row g8-chacts" style={{ gap: 2 }}>
+          {/* AI sits on its own, left of the channel utilities, set off by a
+              divider — it's a different class of control (the assistant)
+              from members/call/search. */}
+          {channel.id ? (
+            <span className="g8-ch-lbl">
+              <AiButton />
             </span>
           ) : null}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {/* AI sits on its own, left of the channel utilities, set off by a
-            divider — it's a different class of control (the assistant) from
-            members/call/search. */}
-        {channel.id ? <AiButton /> : null}
-        {/* Automations join AI on the assistant side of the divider — both are
-            "the app doing work for you" rather than channel utilities. Icon
-            only: this header is already a dense glyph row. */}
-        {channel.id && propertyId ? (
-          <AutomationsButton
-            propertyId={propertyId}
-            feature="chat"
-            showLabel={false}
-            className="h-8 px-2"
-          />
-        ) : null}
-        {channel.id ? (
-          <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-        ) : null}
-        {!isDm ? (
-          <Button
-            variant="ghost"
-            size="default"
-            onClick={toggle}
-            title="Members"
-            className="gap-1.5 px-2.5"
+          {/* Automations join AI on the assistant side of the divider. */}
+          {channel.id && propertyId ? (
+            <AutomationsButton
+              propertyId={propertyId}
+              feature="chat"
+              showLabel={false}
+              className="h-7 px-2"
+            />
+          ) : null}
+          {channel.id ? (
+            <span
+              aria-hidden
+              className="g8-ch-wide"
+              style={{
+                width: 1,
+                height: 18,
+                margin: "0 4px",
+                background: "var(--g8-border)",
+              }}
+            />
+          ) : null}
+          {!isDm ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm g8-ch-wide"
+              onClick={toggle}
+              title="Members"
+            >
+              <Gi icon={Users} size={14} />
+              <span className="num">{memberCount}</span>
+            </button>
+          ) : null}
+          {channel.id ? (
+            <span className="g8-ch-lbl">
+              <HuddleButton channelId={channel.id} />
+            </span>
+          ) : null}
+          {channel.id ? (
+            <span className="g8-ch-lbl">
+              <MeetingButton channelId={channel.id} />
+            </span>
+          ) : null}
+          {channel.id && propertyId ? (
+            <FavoriteStar
+              propertyId={propertyId}
+              kind="channel"
+              id={channel.id}
+              className="ibtn ibtn-sm g8-ch-wide"
+            />
+          ) : null}
+          <button
+            type="button"
+            className="ibtn ibtn-sm g8-ch-wide"
+            title="Search in channel"
+            aria-label="Search in channel"
+            onClick={searchInChannel}
           >
-            <Users className="size-4 text-muted-foreground" />
-            <span className="tabular-nums">{memberCount}</span>
-          </Button>
-        ) : null}
-        {channel.id ? <HuddleButton channelId={channel.id} /> : null}
-        {channel.id ? <MeetingButton channelId={channel.id} /> : null}
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Notifications"
-          aria-label="Channel notifications"
-         
-        >
-          <Bell />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Search in channel"
-          aria-label="Search in channel"
-         
-          onClick={() => {
-            if (!propertyId || !channel.id) return;
-            router.push(
-              `/p/${propertyId}/search?in=${encodeURIComponent(channel.id)}`,
-            );
-          }}
-        >
-          <Search />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="More"
-          aria-label="More actions"
-          onClick={toggle}
-        >
-          <MoreVertical />
-        </Button>
-      </div>
-    </header>
+            <Gi icon={Search} size={15} />
+          </button>
+          <button
+            type="button"
+            className="ibtn ibtn-sm g8-ch-wide"
+            title="Channel details"
+            aria-label="Channel details"
+            onClick={toggle}
+          >
+            <Gi icon={MoreHorizontal} size={15} />
+          </button>
+          {/* ≤900px: the secondary utilities live behind one "…". */}
+          <span className="g8-ch-narrow">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="ibtn ibtn-sm"
+                    title="More"
+                    aria-label="More channel actions"
+                  />
+                }
+              >
+                <Gi icon={MoreHorizontal} size={15} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={6}>
+                {!isDm ? (
+                  <DropdownMenuItem onClick={toggle}>
+                    <Users className="size-3.5" />
+                    <span className="flex-1">Members</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {memberCount}
+                    </span>
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={searchInChannel}>
+                  <Search className="size-3.5" />
+                  <span className="flex-1">Search in channel</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={toggle}>
+                  <Info className="size-3.5" />
+                  <span className="flex-1">Channel details</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </span>
+        </div>
+      }
+    />
   );
 }
 
@@ -184,22 +254,23 @@ function DmAvatar({
   const other = Object.values(channel.state.members ?? {})
     .map((m) => m.user)
     .find((u) => u && u.id !== currentUserId);
-  const initials = (other?.name ?? other?.id ?? "?")
-    .split(/\s+/)
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
   return (
-    <Avatar className="size-6">
-      <AvatarImage src={other?.image as string | undefined} />
-      <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
-    </Avatar>
+    <Av
+      member={
+        other
+          ? {
+              id: other.id,
+              name: other.name ?? other.id,
+              avatarUrl: (other.image as string | undefined) ?? null,
+            }
+          : null
+      }
+      size="sm"
+    />
   );
 }
 
-function PresenceDots({
+function PresenceDot({
   channel,
   currentUserId,
 }: {
@@ -220,8 +291,15 @@ function PresenceDots({
   if (onlineCount === 0) return null;
   return (
     <span
-      className="ml-1 inline-flex size-1.5 rounded-full bg-success"
       title={`${onlineCount} online`}
+      aria-label={`${onlineCount} online`}
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "var(--g8-green)",
+        flexShrink: 0,
+      }}
     />
   );
 }

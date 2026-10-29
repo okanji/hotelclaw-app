@@ -7,15 +7,15 @@ import { toast } from "sonner";
 import {
   Bot,
   Copy,
+  Ellipsis,
   ExternalLink,
-  MoreHorizontal,
+  MessagesSquare,
   PenLine,
   Plus,
   Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { AutomationsButton } from "@/components/workflows/automations-button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +31,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TintIcon } from "@/components/ui/tint-card";
 import { parseChatbotConfig, type ChatbotTemplate } from "@/lib/chatbots/schema";
 import { NewChatbotDialog } from "./new-chatbot-dialog";
 import { deleteChatbot } from "./actions";
-import { EmptyState } from "@/components/ui/empty-state";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 export type ChatbotListItem = {
@@ -60,19 +57,31 @@ const TEMPLATE_LABELS: Record<ChatbotTemplate, string> = {
   custom: "Custom",
 };
 
+/** gr8r `.badge` with its dot: Live green · Paused amber · Draft gray. */
 export function ChatbotStatusBadge({
   status,
 }: {
   status: ChatbotListItem["status"];
 }) {
-  if (status === "published") {
-    return <StatusBadge tone="success">Live</StatusBadge>;
-  }
-  if (status === "paused") {
-    return <StatusBadge tone="warning">Paused</StatusBadge>;
-  }
-  return <StatusBadge tone="neutral">Draft</StatusBadge>;
+  const [tone, label] =
+    status === "published"
+      ? ["green", "Live"]
+      : status === "paused"
+        ? ["amber", "Paused"]
+        : ["gray", "Draft"];
+  return (
+    <span className={`badge ${tone}`}>
+      <span className="dot" />
+      {label}
+    </span>
+  );
 }
+
+const VIEWS = [
+  { id: "all", label: "All" },
+  { id: "published", label: "Live" },
+  { id: "drafts", label: "Drafts" },
+] as const;
 
 /** Chatbots index — cards for every bot, plus the template-gallery entry
  *  point. The sidebar's "New chatbot" link lands here with ?new=1. */
@@ -113,27 +122,54 @@ export function ChatbotsList({
     return true;
   });
 
+  const live = chatbots.filter((b) => b.status === "published").length;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
-        title="Chatbots"
-        icon={<Bot />}
-        actions={
-          <div className="flex items-center gap-1.5">
-            <AutomationsButton propertyId={propertyId} feature="chatbots" />
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus data-slot="icon" />
-              New chatbot
-            </Button>
+      <PageHeader title="Chatbots" icon={<Bot />} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph">
+            <div>
+              <h1>Chatbots</h1>
+              <p>
+                {chatbots.length > 0
+                  ? `${chatbots.length} ${chatbots.length === 1 ? "chatbot" : "chatbots"} · ${live} live`
+                  : "Agentic chatbots for your guests — front desk, room service, restaurant orders."}
+              </p>
+            </div>
+            <div className="acts">
+              <AutomationsButton propertyId={propertyId} feature="chatbots" variant="outline" />
+              <Link href={`${base}/conversations`} className="btn btn-secondary">
+                <Gi icon={MessagesSquare} size={14} />
+                Conversations
+              </Link>
+              <button type="button" className="btn btn-primary" onClick={() => setNewOpen(true)}>
+                <Gi icon={Plus} size={14} />
+                New chatbot
+              </button>
+            </div>
           </div>
-        }
-      />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+
+          {chatbots.length > 0 ? (
+            <div className="seg" role="group" aria-label="Filter chatbots" style={{ marginBottom: 14 }}>
+              {VIEWS.map((v) => (
+                <Link
+                  key={v.id}
+                  href={v.id === "all" ? base : `${base}?view=${v.id}`}
+                  className={view === v.id ? "on" : ""}
+                  aria-current={view === v.id ? "page" : undefined}
+                >
+                  {v.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
           {visible.length === 0 ? (
             <ChatbotsEmpty onCreate={() => setNewOpen(true)} filtered={view !== "all"} />
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="pgrid">
               {visible.map((bot) => (
                 <ChatbotCard
                   key={bot.id}
@@ -161,7 +197,7 @@ export function ChatbotsList({
               router.refresh();
             }}
           />
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -191,78 +227,67 @@ function ChatbotCard({
     toast.success("Guest link copied");
   }
 
+  const meterTone =
+    usagePct >= 100 ? "var(--g8-red)" : usagePct >= 80 ? "var(--g8-amber)" : "var(--g8-green)";
+
   return (
-    <div className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent">
+    <div className="pcard">
       <Link href={href} className="absolute inset-0" aria-label={bot.name} />
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <TintIcon tone="lavender" className="text-base">
-            {config.appearance.avatarEmoji || <Bot />}
-          </TintIcon>
-          <div className="min-w-0">
-            <p className="truncate text-base leading-6 font-normal">{bot.name}</p>
-            <p className="truncate text-sm text-muted-foreground">
-              {TEMPLATE_LABELS[bot.template]}
-            </p>
-          </div>
-        </div>
-        <div className="relative z-10 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-                  aria-label="Chatbot actions"
-                />
-              }
-            >
-              <MoreHorizontal className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push(href)}>
-                <PenLine data-slot="icon" />
-                Open
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={copyGuestLink}>
-                <Copy data-slot="icon" />
-                Copy guest link
-              </DropdownMenuItem>
-              {bot.status === "published" ? (
-                <DropdownMenuItem
-                  onClick={() => window.open(guestPath, "_blank")}
-                >
-                  <ExternalLink data-slot="icon" />
-                  Open guest page
-                </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2 data-slot="icon" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="row" style={{ gap: 10 }}>
+        <span className="picon lg" style={{ "--g8-c": "var(--g8-violet)" } as React.CSSProperties}>
+          {config.appearance.avatarEmoji ? (
+            <span style={{ fontSize: 17, lineHeight: 1 }}>{config.appearance.avatarEmoji}</span>
+          ) : (
+            <Gi icon={Bot} size={17} />
+          )}
+        </span>
+        <div className="col grow" style={{ gap: 1 }}>
+          <span className="trunc" style={{ fontWeight: 600 }}>
+            {bot.name}
+          </span>
+          <span className="trunc muted" style={{ fontSize: 12 }}>
+            {TEMPLATE_LABELS[bot.template]}
+          </span>
         </div>
       </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="more" style={{ zIndex: 1 }}>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="ibtn ibtn-sm" aria-label="Chatbot actions">
+            <Gi icon={Ellipsis} size={15} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push(href)}>
+              <PenLine data-slot="icon" />
+              Open
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={copyGuestLink}>
+              <Copy data-slot="icon" />
+              Copy guest link
+            </DropdownMenuItem>
+            {bot.status === "published" ? (
+              <DropdownMenuItem
+                onClick={() => window.open(guestPath, "_blank")}
+              >
+                <ExternalLink data-slot="icon" />
+                Open guest page
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 data-slot="icon" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="foot">
         <ChatbotStatusBadge status={bot.status} />
-        <span className="tabular-nums">
+        <span className="num">
           {messagesToday}/{bot.daily_message_cap} today
         </span>
         {/* Tiny cap meter — fills as today's replies approach the budget. */}
-        <span className="h-1 w-16 overflow-hidden rounded-full bg-muted">
-          <span
-            className={
-              usagePct >= 100
-                ? "block h-full rounded-full bg-destructive"
-                : usagePct >= 80
-                  ? "block h-full rounded-full bg-warning"
-                  : "block h-full rounded-full bg-success"
-            }
-            style={{ width: `${usagePct}%` }}
-          />
+        <span className="meter" style={{ width: 64, marginLeft: "auto" }}>
+          <i style={{ width: `${usagePct}%`, background: meterTone }} />
         </span>
       </div>
     </div>
@@ -277,20 +302,23 @@ function ChatbotsEmpty({
   filtered: boolean;
 }) {
   return (
-    <EmptyState
-      icon={Bot}
-      title={filtered ? "Nothing here" : "No chatbots yet"}
-      action={
-        <Button onClick={onCreate}>
-          <Plus data-slot="icon" />
+    <div className="panel">
+      <div className="empty-state">
+        <div className="glyph">
+          <Gi icon={Bot} />
+        </div>
+        <p className="es-h">{filtered ? "Nothing here" : "No chatbots yet"}</p>
+        <p>
+          {filtered
+            ? "No chatbots match this view."
+            : "Start from a template — front desk, room service, restaurant — or describe your own and let AI draft it."}
+        </p>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onCreate}>
+          <Gi icon={Plus} size={14} />
           New chatbot
-        </Button>
-      }
-    >
-      {filtered
-        ? "No chatbots match this view."
-        : "Start from a template — front desk, room service, restaurant — or describe your own and let AI draft it."}
-    </EmptyState>
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -320,7 +348,8 @@ function DeleteChatbotDialog({
 
   return (
     <Dialog open={bot !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* Portaled out of the shell — `g8 g8-port` for gr8r's .btn classes. */}
+      <DialogContent className="g8 g8-port">
         <DialogHeader>
           <DialogTitle>Delete chatbot?</DialogTitle>
           <DialogDescription>
@@ -330,22 +359,22 @@ function DeleteChatbotDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
+          <button
             type="button"
-            variant="ghost"
+            className="btn btn-secondary"
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
             Cancel
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="destructive"
+            className="btn btn-danger"
             onClick={confirm}
             disabled={pending}
           >
             {pending ? "Deleting…" : "Delete"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

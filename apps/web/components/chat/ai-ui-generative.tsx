@@ -163,7 +163,7 @@ export function ChatUiChart({ props }: { props: ChatUiChartProps }) {
   })();
 
   return (
-    <figure className="overflow-hidden rounded-md bg-background">
+    <figure className="overflow-hidden g8-chat-card rounded-md bg-background">
       {props.title ? (
         <figcaption className="border-b border-border bg-muted px-4 py-2.5 text-sm font-medium text-foreground">
           {props.title}
@@ -194,7 +194,7 @@ const LEGEND = { fontSize: 11 };
 
 function SentLine({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-background px-3.5 py-2.5 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 g8-chat-card rounded-md bg-background px-3.5 py-2.5 text-sm text-muted-foreground">
       <CheckCircle2 className="size-4 text-pill-success-ink" />
       {label}
     </div>
@@ -256,7 +256,7 @@ export function ChatUiForm({
   return (
     <form
       onSubmit={submit}
-      className="flex flex-col gap-4 rounded-md bg-background px-4 py-3.5"
+      className="flex flex-col gap-4 g8-chat-card rounded-md bg-background px-4 py-3.5"
     >
       {props.title || props.description ? (
         <div className="flex flex-col gap-0.5">
@@ -418,7 +418,7 @@ export function ChatUiQuestionnaire({
     return <SentLine label={`${props.title ? `${props.title} — ` : ""}answers sent`} />;
 
   return (
-    <div className={cn("rounded-md bg-background px-4 py-3.5", !send && "opacity-60")}>
+    <div className={cn("g8-chat-card rounded-md bg-background px-4 py-3.5", !send && "opacity-60")}>
       {props.title ? <p className="mb-3 text-sm font-medium">{props.title}</p> : null}
       <Questionnaire items={items} onSubmit={submit} shortcuts="letters">
         <QuestionnaireProgress />

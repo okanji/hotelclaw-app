@@ -453,7 +453,7 @@ export const SlackDateSeparator = React.memo(function SlackDateSeparator({
             onChange={(e) => setPickedDate(e.target.value)}
             disabled={pickDateJumpLoading}
           />
-          <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
+          <DialogFooter className="border-0 bg-transparent px-0 pb-0 sm:justify-end">
             <Button type="button" variant="outline" onClick={() => setDateDialogOpen(false)}>
               Cancel
             </Button>

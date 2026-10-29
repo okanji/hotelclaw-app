@@ -33,7 +33,7 @@ import {
  *
  *  1. **Deterministic signals** (`lib/workflows/suggestion-signals.ts`) — the
  *     real state of this feature's data: 23 overdue tasks, 8 docs untouched in
- *     90 days, a 31% booking cancellation rate. No model computes any of it;
+ *     90 days, a third of chatbot conversations negative. No model computes any of it;
  *     for Tasks these come from the same `computeInsightsMetrics` the
  *     dashboards chart. Each signal has an id the model must CITE in `basis`,
  *     which the route then validates — a suggestion that can't point at real

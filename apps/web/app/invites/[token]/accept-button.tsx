@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   acceptInvite,
@@ -10,7 +9,14 @@ import {
   switchAccountForInvite,
 } from "@/lib/invites/actions";
 
-export function AcceptButton({ token }: { token: string }) {
+export function AcceptButton({
+  token,
+  block = false,
+}: {
+  token: string;
+  /** Full-width large (the single-invite card) vs inline (a list row). */
+  block?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -27,9 +33,14 @@ export function AcceptButton({ token }: { token: string }) {
   }
 
   return (
-    <Button onClick={accept} disabled={pending}>
-      {pending ? "Joining…" : "Accept invite"}
-    </Button>
+    <button
+      type="button"
+      className={`btn btn-primary${block ? " btn-lg btn-block" : ""}${pending ? " is-loading" : ""}`}
+      onClick={accept}
+      disabled={pending}
+    >
+      Accept invite
+    </button>
   );
 }
 
@@ -45,15 +56,18 @@ export function SwitchAccountButton({
   const [pending, startTransition] = useTransition();
 
   return (
-    <Button
+    <button
+      type="button"
+      className="btn btn-primary btn-lg btn-block"
       onClick={() => startTransition(() => switchAccountForInvite(token))}
       disabled={pending}
-      className="w-full"
     >
-      <span className="truncate">
+      <span
+        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      >
         {pending ? "Signing out…" : `Sign in as ${invitedEmail}`}
       </span>
-    </Button>
+    </button>
   );
 }
 
@@ -88,22 +102,23 @@ export function RequestAccessButton({
 
   if (asked) {
     return (
-      <p className="px-1 text-center text-xs text-muted-foreground">
-        Asked them to re-send it to{" "}
-        <span className="font-medium break-all text-foreground">{myEmail}</span>
-        .
-      </p>
+      <div className="alert ok">
+        <span>
+          Asked them to re-send it to{" "}
+          <b style={{ wordBreak: "break-all" }}>{myEmail}</b>.
+        </span>
+      </div>
     );
   }
 
   return (
-    <Button
-      variant="outline"
+    <button
+      type="button"
+      className={`btn btn-secondary btn-lg btn-block${pending ? " is-loading" : ""}`}
       onClick={ask}
       disabled={pending}
-      className="w-full"
     >
-      {pending ? "Asking…" : "Ask them to send it to me instead"}
-    </Button>
+      Ask them to send it to me instead
+    </button>
   );
 }

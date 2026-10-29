@@ -30,6 +30,8 @@ import {
   postProjectUpdate,
 } from "./update-actions";
 import { OverviewSection } from "./workspace-shell";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Panel } from "@/components/gr8r/project-page";
 
 /**
  * Keep every updates feed + the declared-health index live for the property.
@@ -78,9 +80,12 @@ function initials(name: string | null | undefined) {
 export function UpdateComposer({
   propertyId,
   target,
+  g8,
 }: {
   propertyId: string;
   target: UpdateTarget;
+  /** gr8r vocabulary (`.btn`, `.textarea`) — the project page's panel. */
+  g8?: boolean;
 }) {
   const qc = useQueryClient();
   const { data: updates = [] } = useQuery(projectUpdatesQueryOptions(target));
@@ -112,6 +117,20 @@ export function UpdateComposer({
     });
   }
 
+  if (!open && g8) {
+    return (
+      <button
+        type="button"
+        onClick={openComposer}
+        className="btn btn-secondary btn-sm btn-block"
+        style={{ justifyContent: "flex-start", color: "var(--g8-text-2)" }}
+      >
+        <Gi icon={Megaphone} size={14} />
+        {first ? `Write first ${noun} update` : `Write ${noun} update`}
+      </button>
+    );
+  }
+
   if (!open) {
     return (
       <button
@@ -122,6 +141,45 @@ export function UpdateComposer({
         <Megaphone className="size-4 shrink-0 text-faint-foreground" />
         {first ? `Write first ${noun} update` : `Write ${noun} update`}
       </button>
+    );
+  }
+
+  if (g8) {
+    return (
+      <form
+        className="col"
+        style={{ gap: 8, padding: 10, border: "1px solid var(--g8-border)", borderRadius: "var(--g8-r)" }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <HealthPicker value={health} onChange={setHealth} disabled={pending} />
+        <textarea
+          autoFocus
+          className="textarea"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={`What changed, what's next, what's in the way?`}
+          aria-label="Update"
+          style={{ minHeight: 80 }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              submit();
+            }
+            if (e.key === "Escape") setOpen(false);
+          }}
+        />
+        <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} disabled={pending}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>
+            Post update
+          </button>
+        </div>
+      </form>
     );
   }
 
@@ -352,11 +410,28 @@ export function UpdatesFeed({
 export function UpdatesSection({
   propertyId,
   target,
+  variant = "section",
+  acts,
 }: {
   propertyId: string;
   target: UpdateTarget;
+  /** `panel` = gr8r's Overview `.panel` (the project page); `section` =
+   *  the plain Overview heading (the initiative page). */
+  variant?: "section" | "panel";
+  /** Extra header content for the panel (e.g. the declared health). */
+  acts?: React.ReactNode;
 }) {
   useProjectUpdatesRealtime(propertyId);
+  if (variant === "panel") {
+    return (
+      <G8Panel title="Updates" acts={acts}>
+        <div className="col" style={{ gap: 12 }}>
+          <UpdateComposer propertyId={propertyId} target={target} g8 />
+          <UpdatesFeed propertyId={propertyId} target={target} limit={3} />
+        </div>
+      </G8Panel>
+    );
+  }
   return (
     <OverviewSection title="Updates">
       <UpdateComposer propertyId={propertyId} target={target} />

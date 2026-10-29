@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useChannelStateContext, useChatContext } from "stream-chat-react";
-import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { ChannelSettingsDialog } from "./channel-settings-dialog";
 import { useMyRole } from "./use-my-role";
 
@@ -28,50 +28,50 @@ export function AboutTab({ propertyId }: { propertyId: string }) {
   const isTeamChannel = channel.type === "team";
 
   return (
-    <div className="space-y-4">
-      <dl className="space-y-3 text-sm">
-        <Row label="Name" value={data?.name ?? channel.id ?? "—"} />
-        <Row label="Type" value={channel.type} />
-        <Row
-          label="Privacy"
-          value={data?.is_private ? "Private" : "Public"}
-        />
-        <Row
-          label="Members"
-          value={String(
-            (data as { member_count?: number } | undefined)?.member_count ??
-              Object.keys(channel.state.members ?? {}).length,
-          )}
-        />
-        <Row
-          label="Created"
-          value={
-            data?.created_at
-              ? new Date(data.created_at).toLocaleDateString()
-              : "—"
-          }
-        />
-        {data?.description ? (
-          <div className="space-y-1 pt-2">
-            <dt className="text-xs font-medium text-faint-foreground">
-              Description
-            </dt>
-            <dd className="whitespace-pre-wrap text-sm">{data.description}</dd>
-          </div>
-        ) : null}
+    <div className="stack" style={{ gap: 14, padding: "4px 4px 0" }}>
+      <dl className="kv">
+        <dt>Name</dt>
+        <dd className="trunc">{data?.name ?? channel.id ?? "—"}</dd>
+        <dt>Type</dt>
+        <dd>{channel.type === "messaging" ? "Direct message" : "Channel"}</dd>
+        <dt>Privacy</dt>
+        <dd>{data?.is_private ? "Private" : "Public"}</dd>
+        <dt>Members</dt>
+        <dd className="num">
+          {(data as { member_count?: number } | undefined)?.member_count ??
+            Object.keys(channel.state.members ?? {}).length}
+        </dd>
+        <dt>Created</dt>
+        <dd>
+          {data?.created_at
+            ? new Date(data.created_at).toLocaleDateString()
+            : "—"}
+        </dd>
       </dl>
+      {data?.description ? (
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>
+            Description
+          </div>
+          <p
+            className="muted"
+            style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: "var(--g8-fs-sm)" }}
+          >
+            {data.description}
+          </p>
+        </div>
+      ) : null}
 
       {isTeamChannel && canEdit ? (
-        <div className="border-t pt-3">
-          <Button
+        <div style={{ borderTop: "1px solid var(--g8-divider)", paddingTop: 12 }}>
+          <button
             type="button"
-            variant="outline"
-            size="sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => setOpen(true)}
           >
-            <Settings className="size-4" />
+            <Gi icon={Settings} size={14} />
             Channel settings
-          </Button>
+          </button>
           <ChannelSettingsDialog
             propertyId={propertyId}
             open={open}
@@ -79,17 +79,6 @@ export function AboutTab({ propertyId }: { propertyId: string }) {
           />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-xs font-medium text-faint-foreground">
-        {label}
-      </dt>
-      <dd className="truncate font-medium">{value}</dd>
     </div>
   );
 }

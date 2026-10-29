@@ -3,9 +3,7 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { RotateCcw, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { TintIcon } from "@/components/ui/tint-card";
+import { Gi } from "@/components/gr8r/icon";
 import { EveConversation } from "@/components/ai/eve-conversation";
 import { useEveSession } from "@/hooks/use-eve-session";
 import { recordAgentSession } from "./actions";
@@ -114,22 +112,26 @@ export function AgentChat({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <TintIcon tone="lavender" className="text-sm">
-          {avatarEmoji || "🤖"}
-        </TintIcon>
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">
-          Chat with {agentName}
-        </p>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={session.reset}
-          aria-label="New conversation"
-          disabled={session.busy}
+      <div className="panel-h" style={{ borderBottom: "1px solid var(--g8-border)", paddingBottom: 12 }}>
+        <span
+          className="picon"
+          style={{ "--g8-c": "var(--g8-violet)", "--g8-sz": "24px", fontSize: 13 } as React.CSSProperties}
         >
-          <RotateCcw className="size-4" />
-        </Button>
+          {avatarEmoji || "🤖"}
+        </span>
+        <h2 className="trunc" style={{ flex: 1, minWidth: 0 }}>Chat with {agentName}</h2>
+        <div className="acts">
+          <button
+            type="button"
+            className="ibtn ibtn-sm"
+            onClick={session.reset}
+            aria-label="New conversation"
+            title="New conversation"
+            disabled={session.busy}
+          >
+            <Gi icon={RotateCcw} size={14} />
+          </button>
+        </div>
       </div>
 
       <EveConversation
@@ -148,7 +150,7 @@ export function AgentChat({
         }
         empty={
           <div className="flex h-full flex-col items-center justify-center gap-3 pt-12 text-center">
-            <p className="max-w-xs text-sm text-pretty text-muted-foreground">
+            <p className="muted" style={{ maxWidth: 300, margin: 0, fontSize: "var(--g8-fs-sm)" }}>
               {paused
                 ? "This agent is paused — activate it to chat."
                 : "Ask anything. Tool calls show up inline so you can see exactly what it reads."}
@@ -160,7 +162,7 @@ export function AgentChat({
                     key={prompt}
                     type="button"
                     onClick={() => send(prompt)}
-                    className="inline-flex h-7 items-center rounded-md bg-muted px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                    className="btn btn-secondary btn-sm"
                   >
                     {prompt}
                   </button>
@@ -172,13 +174,14 @@ export function AgentChat({
       />
 
       <form
-        className="flex items-end gap-2 border-t border-border p-3"
+        className="g8-ai-composer row"
+        style={{ margin: 12, alignItems: "flex-end", gap: 8, padding: 6 }}
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
       >
-        <Textarea
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -196,16 +199,18 @@ export function AgentChat({
           }
           rows={1}
           disabled={paused || session.busy}
-          className="min-h-9 flex-1 resize-none shadow-composer focus-visible:shadow-composer-focus"
+          className="flex-1 resize-none bg-transparent focus-visible:outline-none disabled:opacity-60"
+          style={{ minHeight: 30, maxHeight: 200, padding: "5px 6px", lineHeight: 1.5 }}
         />
-        <Button
+        <button
           type="submit"
-          size="icon-sm"
+          className="btn btn-primary btn-sm"
+          style={{ width: "var(--g8-h-sm)", padding: 0 }}
           disabled={paused || session.busy || !input.trim()}
           aria-label="Send"
         >
-          <Send className="size-4" />
-        </Button>
+          <Gi icon={Send} size={14} />
+        </button>
       </form>
     </div>
   );

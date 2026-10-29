@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, CalendarPlus, Sparkles, Video } from "lucide-react";
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+  CalendarClock,
+  CalendarPlus,
+  Sparkles,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 type RecentMeeting = {
@@ -75,93 +74,50 @@ export function MeetingsSection({ propertyId }: { propertyId: string }) {
     .slice(0, 5);
   const meetings = all.filter((m) => !isUpcoming(m)).slice(0, 12);
 
+  const item = (href: string, label: string, icon: LucideIcon, on: boolean) => (
+    <Link
+      key={href}
+      href={href}
+      className={on ? "sitem on" : "sitem"}
+      title={label}
+      aria-current={on ? "page" : undefined}
+    >
+      <Gi icon={icon} size={14} />
+      <span className="trunc">{label}</span>
+    </Link>
+  );
+
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={base} />}
-                isActive={onIndex}
-                tooltip="All meetings"
-              >
-                <Video />
-                <span>All meetings</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}?schedule=1`} />}
-                tooltip="Schedule meeting"
-              >
-                <CalendarPlus />
-                <span>Schedule meeting</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {item(base, "All meetings", Video, onIndex)}
+      {item(`${base}?schedule=1`, "Schedule meeting", CalendarPlus, false)}
 
       {upcoming.length > 0 ? (
-        <SidebarGroup>
-          <SidebarGroupLabel>Upcoming</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {upcoming.map((m) => (
-                <SidebarMenuItem key={m.id}>
-                  <SidebarMenuButton
-                    render={<Link href={`${base}/${m.id}`} />}
-                    isActive={pathname === `${base}/${m.id}`}
-                    tooltip={m.title}
-                    size="sm"
-                  >
-                    <CalendarClock />
-                    <span className="truncate">{m.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <>
+          <div className="sgroup-h">Upcoming</div>
+          {upcoming.map((m) =>
+            item(`${base}/${m.id}`, m.title, CalendarClock, pathname === `${base}/${m.id}`),
+          )}
+        </>
       ) : null}
 
-      <SidebarGroup>
-        <SidebarGroupLabel>Recent</SidebarGroupLabel>
-        <SidebarGroupContent>
-          {meetings.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-faint-foreground">
-              No meetings yet. Start one from a channel&apos;s{" "}
-              <strong>Meet</strong> button, or schedule one above.
-            </p>
-          ) : (
-            <SidebarMenu>
-              {meetings.map((m) => (
-                <SidebarMenuItem key={m.id}>
-                  <SidebarMenuButton
-                    render={<Link href={`${base}/${m.id}`} />}
-                    isActive={pathname === `${base}/${m.id}`}
-                    tooltip={m.title}
-                    size="sm"
-                  >
-                    {m.has_summary ? (
-                      // A summarized meeting is marked by the icon SHAPE
-                      // alone. Notion nav rows carry no colored icons, and
-                      // the old `text-indigo-400` never rendered anyway (the
-                      // row's own `[&_svg]:text-sidebar-foreground/70` out-
-                      // specifies a plain utility class).
-                      <Sparkles />
-                    ) : (
-                      <Video />
-                    )}
-                    <span className="truncate">{m.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          )}
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <div className="sgroup-h">Recent</div>
+      {meetings.length === 0 ? (
+        <p className="hint" style={{ padding: "4px 8px" }}>
+          No meetings yet. Start one from a channel&apos;s <strong>Meet</strong>{" "}
+          button, or schedule one above.
+        </p>
+      ) : (
+        // A summarized meeting is marked by the icon SHAPE alone (Sparkles).
+        meetings.map((m) =>
+          item(
+            `${base}/${m.id}`,
+            m.title,
+            m.has_summary ? Sparkles : Video,
+            pathname === `${base}/${m.id}`,
+          ),
+        )
+      )}
     </>
   );
 }

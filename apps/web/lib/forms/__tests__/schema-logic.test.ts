@@ -150,6 +150,7 @@ describe("computeTaskProperties", () => {
       priority: "high",
       due_at: "2026-09-01",
       labels: ["Maintenance", "Urgent fix"],
+      fields: {},
     });
   });
 
@@ -166,7 +167,35 @@ describe("computeTaskProperties", () => {
       priority: null,
       due_at: null,
       labels: [],
+      fields: {},
     });
+  });
+
+  it("shapes answers saved into custom fields (0116)", () => {
+    const F1 = "11111111-1111-4111-8111-111111111111";
+    const F2 = "22222222-2222-4222-8222-222222222222";
+    const F3 = "33333333-3333-4333-8333-333333333333";
+    const F4 = "44444444-4444-4444-8444-444444444444";
+    const withFields: FormSchema = {
+      version: 1,
+      fields: [
+        {
+          id: "kind",
+          type: "select",
+          label: "Kind",
+          taskField: F1,
+          options: [{ id: "o1", label: "Plumbing" }],
+        },
+        { id: "cost", type: "number", label: "Cost", taskField: F2 },
+        { id: "ok", type: "yes_no", label: "Signed off?", taskField: F3 },
+        { id: "quote", type: "file", label: "Quote", taskField: F4 },
+      ],
+    };
+    const file = [{ url: "https://x/y.pdf", path: "p/f/y.pdf", name: "quote.pdf" }];
+    expect(
+      computeTaskProperties(withFields, { kind: "o1", cost: 1250, ok: true, quote: file }).fields,
+    ).toEqual({ [F1]: "Plumbing", [F2]: 1250, [F3]: true, [F4]: file });
+    expect(computeTaskProperties(withFields, { cost: "" }).fields).toEqual({});
   });
 
   it("ignores mapped answers on conditionally hidden fields", () => {

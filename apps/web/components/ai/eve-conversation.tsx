@@ -127,7 +127,10 @@ export function EveConversation({
           <MessageScrollerContent
             aria-busy={busy}
             className={cn(
-              scale === "page" ? "mx-auto w-full max-w-content gap-7 px-6 py-8" : "gap-4 px-4 py-4",
+              // gr8r rhythm: page panes sit on the same 760px column as the
+              // Assistant composer; compact (agent / fleet rails) uses gr8r's
+              // 14px panel inset.
+              scale === "page" ? "mx-auto w-full max-w-[760px] gap-6 px-6 py-7" : "gap-4 px-3.5 py-3.5",
               contentClassName,
             )}
           >
@@ -144,7 +147,9 @@ export function EveConversation({
                             <BubbleContent
                               className={cn(
                                 "whitespace-pre-wrap",
-                                scale === "page" ? "text-base leading-6" : "text-sm",
+                                scale === "page"
+                                  ? "text-[length:var(--g8-fs-md,0.9375rem)] leading-6"
+                                  : "text-[length:var(--g8-fs,0.875rem)] leading-[1.5]",
                               )}
                             >
                               {displayUserText(item.text)}
@@ -260,8 +265,8 @@ function AssistantTurn({
             isAnimating={live && item.streaming}
             className={cn(
               scale === "page"
-                ? "text-base leading-7 [&_h1]:text-xl [&_h2]:text-lg [&_h3]:text-base"
-                : "text-sm leading-6",
+                ? "text-[length:var(--g8-fs-md,0.9375rem)] leading-[1.7] [&_h1]:text-[length:var(--g8-fs-xl,1.1875rem)] [&_h1]:tracking-[-0.015em] [&_h2]:text-[length:var(--g8-fs-lg,1rem)] [&_h3]:text-[length:var(--g8-fs-md,0.9375rem)]"
+                : "text-[length:var(--g8-fs,0.875rem)] leading-[1.6]",
             )}
           >
             {item.text}

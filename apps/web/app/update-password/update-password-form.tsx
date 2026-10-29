@@ -3,16 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { KeyRound } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AuthCardMark,
+  AuthShell,
+  FieldErr,
+  PasswordInput,
+  StrengthMeter,
+} from "@/components/auth/auth-shell";
 import { toast } from "sonner";
 
 export function UpdatePasswordForm() {
@@ -51,51 +49,59 @@ export function UpdatePasswordForm() {
     router.refresh();
   }
 
+  // gr8r's "reset" card (src/pages/auth.js).
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Set a new password</CardTitle>
-        <CardDescription>
-          Pick something at least 8 characters.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">New password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoFocus
-              minLength={8}
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm">Confirm new password</Label>
-            <Input
-              id="confirm"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Saving…" : "Update password"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <AuthShell>
+      <form className="auth-card fx-auth" onSubmit={onSubmit}>
+        <AuthCardMark icon={KeyRound} />
+        <h1>Choose a new password</h1>
+        <p className="sub">Pick something at least 8 characters.</p>
+        <div className="field">
+          <label className="label" htmlFor="password">
+            New password
+          </label>
+          <PasswordInput
+            id="password"
+            name="password"
+            required
+            autoFocus
+            minLength={8}
+            maxLength={72}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={busy}
+          />
+          <StrengthMeter password={password} />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="confirm">
+            Confirm new password
+          </label>
+          <PasswordInput
+            id="confirm"
+            name="confirmPassword"
+            required
+            minLength={8}
+            maxLength={72}
+            autoComplete="new-password"
+            className={error ? "is-error" : undefined}
+            aria-invalid={error ? true : undefined}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            disabled={busy}
+          />
+          {error ? <FieldErr>{error}</FieldErr> : null}
+        </div>
+        <button
+          type="submit"
+          className={`btn btn-primary btn-lg btn-block${busy ? " is-loading" : ""}`}
+          disabled={busy}
+        >
+          Update password
+        </button>
+      </form>
+    </AuthShell>
   );
 }

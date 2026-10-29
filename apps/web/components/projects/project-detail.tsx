@@ -1,33 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  Activity,
   Archive,
-  Check,
-  ChevronRight,
+  CalendarDays,
+  ChartGantt,
+  Ellipsis,
   FileText,
-  MoreHorizontal,
+  FolderKanban,
+  LayoutDashboard,
+  Link2,
+  List,
+  SquareKanban,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { EntityColor, ProjectStatus, TaskStatus } from "@/lib/db/types";
+import type { EntityColor, ProjectStatus, Role, TaskStatus, UpdateHealth } from "@/lib/db/types";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
   documentsQueryOptions,
@@ -36,7 +35,6 @@ import {
 } from "@/lib/query/section-queries";
 import {
   archiveProject,
-  setDocumentProject,
   setProjectSpaces,
   setTaskProject,
   updateProject,
@@ -44,60 +42,123 @@ import {
 import { activityLogQueryOptions } from "@/lib/query/activity-log-queries";
 import {
   ActivityLogFeed,
-  ActivityLogList,
   useActivityLogRealtime,
   useActivityLookup,
   useViewerId,
 } from "@/components/activity/activity-log";
-import {
-  MetadataItem,
-  MetadataRow,
-  OverviewSection,
-  PropertyRow,
-  RailDate,
-  RailGroup,
-  RailProgress,
-  railValueClass,
-  WorkspaceShell,
-  ws,
-  type WorkspaceTab,
-} from "./workspace-shell";
+import { useUrlTab } from "./workspace-shell";
 import { EntityLabelsRow } from "@/components/labels/entity-labels-row";
 import { ScopeStatStrip } from "@/components/insights/scope-stat-strip";
 import { CatchUpBanner } from "@/components/insights/catch-up-banner";
 import { WorkspaceDescription } from "./workspace-description";
-import {
-  DocsPanel,
-  TasksPanel,
-  type ScopedTask,
-} from "./workspace-panels";
-import { HEALTH_META, projectHealth } from "./tracking/tracking-shared";
+import { projectHealth, type ProjectHealth } from "./tracking/tracking-shared";
 import { MilestonesPanel } from "./milestones-panel";
 import { ProjectProgressBlock } from "./progress-block";
 import { UpdatesSection } from "./project-updates";
 import { ProjectInitiativesPicker } from "./project-initiatives-picker";
-import { HealthDot } from "@/components/initiatives/health";
 import { declaredHealthQueryOptions } from "@/lib/query/initiative-queries";
 import { milestoneProgress } from "@/lib/initiatives/planning";
 import { TimelineView } from "@/components/tasks/timeline-view";
+import type { Task } from "@/components/tasks/kanban";
 import { useAssigneesMap } from "@/lib/tasks/use-assignees";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { isDone } from "@/lib/tasks/statuses";
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
+import { AutomationsButton } from "@/components/workflows/automations-button";
+import { Gi } from "@/components/gr8r/icon";
+import { AvStack, G8_COLOR } from "@/components/gr8r/home-glyphs";
+import {
+  fmtDay,
+  LeadPicker,
+  ProjectIcon,
+  ProjectPageShell,
+  ProjectStatusMenu,
+  TeamsPicker,
+  type CSSVars,
+  type ProjectTabDef,
+} from "@/components/gr8r/project-page";
+import { FavoriteStar } from "@/components/gr8r/favorite-star";
+import { canManage } from "@/lib/auth/roles";
+import {
+  KV_ICONS,
+  KvRow,
+  MembersValue,
+  ProjectOverview,
+} from "@/components/gr8r/project-overview";
+import { ProjectTaskViews } from "@/components/gr8r/project-tasks";
+import { ProjectCalendar } from "@/components/gr8r/project-calendar";
+import { ProjectFiles } from "@/components/gr8r/project-files";
 
-const STATUS_LABEL: Record<ProjectStatus, string> = {
-  active: "Active",
-  planned: "Planned",
-  completed: "Completed",
-  archived: "Archived",
-};
-const STATUS_DOT: Record<ProjectStatus, string> = {
-  active: "bg-success",
-  planned: "bg-info",
-  completed: "bg-pill-violet-ink",
-  archived: "bg-muted-foreground/50",
-};
-const DOT = LABEL_DOT;
+/**
+ * The single project page, on gr8r-studio's `pageProject`
+ * (src/pages/project.js): `.proj-h` header (icon, editable name, status
+ * pill, members, actions) + view tabs Overview · Board · List · Timeline ·
+ * Calendar · Files · Activity. Board / List are the real tasks board
+ * components scoped to the project; Timeline is the Gantt with the
+ * project's milestone lane; Files = linked docs + task attachments.
+ * `?tab=` deep-links (the sidebar's Board / List / Timeline / Files rows);
+ * the old ids `tasks` / `docs` / `members` resolve onto their new homes.
+ */
 
-type DetailTask = ScopedTask & {
+const TABS: ProjectTabDef[] = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "board", label: "Board", icon: SquareKanban },
+  { id: "list", label: "List", icon: List },
+  { id: "timeline", label: "Timeline", icon: ChartGantt },
+  { id: "calendar", label: "Calendar", icon: CalendarDays },
+  { id: "docs", label: "Docs", icon: FileText },
+  { id: "activity", label: "Activity", icon: Activity },
+];
+const TAB_ALIASES: Record<string, string> = {
+  tasks: "board",
+  files: "docs",
+  members: "overview",
+  contributors: "overview",
+};
+
+/** The last project tab you viewed (per browser), so the next project you
+ *  open lands on it. Board until you've picked something else. */
+const LAST_TAB_KEY = "hotelclaw:project-tab";
+function readLastProjectTab(): string {
+  try {
+    return window.localStorage.getItem(LAST_TAB_KEY) || "board";
+  } catch {
+    return "board";
+  }
+}
+function writeLastProjectTab(tab: string) {
+  try {
+    window.localStorage.setItem(LAST_TAB_KEY, tab);
+  } catch {
+    // Private mode / blocked storage: every project opens on Board.
+  }
+}
+function subscribeLastProjectTab(cb: () => void) {
+  window.addEventListener("storage", cb);
+  return () => window.removeEventListener("storage", cb);
+}
+function useLastProjectTab(): string {
+  return useSyncExternalStore(subscribeLastProjectTab, readLastProjectTab, () => "board");
+}
+
+/** Computed pace read → gr8r colour. */
+const PACE: Record<ProjectHealth, { name: string; c: string }> = {
+  none: { name: "No date", c: "var(--g8-gray)" },
+  on_track: { name: "On track", c: "var(--g8-green)" },
+  at_risk: { name: "At risk", c: "var(--g8-amber)" },
+  overdue: { name: "Overdue", c: "var(--g8-red)" },
+  done: { name: "Done", c: "var(--g8-violet)" },
+};
+/** A person's declared call (latest status update). */
+const DECLARED: Record<UpdateHealth, { name: string; c: string }> = {
+  on_track: { name: "On track", c: "var(--g8-green)" },
+  at_risk: { name: "At risk", c: "var(--g8-amber)" },
+  off_track: { name: "Off track", c: "var(--g8-red)" },
+};
+
+type DetailTask = {
+  id: string;
+  title: string;
+  status: TaskStatus;
   assignee_id: string | null;
   /** Effort points (0111); null = unestimated, counted as 1 in scope. */
   estimate: number | null;
@@ -119,7 +180,7 @@ type ProjectDetailData = {
   } | null;
   spaceIds: string[];
   tasks: DetailTask[];
-  docs: { id: string; title: string }[];
+  docs: { id: string; title: string; updated_at: string | null }[];
 };
 
 function projectDetailQuery(projectId: string) {
@@ -143,7 +204,7 @@ function projectDetailQuery(projectId: string) {
           .order("position", { ascending: true }),
         supabase
           .from("documents")
-          .select("id, title")
+          .select("id, title, updated_at")
           .eq("project_id", projectId)
           .is("archived_at", null)
           .order("updated_at", { ascending: false }),
@@ -158,6 +219,8 @@ function projectDetailQuery(projectId: string) {
   };
 }
 
+const EMPTY_TASKS: Task[] = [];
+
 export function ProjectDetail({
   propertyId,
   projectId,
@@ -171,16 +234,35 @@ export function ProjectDetail({
   const meId = useViewerId();
   const activityLookup = useActivityLookup(propertyId, meId);
   useActivityLogRealtime(propertyId);
-  const { data: activity = [], isPending: activityPending } = useQuery(
+  const { data: activity = [] } = useQuery(
     activityLogQueryOptions(propertyId, { kind: "project", id: projectId }, 60),
   );
   const { data: allSpaces = [] } = useQuery(spacesQueryOptions(propertyId));
-  const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
+  const { data: allTasks = EMPTY_TASKS } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
   const { data: people = [] } = useQuery(propertyMembersQueryOptions(propertyId));
   // The latest written update's call — shown beside the computed pace read.
   const { data: declaredIndex } = useQuery(declaredHealthQueryOptions(propertyId));
   const declared = declaredIndex?.projects[projectId]?.health ?? null;
+
+  // No `?tab=` → the tab you were last on in ANY project (Board the first
+  // time), so hopping between projects keeps your view. Fallback "" keeps
+  // every pick in the URL — "board" must not be stripped, or a remembered
+  // tab would win over it.
+  const [urlTab, setTab] = useUrlTab("");
+  const lastTab = useLastProjectTab();
+  const rawTab = urlTab || lastTab;
+  const tab = TAB_ALIASES[rawTab] ?? (TABS.some((t) => t.id === rawTab) ? rawTab : "board");
+  useEffect(() => {
+    // The projects surface stays mounted after you leave it — only the
+    // project you're actually ON may touch the URL or the remembered tab,
+    // or it rewrites every other page's URL (a replaceState ↔ RSC loop).
+    if (!window.location.pathname.endsWith(`/projects/${projectId}`)) return;
+    writeLastProjectTab(tab);
+    // Put the resolved tab in the URL, so the sidebar's Board / List /
+    // Timeline / Files rows highlight it and the link is shareable.
+    if (urlTab !== tab) setTab(tab);
+  }, [tab, urlTab, setTab, projectId]);
 
   const project = data?.project;
   const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks]);
@@ -192,19 +274,19 @@ export function ProjectDetail({
     if (project) setName(project.name);
   }, [project]);
 
-  // Full task rows for this project — the Gantt needs dates, parents and
-  // assignees, which the lightweight `tasks` select above doesn't carry.
+  // Full task rows for this project — board, list, Gantt and calendar need
+  // dates, parents, lists and assignees the lightweight select doesn't carry.
   const projectTasks = useMemo(
     () => allTasks.filter((t) => t.project_id === projectId),
     [allTasks, projectId],
   );
   const timelineAssignees = useAssigneesMap(
-    useMemo(() => projectTasks.map((t) => t.assignee_id), [projectTasks]),
+    useMemo(() => projectTasks.flatMap((t) => taskAssigneeIds(t)), [projectTasks]),
   );
   const taskCandidates = useMemo(() => {
     const assigned = new Set(tasks.map((t) => t.id));
     return allTasks
-      .filter((t) => !assigned.has(t.id))
+      .filter((t) => !assigned.has(t.id) && !t.parent_id)
       .map((t) => ({ id: t.id, title: t.title }));
   }, [allTasks, tasks]);
   const docCandidates = useMemo(() => {
@@ -218,23 +300,30 @@ export function ProjectDetail({
     () => allSpaces.filter((s) => data?.spaceIds.includes(s.id)),
     [allSpaces, data?.spaceIds],
   );
+  const memberById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const contributors = useMemo(() => {
-    const ids = new Set(
-      tasks.map((t) => t.assignee_id).filter((x): x is string => !!x),
-    );
+    const ids = new Set<string>();
+    for (const t of projectTasks) for (const id of taskAssigneeIds(t)) ids.add(id);
+    for (const t of tasks) if (t.assignee_id) ids.add(t.assignee_id);
     return people.filter((p) => ids.has(p.id));
-  }, [tasks, people]);
+  }, [projectTasks, tasks, people]);
+  const leadId = project?.lead_user_id ?? null;
+  const headMembers = useMemo(() => {
+    const lead = leadId ? memberById.get(leadId) : undefined;
+    return lead ? [lead, ...contributors.filter((p) => p.id !== lead.id)] : contributors;
+  }, [leadId, memberById, contributors]);
   const milestonePct = useMemo(() => milestoneProgress(tasks), [tasks]);
-  const counts = useMemo(() => {
-    const c: Record<TaskStatus, number> = {
-      todo: 0,
-      in_progress: 0,
-      blocked: 0,
-      done: 0,
-    };
-    for (const t of tasks) c[t.status] += 1;
-    return c;
-  }, [tasks]);
+  const doneCount = useMemo(() => tasks.filter((t) => isDone(t)).length, [tasks]);
+  const [now] = useState(() => Date.now());
+  const overdue = useMemo(() => {
+    return projectTasks.filter(
+      (t) => !t.parent_id && !isDone(t) && t.due_at && new Date(t.due_at).getTime() < now,
+    ).length;
+  }, [projectTasks, now]);
+  const taskTitleById = useMemo(
+    () => new Map(projectTasks.map((t) => [t.id, t.title])),
+    [projectTasks],
+  );
 
   function refresh() {
     void qc.invalidateQueries({ queryKey: ["project-detail", projectId] });
@@ -255,7 +344,10 @@ export function ProjectDetail({
   async function setStatus(status: ProjectStatus) {
     const res = await updateProject(projectId, { status });
     if ("error" in res) toast.error(res.error);
-    else refresh();
+    else {
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["projects", propertyId] });
+    }
   }
   async function setLead(leadId: string | null) {
     const res = await updateProject(projectId, { lead_user_id: leadId });
@@ -277,17 +369,14 @@ export function ProjectDetail({
     if ("error" in res) toast.error(res.error);
     else refresh();
   }
-  const add = (fn: (id: string, pid: string | null) => Promise<unknown>) =>
+  const link = (fn: (id: string, pid: string | null) => Promise<unknown>, to: string | null) =>
     async (id: string) => {
-      const res = (await fn(id, projectId)) as { error?: string };
+      const res = (await fn(id, to)) as { error?: string };
       if (res?.error) toast.error(res.error);
-      else refresh();
-    };
-  const remove = (fn: (id: string, pid: string | null) => Promise<unknown>) =>
-    async (id: string) => {
-      const res = (await fn(id, null)) as { error?: string };
-      if (res?.error) toast.error(res.error);
-      else refresh();
+      else {
+        refresh();
+        void qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+      }
     };
   async function handleArchive() {
     if (!window.confirm("Archive this project?")) return;
@@ -299,647 +388,300 @@ export function ProjectDetail({
     void qc.invalidateQueries({ queryKey: ["projects", propertyId] });
     router.push(`/p/${propertyId}/projects`);
   }
+  function copyLink() {
+    const url = `${window.location.origin}/p/${propertyId}/projects/${projectId}`;
+    void navigator.clipboard.writeText(url).then(
+      () => toast.success("Link copied"),
+      () => toast.error("Couldn't copy the link"),
+    );
+  }
 
   if (isPending)
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading project…
+      <div className="flex h-full items-center justify-center">
+        <span className="faint">Loading project…</span>
       </div>
     );
   if (!project)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <p className="text-sm text-muted-foreground">Project not found.</p>
-        <Link
-          href={`/p/${propertyId}/projects`}
-          className="text-sm text-foreground underline underline-offset-4"
-        >
+        <span className="muted">Project not found.</span>
+        <Link href={`/p/${propertyId}/projects`} className="btn btn-secondary btn-sm">
           Back to projects
         </Link>
       </div>
     );
 
-  const breadcrumb = (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 text-sm"
-    >
-      <Link
-        href={`/p/${propertyId}/projects`}
-        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+  const color = G8_COLOR[project.color] ?? "var(--g8-accent)";
+  const pace = projectHealth({
+    status: project.status,
+    target_date: project.target_date,
+    done: doneCount,
+    total: tasks.length,
+  });
+  const healthPills = (
+    <span className="row" style={{ gap: 6 }}>
+      {declared ? (
+        <span
+          className="pstatus"
+          style={{ "--g8-c": DECLARED[declared].c } as CSSVars}
+          title="Declared in the latest project update"
+        >
+          <i />
+          {DECLARED[declared].name}
+        </span>
+      ) : null}
+      <span
+        className="pstatus"
+        style={{ "--g8-c": PACE[pace].c } as CSSVars}
+        title="Computed from pace against the target date"
       >
-        Projects
-      </Link>
-      <ChevronRight
-        className="size-3.5 shrink-0 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
-        {project.icon ? (
-          <span className="shrink-0 text-sm leading-none">{project.icon}</span>
-        ) : (
-          <span
-            className={cn("size-2 shrink-0 rounded-full", DOT[project.color])}
-            aria-hidden="true"
-          />
-        )}
-        <span className="truncate">{project.name}</span>
+        <i />
+        {PACE[pace].name}
+        {declared ? <span className="faint">(pace)</span> : null}
       </span>
-    </nav>
+    </span>
   );
 
-  const header = (
-    <div className="flex flex-col gap-4">
-      <div className="flex min-w-0 items-center gap-2.5">
-        {project.icon ? (
-          <span className="shrink-0 text-2xl leading-none">
-            {project.icon}
-          </span>
-        ) : (
-          <span
-            className={cn("size-3 shrink-0 rounded-md", DOT[project.color])}
-            aria-hidden="true"
+  const details = (
+    <>
+      <dl className="kv">
+        <KvRow icon={KV_ICONS.status} label="Status">
+          <ProjectStatusMenu status={project.status} onSelect={setStatus} bordered={false} />
+        </KvRow>
+        <KvRow icon={KV_ICONS.health} label="Health">
+          {healthPills}
+        </KvRow>
+        <KvRow icon={KV_ICONS.lead} label="Lead">
+          <LeadPicker people={people} leadId={project.lead_user_id} onSelect={setLead} />
+        </KvRow>
+        <KvRow icon={KV_ICONS.team} label="Teams">
+          <TeamsPicker
+            allSpaces={allSpaces}
+            linkedSpaces={linkedSpaces}
+            onToggle={toggleSpace}
+            hrefOf={(id) => `/p/${propertyId}/spaces/${id}`}
           />
-        )}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => void commitName()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setName(project.name);
-              e.currentTarget.blur();
-            }
-          }}
-          aria-label="Project name"
-          className={cn(
-            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
-            ws.title,
-          )}
-          placeholder="Untitled project"
-        />
-      </div>
-
-      <div className="pb-3">
-        <WorkspaceDescription
-          value={project.description}
-          onSave={commitDescription}
-        />
-      </div>
-
-      {/* Live state lives in this row (visible on every tab and at widths
-          where the rail is hidden); the rail holds the attributes — lead,
-          members, dates, teams, initiatives. Neither repeats the other, and
-          issue counts live in Overview's Progress block. */}
-      <MetadataRow>
-        <MetadataItem label="Status">
-          <StatusMenu status={project.status} onSelect={setStatus} inline />
-        </MetadataItem>
-        <MetadataItem label="Health">
-          <span className="inline-flex items-center gap-2">
-            {declared ? <HealthDot health={declared} /> : null}
-            <HealthValue
-              status={project.status}
-              targetDate={project.target_date}
-              done={counts.done}
-              total={tasks.length}
-              inline
-              computedLabel={Boolean(declared)}
-            />
+        </KvRow>
+        <KvRow icon={KV_ICONS.start} label="Start">
+          <span className={project.start_date ? "pillbtn num" : "pillbtn empty"}>
+            {fmtDay(project.start_date) ?? "No start date"}
           </span>
-        </MetadataItem>
-      </MetadataRow>
-
-      <ScopeStatStrip
-        propertyId={propertyId}
-        scope={{ kind: "project", id: projectId }}
-      />
-
-      <CatchUpBanner
-        propertyId={propertyId}
-        subjectKind="project"
-        subjectId={projectId}
-      />
-
-      <div className="flex flex-col gap-1.5">
-        <EntityLabelsRow
-          propertyId={propertyId}
-          entityKind="project"
-          entityId={projectId}
-        />
+        </KvRow>
+        <KvRow icon={KV_ICONS.due} label="Target">
+          <span className={project.target_date ? "pillbtn num" : "pillbtn empty"}>
+            {fmtDay(project.target_date) ?? "No target date"}
+          </span>
+        </KvRow>
+        <KvRow icon={KV_ICONS.members} label="Members">
+          <MembersValue people={contributors} propertyId={propertyId} />
+        </KvRow>
+        <KvRow icon={KV_ICONS.initiatives} label="Initiatives">
+          <ProjectInitiativesPicker propertyId={propertyId} projectId={projectId} />
+        </KvRow>
+        <KvRow icon={KV_ICONS.created} label="Created">
+          <span className="pillbtn num">{fmtDay(project.created_at) ?? "—"}</span>
+        </KvRow>
+      </dl>
+      <div style={{ marginTop: 6 }}>
+        <EntityLabelsRow propertyId={propertyId} entityKind="project" entityId={projectId} />
       </div>
-    </div>
+    </>
   );
 
-  const tabs: WorkspaceTab[] = [
-    {
-      id: "overview",
-      label: "Overview",
-      content: (
-        <div className="flex flex-col gap-10">
-          <UpdatesSection
-            propertyId={propertyId}
-            target={{ kind: "project", id: projectId }}
-          />
-          <MilestonesPanel projectId={projectId} progress={milestonePct} />
-          <ProjectProgressBlock tasks={tasks} people={contributors} />
-          {linkedSpaces.length > 0 ? (
-            <OverviewSection
-              title="Spaces"
-              action={
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {linkedSpaces.length}
-                </span>
-              }
-            >
-              <ul role="list" className="flex flex-col">
-                {linkedSpaces.map((s) => (
-                  <li
-                    key={s.id}
-                    className="border-t border-border first:border-0"
-                  >
-                    <Link
-                      href={`/p/${propertyId}/spaces/${s.id}`}
-                      className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
-                    >
-                      <span
-                        className={cn(
-                          "size-1.5 shrink-0 rounded-full",
-                          DOT[s.color],
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                        {s.name || "Untitled team"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </OverviewSection>
-          ) : null}
-          {docs.length > 0 ? (
-            <OverviewSection
-              title="Documents"
-              action={
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {docs.length}
-                </span>
-              }
-            >
-              <ul role="list" className="flex flex-col">
-                {docs.slice(0, 5).map((d) => (
-                  <li
-                    key={d.id}
-                    className="border-t border-border first:border-0"
-                  >
-                    <Link
-                      href={`/p/${propertyId}/documents/${d.id}`}
-                      className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
-                    >
-                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                        {d.title || "Untitled"}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </OverviewSection>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      id: "tasks",
-      label: "Tasks",
-      count: tasks.length,
-      content: (
-        <TasksPanel
+  let body: React.ReactNode;
+  switch (tab) {
+    case "board":
+    case "list":
+      body = (
+        <ProjectTaskViews
           propertyId={propertyId}
-          tasks={tasks}
+          projectId={projectId}
+          mode={tab}
+          tasks={projectTasks}
           candidates={taskCandidates}
-          onAdd={add(setTaskProject)}
-          onRemove={remove(setTaskProject)}
+          onAdd={link(setTaskProject, projectId)}
         />
-      ),
-    },
-    {
-      id: "timeline",
-      label: "Timeline",
-      content: (
-        <div className="flex h-[36rem] flex-col overflow-hidden rounded-card border border-border bg-card">
+      );
+      break;
+    case "timeline":
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           <TimelineView
             propertyId={propertyId}
             tasks={projectTasks}
             assignees={timelineAssignees}
             hideDone={false}
             milestoneScope={{ kind: "project", id: projectId }}
-            onChanged={refresh}
+            onChanged={() => {
+              refresh();
+              void qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+            }}
           />
         </div>
-      ),
-    },
-    {
-      id: "docs",
-      label: "Docs",
-      count: docs.length,
-      content: (
-        <DocsPanel
+      );
+      break;
+    case "calendar":
+      body = (
+        <ProjectCalendar
           propertyId={propertyId}
+          projectId={projectId}
+          tasks={projectTasks}
+          color={color}
+          people={memberById}
+        />
+      );
+      break;
+    case "docs":
+      body = (
+        <ProjectFiles
+          propertyId={propertyId}
+          projectId={projectId}
+          viewerId={meId}
+          canManage={canManage(people.find((p) => p.id === meId)?.role as Role | undefined)}
           docs={docs}
-          candidates={docCandidates}
-          onAdd={add(setDocumentProject)}
-          onRemove={remove(setDocumentProject)}
+          docCandidates={docCandidates}
+          onDocsChanged={refresh}
+          taskIds={projectTasks.map((t) => t.id)}
+          taskTitle={(id) => taskTitleById.get(id) ?? null}
+          people={memberById}
         />
-      ),
-    },
-    {
-      id: "members",
-      label: "Contributors",
-      count: contributors.length,
-      content: <Contributors people={contributors} />,
-    },
-    {
-      id: "activity",
-      label: "Activity",
-      content: (
-        <ActivityLogFeed
+      );
+      break;
+    case "activity":
+      body = (
+        <div className="page" style={{ maxWidth: 780, paddingTop: 18, width: "100%" }}>
+          <ActivityLogFeed
+            propertyId={propertyId}
+            scope={{ kind: "project", id: projectId }}
+            meId={meId}
+            showProject={false}
+          />
+        </div>
+      );
+      break;
+    default:
+      body = (
+        <ProjectOverview
           propertyId={propertyId}
-          scope={{ kind: "project", id: projectId }}
-          meId={meId}
-          showProject={false}
+          top={
+            <>
+              <CatchUpBanner propertyId={propertyId} subjectKind="project" subjectId={projectId} />
+              <ScopeStatStrip propertyId={propertyId} scope={{ kind: "project", id: projectId }} />
+            </>
+          }
+          about={<WorkspaceDescription value={project.description} onSave={commitDescription} />}
+          updates={
+            <UpdatesSection
+              propertyId={propertyId}
+              target={{ kind: "project", id: projectId }}
+              variant="panel"
+            />
+          }
+          progress={
+            <ProjectProgressBlock
+              tasks={tasks}
+              people={contributors}
+              targetDate={project.target_date}
+              overdue={overdue}
+              health={healthPills}
+              onBucket={() => setTab("list")}
+            />
+          }
+          tasks={projectTasks}
+          projectColor={color}
+          memberById={memberById}
+          details={details}
+          milestones={<MilestonesPanel projectId={projectId} progress={milestonePct} color={color} />}
+          activity={activity}
+          activityLookup={activityLookup}
+          onSeeList={() => setTab("list")}
+          onSeeActivity={() => setTab("activity")}
         />
-      ),
-    },
-  ];
+      );
+  }
 
-  const rightRail = (
-    <div className="flex flex-col">
-      <RailGroup label="Properties">
-        <PropertyRow label="Lead">
-          <LeadPicker
-            people={people}
-            leadId={project.lead_user_id}
-            onSelect={setLead}
+  const tabs = TABS.map((t) =>
+    t.id === "board" || t.id === "list"
+      ? { ...t, count: t.id === "board" ? projectTasks.filter((x) => !x.parent_id).length : undefined }
+      : t.id === "files"
+        ? { ...t, count: docs.length || undefined }
+        : t,
+  );
+
+  return (
+    <ProjectPageShell
+      crumbs={[
+        { label: "Projects", href: `/p/${propertyId}/projects`, icon: <FolderKanban /> },
+        { label: project.name || "Untitled project" },
+      ]}
+      icon={<ProjectIcon icon={project.icon} color={project.color} lg />}
+      star={
+        <FavoriteStar propertyId={propertyId} kind="project" id={projectId} label={project.name} />
+      }
+      title={
+        <h1 style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void commitName()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setName(project.name);
+                e.currentTarget.blur();
+              }
+            }}
+            aria-label="Project name"
+            placeholder="Untitled project"
+            size={Math.max(8, Math.min(48, name.length + 1))}
+            className="proj-name-in"
           />
-        </PropertyRow>
-        <PropertyRow label="Members">
-          {contributors.length > 0 ? (
-            <div className="px-1.5 py-0.5">
-              <AvatarRow people={contributors} />
-            </div>
-          ) : (
-            <span className="px-1.5 py-1 text-sm text-muted-foreground">
-              None
-            </span>
-          )}
-        </PropertyRow>
-        <PropertyRow label="Dates">
-          <DatesValue start={project.start_date} target={project.target_date} />
-        </PropertyRow>
-        <PropertyRow label="Teams">
-          <SpacesPicker
-            allSpaces={allSpaces}
-            linkedSpaces={linkedSpaces}
-            onToggle={toggleSpace}
-          />
-        </PropertyRow>
-        <PropertyRow label="Initiatives">
-          <ProjectInitiativesPicker propertyId={propertyId} projectId={projectId} />
-        </PropertyRow>
-        <PropertyRow label="Created">
-          <span className="px-1.5 py-1">
-            <RailDate value={project.created_at} />
-          </span>
-        </PropertyRow>
-      </RailGroup>
-
-      <RailGroup label="Progress">
-        <RailProgress done={counts.done} total={tasks.length} />
-      </RailGroup>
-
-      <RailGroup label="Activity">
-        <ActivityLogList
-          rows={activity.slice(0, 6)}
-          lookup={activityLookup}
-          pending={activityPending}
-          dense
-        />
-      </RailGroup>
-    </div>
-  );
-
-  const overflow = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button type="button" size="icon-sm" variant="ghost" title="More" />
-        }
-      >
-        <MoreHorizontal className="size-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6}>
-        <DropdownMenuItem onClick={handleArchive}>
-          <Archive className="size-3.5" />
-          <span className="flex-1">Archive project</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  return (
-    <WorkspaceShell
-      breadcrumb={breadcrumb}
-      header={header}
-      headerActions={overflow}
-      tabs={tabs}
-      rightRail={rightRail}
-    />
-  );
-}
-
-function AvatarRow({
-  people,
-}: {
-  people: { id: string; name: string | null; avatarUrl: string | null }[];
-}) {
-  const shown = people.slice(0, 5);
-  const extra = people.length - shown.length;
-  return (
-    <div className="flex items-center">
-      <div className="flex -space-x-1.5">
-        {shown.map((p) => (
-          <Avatar
-            key={p.id}
-            className="size-6 ring-2 ring-background"
-            title={p.name ?? undefined}
-          >
-            {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-            <AvatarFallback className="text-xs">
-              {(p.name ?? "?").slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        ))}
-      </div>
-      {extra > 0 ? (
-        <span className="ml-2 text-sm text-muted-foreground tabular-nums">
-          +{extra}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function HealthValue({
-  status,
-  targetDate,
-  done,
-  total,
-  inline,
-  computedLabel,
-}: {
-  status: ProjectStatus;
-  targetDate: string | null;
-  done: number;
-  total: number;
-  inline?: boolean;
-  /**
-   * Mark this as the computed pace read — set when a declared (written)
-   * health sits beside it, so the two can't be mistaken for each other.
-   */
-  computedLabel?: boolean;
-}) {
-  const health = projectHealth({
-    status,
-    target_date: targetDate,
-    done,
-    total,
-  });
-  const meta = HEALTH_META[health];
-  return (
-    <span
-      className={cn(
-        "flex items-center gap-1.5 text-foreground",
-        inline ? "text-sm" : "px-1.5 py-1 text-sm",
-      )}
-    >
-      <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
-      {meta.label}
-      {computedLabel ? (
-        <span className="text-faint-foreground" title="Computed from pace against the target date">
-          (pace)
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-function DatesValue({
-  start,
-  target,
-}: {
-  start: string | null;
-  target: string | null;
-}) {
-  if (!start && !target)
-    return (
-      <span className="px-1.5 py-1 text-sm text-muted-foreground">—</span>
-    );
-  return (
-    <span className="flex items-center gap-1 px-1.5 py-1">
-      <RailDate value={start} />
-      <span className="text-muted-foreground">→</span>
-      <RailDate value={target} />
-    </span>
-  );
-}
-
-function Contributors({
-  people,
-}: {
-  people: { id: string; name: string | null; avatarUrl: string | null }[];
-}) {
-  if (people.length === 0)
-    return (
-      <p className="py-4 text-sm text-muted-foreground">
-        No one is assigned to this project&apos;s tasks yet.
-      </p>
-    );
-  return (
-    <ul
-      role="list"
-      className="flex flex-col divide-y divide-border border-t border-border"
-    >
-      {people.map((p) => (
-        <li key={p.id} className="flex h-[37px] items-center gap-3 px-1">
-          <Avatar className="size-7">
-            {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-            <AvatarFallback className="text-xs">
-              {(p.name ?? "?").slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-            {p.name ?? "Unnamed"}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * The project lead — one accountable person, picked from the property's
- * members (gr8r's "Lead" row). Clearing is a menu item, not a separate control.
- */
-function LeadPicker({
-  people,
-  leadId,
-  onSelect,
-}: {
-  people: { id: string; name: string | null; avatarUrl: string | null }[];
-  leadId: string | null;
-  onSelect: (id: string | null) => void;
-}) {
-  const lead = leadId ? people.find((p) => p.id === leadId) : undefined;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<button type="button" className={railValueClass} />}>
-        {lead ? (
-          <>
-            <Avatar className="size-4">
-              {lead.avatarUrl ? <AvatarImage src={lead.avatarUrl} alt="" /> : null}
-              <AvatarFallback className="text-[9px]">
-                {(lead.name ?? "?").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{lead.name ?? "Member"}</span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">No lead</span>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="max-h-72 overflow-y-auto">
-        {people.map((p) => (
-          <DropdownMenuItem key={p.id} onClick={() => onSelect(p.id)}>
-            <Avatar className="size-4">
-              {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-              <AvatarFallback className="text-[9px]">
-                {(p.name ?? "?").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="flex-1 truncate">{p.name ?? "Member"}</span>
-            {p.id === leadId ? <Check className="size-3.5" /> : null}
-          </DropdownMenuItem>
-        ))}
-        {leadId ? (
-          <DropdownMenuItem onClick={() => onSelect(null)}>
-            <span className="flex-1 text-muted-foreground">Clear lead</span>
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function StatusMenu({
-  status,
-  onSelect,
-  inline,
-}: {
-  status: ProjectStatus;
-  onSelect: (s: ProjectStatus) => void;
-  inline?: boolean;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
+        </h1>
+      }
+      status={<ProjectStatusMenu status={project.status} onSelect={setStatus} />}
+      members={
+        headMembers.length ? (
           <button
             type="button"
-            className={inline ? "inline-flex items-center gap-1.5" : railValueClass}
-          />
-        }
-      >
-        <span className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[status])} />
-        {STATUS_LABEL[status]}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6}>
-        {(Object.keys(STATUS_LABEL) as ProjectStatus[]).map((s) => (
-          <DropdownMenuItem key={s} onClick={() => onSelect(s)}>
-            <span className={cn("size-2 rounded-full", STATUS_DOT[s])} />
-            <span className="flex-1">{STATUS_LABEL[s]}</span>
-            {s === status ? <Check className="size-3.5" /> : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function SpacesPicker({
-  allSpaces,
-  linkedSpaces,
-  onToggle,
-}: {
-  allSpaces: { id: string; name: string; color: EntityColor }[];
-  linkedSpaces: { id: string; name: string; color: EntityColor }[];
-  onToggle: (spaceId: string) => void;
-}) {
-  const linkedIds = new Set(linkedSpaces.map((s) => s.id));
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {linkedSpaces.map((s) => (
-          <span
-            key={s.id}
-            className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-sm text-foreground"
+            className="row"
+            style={{ gap: 0 }}
+            aria-label="Members"
+            title={headMembers.map((p) => p.name).join(", ")}
+            onClick={() => setTab("overview")}
           >
-            <span className={cn("size-1.5 rounded-full", DOT[s.color])} />
-            {s.name}
-          </span>
-        ))}
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className="rounded-md px-2.5 py-1 text-sm text-faint-foreground transition-colors hover:bg-accent"
-              />
-            }
-          >
-            {linkedSpaces.length === 0 ? "Add teams" : "Edit teams"}
-          </PopoverTrigger>
-          <PopoverContent align="start" sideOffset={6} className="w-56 p-1.5">
-            {allSpaces.length === 0 ? (
-              <p className="px-2 py-3 text-center text-xs text-faint-foreground">
-                No spaces yet — create one in the sidebar.
-              </p>
-            ) : (
-              <ul className="flex max-h-64 flex-col overflow-y-auto">
-                {allSpaces.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => onToggle(s.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                    >
-                      <span className={cn("size-2 rounded-full", DOT[s.color])} />
-                      <span className="min-w-0 flex-1 truncate">
-                        {s.name}
-                      </span>
-                      {linkedIds.has(s.id) ? (
-                        <Check className="size-3.5 shrink-0" />
-                      ) : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </PopoverContent>
-        </Popover>
-      </div>
-    </div>
+            <AvStack members={headMembers} max={5} />
+          </button>
+        ) : null
+      }
+      headActions={
+        <>
+          <AutomationsButton propertyId={propertyId} feature="tasks" />
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<button type="button" className="ibtn ibtn-sm" aria-label="More" title="More" />}
+            >
+              <Gi icon={Ellipsis} size={15} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={6}>
+              <DropdownMenuItem onClick={copyLink}>
+                <Link2 className="size-3.5" />
+                <span className="flex-1">Copy link</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleArchive}>
+                <Archive className="size-3.5" />
+                <span className="flex-1">Archive project</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      }
+      tabs={tabs}
+      active={tab}
+      onTab={setTab}
+    >
+      {body}
+    </ProjectPageShell>
   );
 }

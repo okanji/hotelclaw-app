@@ -7,28 +7,19 @@ import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowUp,
-  Ban,
-  CheckCircle2,
-  Circle,
-  CircleSlash,
-  Clock,
-  Loader2,
-  MoreHorizontal,
+  Ellipsis,
+  LibraryBig,
   Search,
   Sparkles,
   Workflow,
-  XCircle,
 } from "lucide-react";
 import { builderPrefillHref } from "@/lib/workflows/features";
 import { canRunNow } from "@/lib/workflows/summary";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { useWorkflowsRealtime } from "@/lib/workflows/use-workflows-realtime";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
-import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Switch } from "@/components/ui/switch";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { Gi } from "@/components/gr8r/icon";
+import { Tog } from "@/components/gr8r/settings-ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,10 +27,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { useViewerId } from "@/components/activity/activity-log";
 import { WorkflowsTabs } from "./workflows-tabs";
 import { FlowSummary } from "./flow-summary";
+import { RunBadge, RunGlyph, formatRelative, runStatusG8 } from "./g8-bits";
 import {
   DeleteWorkflowDialog,
   duplicateWorkflowRequest,
@@ -62,78 +53,6 @@ type WorkflowRow = {
   created_at: string;
   updated_at: string;
 };
-
-// Run-status palette mirrors workflow-runs.tsx so the list and the runs view
-// read as one system. Each status maps to a leading glyph (left-edge scan) and
-// a StatusBadge tone (right-edge label).
-const RUN_STATUS: Record<
-  string,
-  {
-    label: string;
-    icon: typeof CheckCircle2;
-    tone: string;
-    badgeTone: React.ComponentProps<typeof StatusBadge>["tone"];
-    spin?: boolean;
-  }
-> = {
-  succeeded: {
-    label: "Succeeded",
-    icon: CheckCircle2,
-    tone: "text-success",
-    badgeTone: "success",
-  },
-  failed: {
-    label: "Failed",
-    icon: XCircle,
-    tone: "text-destructive",
-    badgeTone: "danger",
-  },
-  running: {
-    label: "Running",
-    icon: Loader2,
-    tone: "text-info",
-    badgeTone: "info",
-    spin: true,
-  },
-  waiting: {
-    label: "Waiting",
-    icon: Clock,
-    tone: "text-warning",
-    badgeTone: "warning",
-  },
-  queued: {
-    label: "Queued",
-    icon: Circle,
-    tone: "text-muted-foreground",
-    badgeTone: "neutral",
-  },
-  filtered: {
-    label: "Filtered",
-    icon: CircleSlash,
-    tone: "text-muted-foreground",
-    badgeTone: "neutral",
-  },
-  cancelled: {
-    label: "Cancelled",
-    icon: Ban,
-    tone: "text-muted-foreground",
-    badgeTone: "neutral",
-  },
-};
-
-function formatRelative(iso: string | null) {
-  if (!iso) return null;
-  const ms = Date.now() - Date.parse(iso);
-  if (isNaN(ms)) return null;
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
-}
 
 type Filter = "all" | "mine" | "active" | "disabled" | "failing";
 
@@ -210,6 +129,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
   }
 
   const has = workflows.length > 0;
+  const onCount = workflows.filter((w) => w.enabled).length;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -217,21 +137,30 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
         breadcrumbs={[
           { label: "Workflows", icon: <Workflow />, href: `/p/${propertyId}/workflows` },
         ]}
-        actions={
-          <div className="flex items-center gap-1.5">
-            <Link
-              href={`/p/${propertyId}/workflows/new`}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-            >
-              <Sparkles className="size-3.5" />
-              New workflow
-            </Link>
-          </div>
-        }
       />
-      <WorkflowsTabs propertyId={propertyId} />
-      <div className="flex-1 overflow-y-auto">
-        <PageShell width="full" className="pt-8 pb-12">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph">
+            <div>
+              <h1>Workflows</h1>
+              <p>
+                {has
+                  ? `${workflows.length} ${workflows.length === 1 ? "workflow" : "workflows"} · ${onCount} on`
+                  : "Put busywork on autopilot."}
+              </p>
+            </div>
+            <div className="acts">
+              <Link href={`/p/${propertyId}/workflows/templates`} className="btn btn-secondary">
+                <Gi icon={LibraryBig} size={14} />
+                Templates
+              </Link>
+              <Link href={`/p/${propertyId}/workflows/new`} className="btn btn-primary">
+                <Gi icon={Sparkles} size={14} />
+                New workflow
+              </Link>
+            </div>
+          </div>
+          <WorkflowsTabs propertyId={propertyId} />
           {has ? (
             <>
               <Toolbar
@@ -244,10 +173,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
                 shown={filtered.length}
               />
               {filtered.length > 0 ? (
-                <ul
-                  role="list"
-                  className="divide-y divide-border"
-                >
+                <ul role="list" className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
                   {filtered.map((w) => (
                     <Row
                       key={w.id}
@@ -283,7 +209,7 @@ export function WorkflowsList({ propertyId }: { propertyId: string }) {
           ) : (
             <EmptyState propertyId={propertyId} />
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -313,42 +239,48 @@ function Toolbar({
     { key: "disabled", label: "Disabled" },
   ];
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <div className="relative flex-1">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
+    <div className="row" style={{ marginBottom: 12, flexWrap: "wrap" }}>
+      <div className="inwrap" style={{ flex: 1, minWidth: 200 }}>
+        <Gi icon={Search} size={13} />
+        <input
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           placeholder="Search workflows…"
-          className="h-8 pl-8 text-sm"
+          className="input search-sm"
+          style={{ width: "100%" }}
           aria-label="Search workflows"
         />
       </div>
-      <TabNav variant="pill" aria-label="Filter workflows">
+      <div className="seg" role="group" aria-label="Filter workflows">
         {filters.map((f) => (
-          <TabNavItem
+          <button
             key={f.key}
-            active={filter === f.key}
+            type="button"
+            className={filter === f.key ? "on" : ""}
+            aria-pressed={filter === f.key}
             onClick={() => onFilter(f.key)}
           >
             {f.label}
-          </TabNavItem>
+          </button>
         ))}
-        <TabNavItem
-          active={filter === "failing"}
+        <button
+          type="button"
           disabled={failingCount === 0}
+          aria-pressed={filter === "failing"}
+          className={filter === "failing" ? "on" : ""}
+          style={
+            failingCount === 0
+              ? { opacity: 0.4, cursor: "default" }
+              : filter === "failing"
+                ? { color: "var(--g8-red)" }
+                : undefined
+          }
           onClick={() => onFilter(filter === "failing" ? "all" : "failing")}
-          className={cn(
-            failingCount === 0 && "cursor-default opacity-40",
-            filter === "failing"
-              ? "bg-destructive/10! text-destructive!"
-              : "hover:text-destructive!",
-          )}
         >
           {failingCount > 0 ? `${failingCount} failing` : "Failing"}
-        </TabNavItem>
-      </TabNav>
-      <span className="w-14 text-right text-xs tabular-nums text-muted-foreground">
+        </button>
+      </div>
+      <span className="faint num" style={{ fontSize: 12, minWidth: 40, textAlign: "right" }}>
         {shown === total ? `${total}` : `${shown}/${total}`}
       </span>
     </div>
@@ -377,62 +309,46 @@ function Row({
   onDelete: () => Promise<void>;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const status = w.last_run_status ? RUN_STATUS[w.last_run_status] : null;
-  const StatusIcon = status?.icon ?? Circle;
+  const status = runStatusG8(w.last_run_status);
   const relative = formatRelative(w.last_run_at);
 
   return (
-    <li className="group relative flex items-center gap-3 pr-2 pl-3 hover:bg-accent">
+    <li className="nrow" style={{ alignItems: "center", cursor: "default" }}>
       <Link
         href={`/p/${propertyId}/workflows/${w.id}`}
         title={w.description ?? undefined}
-        className={cn(
-          "flex min-w-0 flex-1 items-start gap-3 py-2.5",
-          !w.enabled && "opacity-55",
-        )}
+        className="row grow"
+        style={{ alignItems: "flex-start", gap: 12, opacity: w.enabled ? 1 : 0.55 }}
       >
-        <StatusIcon
-          aria-hidden
-          className={cn(
-            "mt-0.5 size-4 shrink-0",
-            w.enabled ? (status?.tone ?? "text-muted-foreground/40") : "text-muted-foreground/40",
-            status?.spin && w.enabled && "animate-spin",
-          )}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-foreground">{w.name}</span>
-          </div>
+        <span style={{ marginTop: 1 }}>
+          <RunGlyph status={w.last_run_status} muted={!w.enabled} />
+        </span>
+        <span className="col grow" style={{ gap: 3 }}>
+          <span className="trunc" style={{ fontWeight: 500 }}>
+            {w.name}
+          </span>
           <FlowSummary trigger={w.trigger_event_type} stepTypes={w.step_types} />
-        </div>
+        </span>
       </Link>
 
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="hidden items-center gap-2 sm:flex">
-          {status ? (
-            <StatusBadge tone={status.badgeTone} dot={false}>
-              {status.label}
-            </StatusBadge>
-          ) : null}
-          <span className="w-16 text-right text-xs tabular-nums text-muted-foreground">
+      <div className="row" style={{ gap: 12, flexShrink: 0 }}>
+        <div className="row hidden sm:flex" style={{ gap: 8 }}>
+          {status && w.last_run_status ? <RunBadge status={w.last_run_status} /> : null}
+          <span className="faint num" style={{ fontSize: 12, width: 64, textAlign: "right" }}>
             {relative ?? "Never run"}
           </span>
         </div>
 
-        <Switch
+        <Tog
+          label={`${w.enabled ? "Disable" : "Enable"} ${w.name}`}
           checked={w.enabled}
           disabled={busy}
-          aria-label={`${w.enabled ? "Disable" : "Enable"} ${w.name}`}
-          onCheckedChange={onToggle}
-          onClick={(e) => e.stopPropagation()}
+          onChange={() => onToggle()}
         />
 
         <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`Actions for ${w.name}`}
-            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100 data-[popup-open]:opacity-100"
-          >
-            <MoreHorizontal className="size-4" />
+          <DropdownMenuTrigger aria-label={`Actions for ${w.name}`} className="ibtn ibtn-sm">
+            <Gi icon={Ellipsis} size={15} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-40">
             {canRunNow(w.trigger_event_type) ? (
@@ -469,15 +385,16 @@ function Row({
 
 function FilteredEmpty({ onClear }: { onClear: () => void }) {
   return (
-    <div className="rounded-lg bg-muted px-6 py-10 text-center">
-      <p className="text-sm text-muted-foreground">No workflows match your filters.</p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="mt-3 inline-flex h-7 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
-      >
-        Clear filters
-      </button>
+    <div className="panel">
+      <div className="empty-state sm">
+        <div className="glyph">
+          <Gi icon={Search} />
+        </div>
+        <p>No workflows match your filters.</p>
+        <button type="button" onClick={onClear} className="btn btn-secondary btn-sm">
+          Clear filters
+        </button>
+      </div>
     </div>
   );
 }
@@ -494,61 +411,64 @@ function EmptyState({ propertyId }: { propertyId: string }) {
     if (g) router.push(builderPrefillHref(propertyId, g));
   };
   return (
-    <div className="mx-auto max-w-2xl pt-6">
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Create a workflow</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div style={{ maxWidth: 640, margin: "8px auto 0" }}>
+      <section className="panel">
+        <div className="panel-h">
+          <h2>Create a workflow</h2>
+          <div className="acts">
+            <Link href={`/p/${propertyId}/workflows/new`} className="btn btn-secondary btn-sm">
+              Start fresh
+            </Link>
+          </div>
+        </div>
+        <div className="panel-b">
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
             Put busywork on autopilot — it runs on its own whenever its trigger happens.
           </p>
-        </div>
-        <Link
-          href={`/p/${propertyId}/workflows/new`}
-          className="inline-flex h-7 shrink-0 items-center rounded-md bg-card px-2 text-sm font-medium text-foreground shadow-ring transition-colors hover:bg-accent"
-        >
-          Start fresh
-        </Link>
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-        className="rounded-lg bg-card p-3 shadow-ring focus-within:shadow-focus"
-      >
-        <textarea
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+          <form
+            onSubmit={(e) => {
               e.preventDefault();
               submit();
-            }
-          }}
-          rows={2}
-          aria-label="Describe the workflow"
-          placeholder="Describe it — e.g. “When a task labeled guest-complaint is created, notify the manager on duty”"
-          className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-faint-foreground"
-        />
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-xs text-faint-foreground">
-            <Sparkles className="size-3.5" aria-hidden />
-            AI builds it — you review before it turns on
-          </span>
-          <button
-            type="submit"
-            disabled={!goal.trim()}
-            aria-label="Build with AI"
-            className="inline-flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:bg-primary/80 disabled:opacity-40"
+            }}
           >
-            <ArrowUp className="size-4" />
-          </button>
+            <textarea
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
+              rows={3}
+              aria-label="Describe the workflow"
+              placeholder="Describe it — e.g. “When a task labeled guest-complaint is created, notify the manager on duty”"
+              className="textarea"
+              style={{ width: "100%", resize: "none" }}
+            />
+            <div className="row" style={{ marginTop: 8 }}>
+              <span className="row faint" style={{ gap: 5, fontSize: 12 }}>
+                <Gi icon={Sparkles} size={13} />
+                AI builds it — you review before it turns on
+              </span>
+              <span className="sp" />
+              <button
+                type="submit"
+                disabled={!goal.trim()}
+                className="btn btn-primary btn-sm"
+              >
+                <Gi icon={ArrowUp} size={14} />
+                Build with AI
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
-      <div className="mt-4 text-center">
+      </section>
+      <div style={{ marginTop: 14, textAlign: "center" }}>
         <Link
           href={`/p/${propertyId}/workflows/templates`}
-          className="text-xs font-medium text-primary-ink hover:underline"
+          className="link"
+          style={{ fontSize: 12 }}
         >
           Or start from a template →
         </Link>

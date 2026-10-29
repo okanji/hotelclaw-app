@@ -4,10 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Building2, Mail, ArrowLeft } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import {
+  AuthAlert,
+  AuthCardMark,
+  AuthShell,
+  PasswordInput,
+  StrengthMeter,
+} from "@/components/auth/auth-shell";
 
 type Mode = "signin" | "signup";
 
@@ -25,30 +30,37 @@ export function LoginForm({ next }: { next: string | null }) {
   const [busy, setBusy] = useState<null | "password">(null);
   const [error, setError] = useState<string | null>(null);
   const [signupNeedsConfirm, setSignupNeedsConfirm] = useState(false);
-  const [invitePreview, setInvitePreview] = useState<InvitePreview[]>([]);
+  // Keyed by the email it was fetched for, so a stale lookup (or one from
+  // signup mode after switching back to sign-in) simply isn't shown —
+  // derived on render instead of cleared from inside the effect.
+  const [preview, setPreview] = useState<{
+    email: string;
+    invites: InvitePreview[];
+  } | null>(null);
+  const trimmedEmail = email.trim().toLowerCase();
+  const invitePreview =
+    mode === "signup" && preview?.email === trimmedEmail
+      ? preview.invites
+      : [];
 
   // Debounced lookup of pending invites for the typed email — shown above
   // the password field to reassure the user "yes, this is the workspace
   // you were invited to". Only runs in signup mode (signins go straight in).
   useEffect(() => {
-    if (mode !== "signup") {
-      setInvitePreview([]);
-      return;
-    }
-    const trimmed = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setInvitePreview([]);
-      return;
-    }
+    if (mode !== "signup") return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return;
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/invites/preview?email=${encodeURIComponent(trimmed)}`,
+          `/api/invites/preview?email=${encodeURIComponent(trimmedEmail)}`,
           { cache: "no-store", signal: ctrl.signal },
         );
         if (!res.ok) return;
-        setInvitePreview((await res.json()) as InvitePreview[]);
+        setPreview({
+          email: trimmedEmail,
+          invites: (await res.json()) as InvitePreview[],
+        });
       } catch {
         // ignore — abort or network blip
       }
@@ -57,7 +69,7 @@ export function LoginForm({ next }: { next: string | null }) {
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [email, mode]);
+  }, [trimmedEmail, mode]);
 
   // Email links (signup confirm) go through /auth/confirm with a token_hash.
   // The `?next=` is ALWAYS present — the custom Supabase email templates
@@ -119,152 +131,185 @@ export function LoginForm({ next }: { next: string | null }) {
     }
   }
 
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setError(null);
+  };
+
+  const topRight = signupNeedsConfirm ? null : mode === "signin" ? (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      onClick={() => switchMode("signup")}
+      disabled={busy !== null}
+    >
+      Sign up
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      onClick={() => switchMode("signin")}
+      disabled={busy !== null}
+    >
+      Log in
+    </button>
+  );
+
   if (signupNeedsConfirm) {
+    // gr8r's "verify" card.
     return (
-      <div className="space-y-6">
-        <span className="flex size-11 items-center justify-center rounded-md bg-muted">
-          <Mail className="size-5 text-muted-foreground" />
-        </span>
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-balance">
-            Check your inbox
-          </h1>
-          <p className="text-sm text-muted-foreground text-pretty">
+      <AuthShell>
+        <div className="auth-card fx-auth">
+          <AuthCardMark icon={Mail} />
+          <h1>Check your inbox</h1>
+          <p className="sub">
             We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{email}</span>. Click
-            it to finish creating your account.
+            <b style={{ color: "var(--g8-text)" }}>{email}</b>. Click it to
+            finish creating your account.
+          </p>
+          <p className="auth-foot">
+            <button
+              type="button"
+              className="link"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              onClick={() => {
+                setSignupNeedsConfirm(false);
+                setMode("signin");
+              }}
+            >
+              <Gi icon={ArrowLeft} size={14} />
+              Back to sign in
+            </button>
           </p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          className="-ml-2.5"
-          onClick={() => {
-            setSignupNeedsConfirm(false);
-            setMode("signin");
-          }}
-        >
-          <ArrowLeft data-icon="inline-start" />
-          Back to sign in
-        </Button>
-      </div>
+      </AuthShell>
     );
   }
 
+  const busyLabel = mode === "signin" ? "Signing in…" : "Creating account…";
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-balance">
-          {mode === "signin" ? "Welcome back" : "Create your account"}
-        </h1>
-        <p className="text-sm text-muted-foreground text-pretty">
+    <AuthShell topRight={topRight}>
+      <form
+        key={mode}
+        className="auth-card fx-auth"
+        onSubmit={handlePassword}
+      >
+        <AuthCardMark />
+        <h1>{mode === "signin" ? "Welcome back" : "Create your account"}</h1>
+        <p className="sub">
           {mode === "signin"
             ? "Sign in to your Hotelclaw workspace."
             : "We'll send a confirmation email to finish setup."}
         </p>
-      </div>
-      <div>
-        <form onSubmit={handlePassword} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@hotel.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy !== null}
-              className="h-11"
-            />
-          </div>
-          {invitePreview.length > 0 ? (
-            <div className="rounded-md border bg-muted p-3">
-              <div className="mb-2 flex items-center gap-2 text-xs font-medium">
-                <Mail className="size-3.5" />
-                You've been invited to:
-              </div>
-              <ul className="space-y-1.5">
-                {invitePreview.map((inv) => (
-                  <li
-                    key={inv.token}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <Building2 className="size-3.5 text-muted-foreground" />
-                    <span className="font-medium">{inv.propertyName}</span>
-                    <span className="text-xs text-muted-foreground capitalize">
-                      · {inv.role}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-muted-foreground">
-                You'll be able to accept these right after your account is
-                created.
-              </p>
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              {mode === "signin" ? (
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              ) : null}
-            </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={mode === "signup" ? 8 : 1}
-              autoComplete={
-                mode === "signin" ? "current-password" : "new-password"
-              }
-              placeholder={mode === "signup" ? "At least 8 characters" : ""}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy !== null}
-              className="h-11"
-            />
-          </div>
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : null}
-          <Button
-            type="submit"
+        {error ? <AuthAlert>{error}</AuthAlert> : null}
+        <div className="field">
+          <label className="label" htmlFor="email">
+            {mode === "signin" ? "Email" : "Work email"}
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@hotel.com"
+            className="input input-lg"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             disabled={busy !== null}
-            className="mt-1 h-11 w-full"
-          >
-            {busy === "password"
-              ? mode === "signin"
-                ? "Signing in…"
-                : "Creating account…"
-              : mode === "signin"
-                ? "Sign in"
-                : "Create account"}
-          </Button>
-        </form>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+          />
+        </div>
+        {invitePreview.length > 0 ? (
+          <div className="alert info">
+            <Gi icon={Mail} size={14} />
+            <div className="col" style={{ gap: 6, minWidth: 0 }}>
+              <b>You&apos;ve been invited to:</b>
+              {invitePreview.map((inv) => (
+                <span
+                  key={inv.token}
+                  className="row"
+                  style={{ gap: 6, minWidth: 0 }}
+                >
+                  <Gi icon={Building2} size={13} />
+                  <span style={{ fontWeight: 500 }}>{inv.propertyName}</span>
+                  <span
+                    className="faint"
+                    style={{ textTransform: "capitalize" }}
+                  >
+                    · {inv.role}
+                  </span>
+                </span>
+              ))}
+              <span className="muted">
+                You&apos;ll be able to accept these right after your account
+                is created.
+              </span>
+            </div>
+          </div>
+        ) : null}
+        <div className="field">
+          <div className="row">
+            <label className="label" htmlFor="password">
+              Password
+            </label>
+            <span className="sp" />
+            {mode === "signin" ? (
+              <Link
+                href="/forgot-password"
+                className="link"
+                style={{ fontSize: 12.5 }}
+              >
+                Forgot password?
+              </Link>
+            ) : null}
+          </div>
+          <PasswordInput
+            id="password"
+            name="password"
+            required
+            minLength={mode === "signup" ? 8 : 1}
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
+            placeholder={mode === "signup" ? "At least 8 characters" : ""}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={busy !== null}
+          />
+          {mode === "signup" ? (
+            <>
+              <StrengthMeter password={password} />
+              <span className="hint">At least 8 characters.</span>
+            </>
+          ) : null}
+        </div>
+        <button
+          type="submit"
+          className={`btn btn-primary btn-lg btn-block${busy !== null ? " is-loading" : ""}`}
+          disabled={busy !== null}
+          aria-label={busy !== null ? busyLabel : undefined}
+        >
+          {mode === "signin" ? "Sign in" : "Create account"}
+        </button>
+        {mode === "signup" ? (
+          <p className="hint" style={{ textAlign: "center" }}>
+            By creating an account you agree to Hotelclaw&rsquo;s Terms and
+            Privacy Policy.
+          </p>
+        ) : null}
+        <p className="auth-foot">
           {mode === "signin" ? (
             <>
-              No account?{" "}
+              Don&apos;t have an account?{" "}
               <button
                 type="button"
-                onClick={() => {
-                  setMode("signup");
-                  setError(null);
-                }}
-                className="font-medium text-foreground underline-offset-2 hover:underline"
+                className="link"
+                onClick={() => switchMode("signup")}
                 disabled={busy !== null}
               >
-                Create one
+                Sign up
               </button>
             </>
           ) : (
@@ -272,11 +317,8 @@ export function LoginForm({ next }: { next: string | null }) {
               Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => {
-                  setMode("signin");
-                  setError(null);
-                }}
-                className="font-medium text-foreground underline-offset-2 hover:underline"
+                className="link"
+                onClick={() => switchMode("signin")}
                 disabled={busy !== null}
               >
                 Sign in
@@ -284,7 +326,7 @@ export function LoginForm({ next }: { next: string | null }) {
             </>
           )}
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   );
 }

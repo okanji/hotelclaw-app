@@ -1,16 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import {
-  CoverCard,
-  coverTintAt,
-  type COVER_TINTS,
-} from "@/components/ui/cover-card";
+import { Gi } from "@/components/gr8r/icon";
+import { WfEmpty } from "@/components/workflows/g8-bits";
 import {
   Dialog,
   DialogContent,
@@ -20,24 +15,30 @@ import { WorkflowSpec, classifyMode } from "@/lib/workflows/spec";
 import { WorkflowSpecPreview } from "@/components/workflows/spec-preview";
 import { surfaceMeta } from "@/components/workflows/builder/surface-badge";
 import { FlowSummary } from "@/components/workflows/flow-summary";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import type { Surface } from "@/lib/workflows/catalog/types";
 
-/** Cover tint by the template's primary surface (fallback: rotate). */
-const SURFACE_TINTS: Partial<Record<string, keyof typeof COVER_TINTS>> = {
-  tasks: "sage",
-  docs: "amber",
-  chat: "blue",
-  meetings: "violet",
-  calendar: "violet",
-  forms: "sage",
-  bookings: "violet",
-  entities: "blue",
-  ai: "cream",
-  control: "amber",
-  external: "coral",
-  system: "cream",
+/** gr8r palette colour by the template's primary surface (fallback: rotate). */
+const SURFACE_G8: Partial<Record<string, string>> = {
+  tasks: "var(--g8-green)",
+  docs: "var(--g8-amber)",
+  chat: "var(--g8-blue)",
+  meetings: "var(--g8-violet)",
+  calendar: "var(--g8-violet)",
+  forms: "var(--g8-teal)",
+  entities: "var(--g8-blue)",
+  ai: "var(--g8-accent)",
+  control: "var(--g8-amber)",
+  external: "var(--g8-orange)",
+  system: "var(--g8-gray)",
 };
+const ROTATE_G8 = [
+  "var(--g8-blue)",
+  "var(--g8-green)",
+  "var(--g8-violet)",
+  "var(--g8-amber)",
+  "var(--g8-teal)",
+  "var(--g8-rose)",
+];
 
 // Category tabs, Linear's Loops gallery pattern. Unknown categories fall back
 // to a title-cased slug so a new seed row never hides.
@@ -119,80 +120,105 @@ export function TemplatesClient({
 
   if (templates.length === 0) {
     return (
-      <EmptyState
+      <WfEmpty
         icon={LibraryBig}
         title="No templates yet"
-        action={
-          <Button
-            size="xs"
+        actions={
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
             onClick={() => router.push(`/p/${propertyId}/workflows/new`)}
           >
-            <Sparkles data-icon="inline-start" aria-hidden />
+            <Gi icon={Sparkles} size={14} />
             Build one with AI
-          </Button>
+          </button>
         }
       >
         You can still create a workflow from scratch — describe what you want
         and the AI will design it for you.
-      </EmptyState>
+      </WfEmpty>
     );
   }
 
   return (
     <>
-    {categories.length > 1 ? (
-      <TabNav variant="pill" aria-label="Template categories" className="mb-4">
-        <TabNavItem active={category === "all"} onClick={() => setCategory("all")}>
-          All
-        </TabNavItem>
-        {categories.map((c) => (
-          <TabNavItem key={c} active={category === c} onClick={() => setCategory(c)}>
-            {categoryLabel(c)}
-          </TabNavItem>
-        ))}
-      </TabNav>
-    ) : null}
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {shown.map((t, i) => {
-        const flow = specFlow(t.spec);
-        const primary = t.surfaces[0];
-        const meta = primary ? surfaceMeta(primary as Surface) : undefined;
-        const Glyph = meta?.icon ?? Workflow;
-        return (
-          <li key={t.id} className="min-w-0">
-            <CoverCard
-              className="h-full"
-              tint={SURFACE_TINTS[primary] ?? coverTintAt(i)}
-              glyph={<Glyph />}
-              title={t.name}
-              description={t.description}
-              tags={t.surfaces.map(
-                (s) => surfaceMeta(s as Surface)?.label ?? s,
-              )}
+      {categories.length > 1 ? (
+        <div className="seg" role="group" aria-label="Template categories" style={{ marginBottom: 14 }}>
+          <button
+            type="button"
+            className={category === "all" ? "on" : ""}
+            aria-pressed={category === "all"}
+            onClick={() => setCategory("all")}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={category === c ? "on" : ""}
+              aria-pressed={category === c}
+              onClick={() => setCategory(c)}
             >
-              <FlowSummary trigger={flow.trigger} stepTypes={flow.steps} className="pt-1" />
-              <div className="mt-auto flex items-center justify-end gap-2 pt-1">
-                <Button variant="outline" size="xs" onClick={() => setPreviewing(t)}>
-                  <Eye data-icon="inline-start" aria-hidden />
-                  Preview
-                </Button>
-                <Button size="xs" disabled={!!forking} onClick={() => fork(t)}>
-                  {forking === t.slug ? "Creating…" : "Use template"}
-                </Button>
+              {categoryLabel(c)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <ul className="pgrid" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {shown.map((t, i) => {
+          const flow = specFlow(t.spec);
+          const primary = t.surfaces[0];
+          const meta = primary ? surfaceMeta(primary as Surface) : undefined;
+          const Glyph = meta?.icon ?? Workflow;
+          const c = (primary && SURFACE_G8[primary]) || ROTATE_G8[i % ROTATE_G8.length];
+          return (
+            <li key={t.id} className="pcard" style={{ cursor: "default" }}>
+              <div className="row" style={{ gap: 10 }}>
+                <span className="picon" style={{ "--g8-c": c } as CSSProperties}>
+                  <Gi icon={Glyph} size={15} />
+                </span>
+                <span className="trunc" style={{ fontWeight: 600 }}>
+                  {t.name}
+                </span>
               </div>
-            </CoverCard>
-          </li>
-        );
-      })}
+              <div className="desc">{t.description}</div>
+              <FlowSummary trigger={flow.trigger} stepTypes={flow.steps} />
+              <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                {t.surfaces.map((s) => (
+                  <span key={s} className="badge gray">
+                    {surfaceMeta(s as Surface)?.label ?? s}
+                  </span>
+                ))}
+              </div>
+              <div className="foot">
+                <span className="sp" />
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPreviewing(t)}>
+                  <Gi icon={Eye} size={14} />
+                  Preview
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={!!forking}
+                  onClick={() => fork(t)}
+                >
+                  {forking === t.slug ? "Creating…" : "Use template"}
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
 
       <Dialog
         open={previewing !== null}
         onOpenChange={(o) => (!o ? setPreviewing(null) : undefined)}
       >
-        {/* The base DialogContent caps itself at sm:max-w-sm — override BOTH
+        {/* The base DialogContent caps itself at sm:max-w — override BOTH
             width utilities (base + sm: variant) or the panel renders narrower
-            than its content and the layout shears apart. p-0/gap-0 because
-            this dialog manages its own header / scroll body / footer bands. */}
+            than its content. p-0/gap-0 because this dialog manages its own
+            header / scroll body / footer bands. */}
         <DialogContent className="w-full max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-xl">
           {previewing ? (
             <TemplatePreview
@@ -207,7 +233,6 @@ export function TemplatesClient({
           ) : null}
         </DialogContent>
       </Dialog>
-    </ul>
     </>
   );
 }
@@ -231,11 +256,8 @@ function TemplatePreview({
       <div className="shrink-0 px-5 pt-5 pb-4 pr-10">
         <div className="mb-2 flex flex-wrap items-center gap-1">
           {template.surfaces.map((s) => (
-            <span
-              key={s}
-              className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-faint-foreground"
-            >
-              {s}
+            <span key={s} className="badge gray">
+              {surfaceMeta(s as Surface)?.label ?? s}
             </span>
           ))}
         </div>
@@ -265,9 +287,9 @@ function TemplatePreview({
           ) : null}
           Starts turned off — review it first.
         </p>
-        <Button size="xs" onClick={onUse} disabled={forking} className="shrink-0">
+        <button type="button" onClick={onUse} disabled={forking} className="btn btn-primary btn-sm shrink-0">
           {forking ? "Creating…" : "Use template"}
-        </Button>
+        </button>
       </div>
     </div>
   );

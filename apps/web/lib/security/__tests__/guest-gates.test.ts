@@ -20,28 +20,9 @@ import { join, relative } from "node:path";
 const webRoot = join(__dirname, "..", "..", "..");
 const apiRoot = join(webRoot, "app", "api", "properties", "[propertyId]");
 
-const BASELINE = new Set([
-  "api-tokens/[tokenId]/route.ts",
-  "api-tokens/route.ts",
-  "catch-up/[subjectKind]/[subjectId]/route.ts",
-  "chatbots/[chatbotId]/test/route.ts",
-  "checkin/route.ts",
-  "entities/route.ts",
-  "entities/types/route.ts",
-  "fleet/sessions/[eveSessionId]/stream/route.ts",
-  "handover/route.ts",
-  "insights/shift-brief/route.ts",
-  "invites/route.ts",
-  "members/route.ts",
-  "org/route.ts",
-  "tasks/[taskId]/suggestions/route.ts",
-  "triage-settings/route.ts",
-  "workflows/[workflowId]/route.ts",
-  "workflows/[workflowId]/run/route.ts",
-  "workflows/[workflowId]/runs/[runId]/cancel/route.ts",
-  "workflows/[workflowId]/versions/route.ts",
-  "workflows/route.ts",
-]);
+// Emptied by the 0118 audit (2026-10-29): every service-client property
+// route is now gated or carries a guest-safe note. Keep it empty.
+const BASELINE = new Set<string>([]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

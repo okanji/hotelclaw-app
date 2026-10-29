@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Hash, Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { channelHref } from "@/lib/chat/channel-href";
 import { createChannel } from "@/components/chat/actions";
@@ -66,9 +66,14 @@ export function SpaceChannelsPanel({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-2">
-        <Input
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Channels</h2>
+        {!isPending ? <span className="faint">{channels.length}</span> : null}
+        <span className="sp" />
+        <input
+          className="input"
+          style={{ height: 28, width: 200, fontSize: 12.5 }}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -78,47 +83,40 @@ export function SpaceChannelsPanel({
             }
           }}
           placeholder="new-channel-name"
+          aria-label="New channel name"
           disabled={busy}
-          className="h-9 max-w-xs"
         />
-        <Button
+        <button
           type="button"
-          size="sm"
+          className="btn btn-secondary btn-sm"
           onClick={() => void handleCreate()}
           disabled={busy || !name.trim()}
         >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <Gi icon={busy ? Loader2 : Plus} size={14} className={busy ? "animate-spin" : undefined} />
           New channel
-        </Button>
+        </button>
       </div>
-
       {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading channels…</p>
+        <div className="panel-b faint">Loading channels…</div>
       ) : channels.length === 0 ? (
-        <p className="py-2 text-sm text-pretty text-muted-foreground">
-          No channels for this space yet. Create one above to give the
-          department a home for chat.
-        </p>
+        <G8Empty
+          icon={Hash}
+          title="No channels yet"
+          text="Create one above to give the team a home for chat."
+          sm
+        />
       ) : (
-        <ul
-          role="list"
-          className="flex flex-col divide-y divide-border border-t border-border"
-        >
-          {channels.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={channelHref(propertyId, c.stream_channel_type, c.stream_channel_id)}
-                className="flex min-h-[37px] items-center gap-3 rounded-md px-1 transition-colors hover:bg-accent"
-              >
-                <Hash className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                  {c.name}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        channels.map((c) => (
+          <Link
+            key={c.id}
+            href={channelHref(propertyId, c.stream_channel_type, c.stream_channel_id)}
+            className="mini"
+          >
+            <Gi icon={Hash} size={14} />
+            <span className="tt">{c.name}</span>
+          </Link>
+        ))
       )}
-    </div>
+    </section>
   );
 }

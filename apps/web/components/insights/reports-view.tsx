@@ -4,15 +4,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { WidgetEmpty } from "@/components/home/editorial-section";
+import { Gi } from "@/components/gr8r/icon";
 import { insightReportsQueryOptions } from "@/lib/query/insights-queries";
 import type { InsightReportRow } from "@/lib/ai/bots/insights-bot";
-import { cn } from "@/lib/utils";
 import { InsightSection } from "./insights-view";
 import { ReportMarkdown } from "./report-markdown";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { G8Note, G8Rows } from "./g8-insights";
 
 /**
  * Reports — the AI weekly report archive. "Generate" produces (or returns the
@@ -65,48 +62,51 @@ export function ReportsView({ propertyId }: { propertyId: string }) {
       title="Weekly reports"
       wide
       headerRight={
-        <div className="flex items-center gap-2">
+        <>
           {current ? (
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
               disabled={generate.isPending}
               onClick={() => generate.mutate(true)}
               title="Regenerate this week's report from current data"
             >
-              <RefreshCw
-                className={cn("size-3.5", generate.isPending && "animate-spin")}
+              <Gi
+                icon={RefreshCw}
+                size={13}
+                className={generate.isPending ? "animate-spin" : undefined}
               />
               Regenerate
-            </Button>
+            </button>
           ) : null}
-          <Button
-            size="sm"
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
             disabled={generate.isPending}
             onClick={() => generate.mutate(false)}
           >
-            {generate.isPending ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
-            )}
+            <Gi
+              icon={generate.isPending ? Loader2 : Sparkles}
+              size={13}
+              className={generate.isPending ? "animate-spin" : undefined}
+            />
             {generate.isPending ? "Writing…" : "Generate this week's report"}
-          </Button>
-        </div>
+          </button>
+        </>
       }
     >
       {isPending ? (
         <div className="flex flex-col gap-2 py-4" aria-busy="true">
-          <Skeleton className="h-4 w-3/5" />
-          <Skeleton className="h-4 w-2/5" />
+          <span className="sk" style={{ height: 14, width: "60%" }} />
+          <span className="sk" style={{ height: 14, width: "40%" }} />
         </div>
       ) : reports.length === 0 ? (
-        <WidgetEmpty>
+        <G8Note>
           No reports yet. Generate the first one — the analyst reads the same
           numbers these dashboards chart and writes the week up in a minute.
-        </WidgetEmpty>
+        </G8Note>
       ) : (
-        <div className="-mx-2 flex flex-col divide-y divide-border border-t border-border">
+        <G8Rows>
           {reports.map((report, i) => (
             <ReportRow
               key={report.id}
@@ -117,7 +117,7 @@ export function ReportsView({ propertyId }: { propertyId: string }) {
               }
             />
           ))}
-        </div>
+        </G8Rows>
       )}
     </InsightSection>
   );
@@ -134,28 +134,30 @@ function ReportRow({
 }) {
   const period = `${shortDate(report.period_start)} – ${shortDate(report.period_end)}`;
   return (
-    <article className="py-1">
+    <article>
       <button
         type="button"
         onClick={onToggle}
-        className="flex min-h-[37px] w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+        aria-expanded={open}
+        className="mini"
+        style={{ width: "100%", background: "transparent", textAlign: "left" }}
       >
-        <FileText className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+        <span className="faint" style={{ display: "inline-flex" }}>
+          <Gi icon={FileText} size={14} />
+        </span>
+        <span className="tt" style={{ fontWeight: 500 }}>
           Week of {period}
         </span>
         {report.anomalies.length > 0 ? (
-          <StatusBadge tone="warning" dot={false} className="shrink-0">
+          <span className="badge amber">
             {report.anomalies.length}{" "}
             {report.anomalies.length === 1 ? "anomaly" : "anomalies"}
-          </StatusBadge>
+          </span>
         ) : null}
-        <span className="shrink-0 text-xs text-faint-foreground">
-          {open ? "Hide" : "Read"}
-        </span>
+        <span className="m">{open ? "Hide" : "Read"}</span>
       </button>
       {open ? (
-        <div className="px-2 pb-5">
+        <div style={{ padding: "4px 14px 20px" }}>
           <ReportMarkdown>{report.summary_md}</ReportMarkdown>
         </div>
       ) : null}

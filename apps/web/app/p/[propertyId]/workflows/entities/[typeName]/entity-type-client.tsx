@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Database, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { WfEmpty } from "@/components/workflows/g8-bits";
 
 type EntityType = {
   id: string;
@@ -59,39 +60,33 @@ export function EntityTypeClient({
 
   return (
     <>
-      <header className="mb-4 flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
+      <div className="row" style={{ marginBottom: 12 }}>
+        <span className="muted" style={{ fontSize: 13 }}>
           {rows.length} {rows.length === 1 ? "row" : "rows"} · field map: {fields.map((f) => f.name).join(", ") || "none"}
-        </p>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background"
-        >
-          <Plus className="size-3.5" />
+        </span>
+        <span className="sp" />
+        <button type="button" onClick={() => setCreating(true)} className="btn btn-primary btn-sm">
+          <Gi icon={Plus} size={14} />
           New {type.display_name.toLowerCase()}
         </button>
-      </header>
+      </div>
 
       {rows.length > 0 ? (
-        <ul className="divide-y divide-border rounded-md shadow-ring">
+        <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {rows.map((r) => (
-            <li key={r.id} className="px-4 py-2 hover:bg-accent">
-              <div className="flex items-baseline gap-3">
-                <span className="text-sm font-medium text-foreground">
+            <li key={r.id} className="nrow" style={{ flexDirection: "column", gap: 6, cursor: "default" }}>
+              <div className="row" style={{ alignItems: "baseline", gap: 10 }}>
+                <span style={{ fontWeight: 500 }}>
                   {primary ? String(r.data[primary] ?? "—") : r.id.slice(0, 8)}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="faint" style={{ fontSize: 12 }}>
                   {new Date(r.created_at).toLocaleString()}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
                 {Object.entries(r.data).map(([k, v]) =>
                   k === primary ? null : (
-                    <span
-                      key={k}
-                      className="rounded-md bg-muted px-1.5 py-0.5 font-mono"
-                    >
+                    <span key={k} className="badge gray mono">
                       {k}: {valuePreview(v)}
                     </span>
                   ),
@@ -101,9 +96,7 @@ export function EntityTypeClient({
           ))}
         </ul>
       ) : (
-        <div className="rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
-          No rows yet.
-        </div>
+        <WfEmpty icon={Database}>No rows yet.</WfEmpty>
       )}
 
       {creating ? (
@@ -176,55 +169,46 @@ function CreateEntityDialog({
     .every((f) => values[f.name] !== undefined && values[f.name] !== "");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-      <div className="w-full max-w-[480px] rounded-overlay bg-card p-5 shadow-overlay">
-        <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
-            New {type.display_name.toLowerCase()}
-          </h2>
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label="Close"
-            className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-          >
-            <X className="size-3.5" />
-          </button>
-        </header>
+    <>
+      <div className="scrim enter" />
+      <div className="modal-wrap" role="dialog" aria-modal="true">
+        <div className="modal enter" style={{ maxWidth: 480 }}>
+          <div className="modal-h">
+            <h2>New {type.display_name.toLowerCase()}</h2>
+            <button type="button" onClick={onCancel} aria-label="Close" className="ibtn ibtn-sm">
+              <Gi icon={X} size={15} />
+            </button>
+          </div>
 
-        <div className="space-y-3">
-          {fields.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              This type has no defined fields — entities will be empty objects.
-            </p>
-          ) : (
-            fields.map((f) => (
-              <FieldInput key={f.name} field={f} value={values[f.name]} onChange={set} />
-            ))
-          )}
-        </div>
-
-        <footer className="mt-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-3 py-1.5 text-xs"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!canSubmit || busy}
-            onClick={() => onSubmit(values)}
-            className={cn(
-              "rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background disabled:opacity-50",
+          <div className="modal-b">
+            {fields.length === 0 ? (
+              <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                This type has no defined fields — entities will be empty objects.
+              </p>
+            ) : (
+              fields.map((f) => (
+                <FieldInput key={f.name} field={f} value={values[f.name]} onChange={set} />
+              ))
             )}
-          >
-            {busy ? "Creating…" : "Create"}
-          </button>
-        </footer>
+          </div>
+
+          <div className="modal-f">
+            <span className="sp" />
+            <button type="button" onClick={onCancel} className="btn btn-secondary">
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!canSubmit || busy}
+              onClick={() => onSubmit(values)}
+              className="btn btn-primary"
+            >
+              {busy ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -238,21 +222,21 @@ function FieldInput({
   onChange: (name: string, value: unknown) => void;
 }) {
   const label = (
-    <label className="mb-1 block text-xs font-medium text-faint-foreground">
+    <span className="label">
       {field.name}
-      {field.required ? <span className="ml-1 text-destructive">*</span> : null}
+      {field.required ? <span style={{ marginLeft: 4, color: "var(--g8-red)" }}>*</span> : null}
       {field.spec.description ? (
-        <span className="ml-2 normal-case text-muted-foreground/80">
+        <span className="hint" style={{ marginLeft: 8, fontWeight: 400 }}>
           {field.spec.description}
         </span>
       ) : null}
-    </label>
+    </span>
   );
 
   switch (field.spec.type) {
     case "number":
       return (
-        <div>
+        <label className="field">
           {label}
           <input
             type="number"
@@ -260,24 +244,24 @@ function FieldInput({
             onChange={(e) =>
               onChange(field.name, e.target.value === "" ? undefined : Number(e.target.value))
             }
-            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
+            className="input"
           />
-        </div>
+        </label>
       );
     case "boolean":
       return (
-        <div className="flex items-center gap-2">
+        <label className="row" style={{ gap: 8 }}>
           <input
             type="checkbox"
             checked={(value as boolean | undefined) ?? false}
             onChange={(e) => onChange(field.name, e.target.checked)}
           />
-          <span className="text-xs text-foreground">{field.name}</span>
-        </div>
+          <span style={{ fontSize: 13 }}>{field.name}</span>
+        </label>
       );
     case "array":
       return (
-        <div>
+        <label className="field">
           {label}
           <input
             type="text"
@@ -296,22 +280,22 @@ function FieldInput({
                   .filter(Boolean),
               )
             }
-            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
+            className="input"
           />
-        </div>
+        </label>
       );
     case "string":
     default:
       return (
-        <div>
+        <label className="field">
           {label}
           <input
             type="text"
             value={(value as string | undefined) ?? ""}
             onChange={(e) => onChange(field.name, e.target.value)}
-            className="w-full rounded-md bg-background shadow-ring outline-none focus-visible:shadow-focus px-2 py-1.5 text-sm"
+            className="input"
           />
-        </div>
+        </label>
       );
   }
 }

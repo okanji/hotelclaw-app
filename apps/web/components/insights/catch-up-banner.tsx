@@ -7,6 +7,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { Check, ChevronDown, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import type { CatchUpPayload } from "@/lib/insights/catch-up";
 
 /**
@@ -96,9 +97,9 @@ export function CatchUpBanner({
   }
 
   return (
-    <div className="rounded-md bg-muted px-3.5 py-2.5">
-      <div className="flex items-start gap-2.5">
-        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
+    <div className="alert info">
+      <Gi icon={Sparkles} size={14} />
+      <div className="flex min-w-0 flex-1 items-start">
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-relaxed text-pretty text-foreground">
             {summary}

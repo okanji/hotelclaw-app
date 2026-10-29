@@ -1,5 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
+import { canMapToField } from "@/lib/forms/field-mapping";
+import { FIELD_TYPE_LABEL } from "@/lib/tasks/custom-field-options";
 import { useEffect, useRef } from "react";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
@@ -68,6 +72,9 @@ export function FieldPanel({
   const isLayout = field.type === "section" || field.type === "info";
   const mappable = MAPPABLE[field.type];
   const priorityMapped = field.taskProperty === "priority";
+  // 0116: the task custom fields this answer could be saved into.
+  const { data: customFields = [] } = useQuery(customFieldsQueryOptions(propertyId));
+  const fieldTargets = customFields.filter((cf) => canMapToField(field.type, cf.type));
   const titleLabel =
     field.type === "section"
       ? "Heading"
@@ -284,6 +291,34 @@ export function FieldPanel({
             {field.taskProperty
               ? `${TASK_PROPERTY_META[field.taskProperty].description} — when submissions create tasks (Form settings).`
               : "Feed this answer into the task created from each submission."}
+          </p>
+        </div>
+      ) : null}
+
+      {fieldTargets.length > 0 || field.taskField ? (
+        <div className="grid gap-2">
+          <Label htmlFor={`fp-cf-${field.id}`}>Save to a task field</Label>
+          <NativeSelect
+            id={`fp-cf-${field.id}`}
+            value={field.taskField ?? ""}
+            onChange={(e) => onPatch({ taskField: e.target.value || undefined })}
+          >
+            <option value="">No</option>
+            {fieldTargets.map((cf) => (
+              <option key={cf.id} value={cf.id}>
+                {cf.name} ({FIELD_TYPE_LABEL[cf.type]})
+              </option>
+            ))}
+            {field.taskField && !fieldTargets.some((cf) => cf.id === field.taskField) ? (
+              <option value={field.taskField}>A field that no longer fits</option>
+            ) : null}
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            {field.taskField
+              ? field.type === "file"
+                ? "Uploaded files are attached to the task in that slot."
+                : "The answer fills that custom field on the task each submission creates."
+              : "Fill one of the task's custom fields from this answer."}
           </p>
         </div>
       ) : null}

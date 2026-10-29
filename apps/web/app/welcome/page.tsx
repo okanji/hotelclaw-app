@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
 import { needsPasswordSetup } from "@/lib/auth/onboarding";
 import { safeNextPath } from "@/lib/auth/safe-next";
-import { GuestShell } from "@/components/guest/ui";
 import { WelcomeForm } from "./welcome-form";
 import { SecureAccountForm } from "./secure-account-form";
 
@@ -46,26 +45,22 @@ export default async function WelcomePage({
 
   // Already named, only missing a password — that's an auth moment, not
   // onboarding: render the /update-password-style card instead of the
-  // warm first-run wizard.
+  // first-run welcome card.
   if (profile?.onboarded_at && askPassword) {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-muted/30 p-4">
-        <SecureAccountForm
-          fullName={profile.full_name ?? defaultName}
-          email={user.email ?? ""}
-          next={next}
-        />
-      </main>
+      <SecureAccountForm
+        fullName={profile.full_name ?? defaultName}
+        email={user.email ?? ""}
+        next={next}
+      />
     );
   }
 
   return (
-    <GuestShell>
-      <WelcomeForm
-        defaultName={defaultName}
-        next={next}
-        askPassword={askPassword}
-      />
-    </GuestShell>
+    <WelcomeForm
+      defaultName={defaultName}
+      next={next}
+      askPassword={askPassword}
+    />
   );
 }

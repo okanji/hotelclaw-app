@@ -24,7 +24,14 @@ export type Task = {
   status_blocked?: boolean | null;
   completed_at?: string | null;
   priority: TaskPriority;
+  /** The PRIMARY assignee (0115) — first of `assignee_ids`. */
   assignee_id: string | null;
+  /** Everyone on the task, primary first (0115). Optional so older cached
+   *  rows still type — read through `taskAssigneeIds` from lib/tasks/assignees. */
+  assignee_ids?: string[];
+  /** 0117 — checklist counters (trigger-maintained on the row). */
+  checklist_total?: number;
+  checklist_done?: number;
   /** Returned by the tasks API; used by My Tasks' "waiting on others" lens. */
   created_by?: string | null;
   due_at: string | null;

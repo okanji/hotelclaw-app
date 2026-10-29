@@ -51,7 +51,7 @@ async function withinLimit(
 
 export type RateLimitVerdict = { ok: true } | { ok: false; reason: string };
 
-/** Generic fixed-window limiter for other public surfaces (booking page). */
+/** Generic fixed-window limiter for other public surfaces . */
 export async function publicRateLimit(
   key: string,
   limit: number,

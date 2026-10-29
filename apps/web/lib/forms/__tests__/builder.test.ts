@@ -16,7 +16,6 @@ import {
   type FormSchema,
 } from "../schema";
 import { STARTER_FORMS } from "../templates";
-import { coerceBookingAnswers } from "../../bookings/booking-form";
 
 /**
  * The studio builder port (2026-10-25): autosave's persistable-copy rules,
@@ -162,11 +161,6 @@ describe("consent fields", () => {
     };
     expect(computeVisibleFieldIds(gated, {}).has("why")).toBe(true);
     expect(computeVisibleFieldIds(gated, { agree: true }).has("why")).toBe(false);
-  });
-
-  it("booking answers coerce yes/true into a ticked consent", () => {
-    expect(coerceBookingAnswers([consent], { agree: "yes" })).toEqual({ agree: true });
-    expect(coerceBookingAnswers([consent], { agree: true })).toEqual({ agree: true });
   });
 });
 

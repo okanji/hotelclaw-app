@@ -1,7 +1,7 @@
 "use client";
 
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { TriangleAlert } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import {
   AGENT_TIER_MODELS,
   AGENT_TOOL_CATALOG,
@@ -36,90 +36,89 @@ export function ResolvedConfig({
   const paused = status !== "active";
 
   return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <Eyebrow>Resolved session config</Eyebrow>
-        <p className="mt-1 max-w-[52ch] text-sm text-pretty text-muted-foreground">
-          What the runtime actually mounts when the next chat session starts.
-          Resolution happens per session — save, then start a new chat to
-          apply.
-        </p>
-      </div>
+    <section className="sblock" style={{ maxWidth: 720 }}>
+      <h2>Resolved session config</h2>
+      <p className="muted" style={{ margin: "8px 0 12px", fontSize: "var(--g8-fs-sm)", maxWidth: "52ch" }}>
+        What the runtime actually mounts when the next chat session starts.
+        Resolution happens per session — save, then start a new chat to
+        apply.
+      </p>
 
       {paused ? (
-        <p className="rounded-card bg-warning/10 p-3 text-sm text-pretty text-warning">
-          Paused — sessions resolve to fallback instructions with no tools
-          until the agent is activated.
-        </p>
+        <div className="alert warn" style={{ marginBottom: 12 }}>
+          <Gi icon={TriangleAlert} size={15} />
+          <div>
+            Paused — sessions resolve to fallback instructions with no tools
+            until the agent is activated.
+          </div>
+        </div>
       ) : null}
 
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2.5 rounded-lg p-4 text-sm shadow-ring">
-        <dt className="text-xs text-muted-foreground">Model</dt>
-        <dd className="flex flex-wrap items-center gap-2">
-          <span>{TIER_LABELS[config.modelTier]}</span>
-          <span className="font-mono text-xs text-muted-foreground">
-            {AGENT_TIER_MODELS[config.modelTier]}
-          </span>
-        </dd>
-
-        <dt className="text-xs text-muted-foreground">Tools</dt>
-        <dd>
-          {granted.length === 0 ? (
-            <span className="text-muted-foreground">
-              None — the agent can only converse
+      <div className="panel">
+        <dl className="kv panel-b" style={{ paddingTop: 12, rowGap: 10, alignItems: "start" }}>
+          <dt>Model</dt>
+          <dd style={{ flexWrap: "wrap", gap: 8 }}>
+            <span>{TIER_LABELS[config.modelTier]}</span>
+            <span className="mono faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
+              {AGENT_TIER_MODELS[config.modelTier]}
             </span>
-          ) : (
-            <ul role="list" className="flex flex-wrap gap-1.5">
-              {granted.map((tool) => (
-                <li
-                  key={tool.id}
-                  className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground"
-                >
-                  {tool.id}
-                  {tool.category === "write" ? (
-                    <span className="ml-1 text-warning">w</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-          {unknownGrants.length > 0 ? (
-            <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
-              {unknownGrants.length} granted{" "}
-              {unknownGrants.length === 1 ? "id isn't" : "ids aren't"} in the
-              catalog and won&apos;t mount:{" "}
-              <span className="font-mono">{unknownGrants.join(", ")}</span>
-            </p>
-          ) : null}
-        </dd>
+          </dd>
 
-        <dt className="text-xs text-muted-foreground">Memory</dt>
-        <dd className="flex flex-wrap items-center gap-2">
-          <StatusBadge tone="success">Always on</StatusBadge>
-          <span className="text-xs text-muted-foreground">
-            property memory + per-person notes are recalled each turn
-            (property__search / remember / forget, person__…)
-          </span>
-        </dd>
+          <dt>Tools</dt>
+          <dd style={{ flexDirection: "column", alignItems: "flex-start" }}>
+            {granted.length === 0 ? (
+              <span className="muted">None — the agent can only converse</span>
+            ) : (
+              <ul role="list" className="row" style={{ flexWrap: "wrap", gap: 4, margin: 0, padding: 0, listStyle: "none" }}>
+                {granted.map((tool) => (
+                  <li key={tool.id} className={tool.category === "write" ? "badge amber mono" : "badge mono"}>
+                    {tool.id}
+                    {tool.category === "write" ? <span>· w</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {unknownGrants.length > 0 ? (
+              <p className="muted" style={{ margin: "6px 0 0", fontSize: "var(--g8-fs-sm)" }}>
+                {unknownGrants.length} granted{" "}
+                {unknownGrants.length === 1 ? "id isn't" : "ids aren't"} in the
+                catalog and won&apos;t mount:{" "}
+                <span className="mono">{unknownGrants.join(", ")}</span>
+              </p>
+            ) : null}
+          </dd>
 
-        <dt className="text-xs text-muted-foreground">Skills</dt>
-        <dd>
-          {config.skills.length === 0 ? (
-            <span className="text-muted-foreground">None</span>
-          ) : (
-            config.skills.map((skill) => skill.name).join(", ")
-          )}
-        </dd>
+          <dt>Memory</dt>
+          <dd style={{ flexWrap: "wrap", gap: 8 }}>
+            <span className="badge green">
+              <span className="dot" />
+              Always on
+            </span>
+            <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
+              property memory + per-person notes are recalled each turn
+              (property__search / remember / forget, person__…)
+            </span>
+          </dd>
 
-        <dt className="text-xs text-muted-foreground">Resources</dt>
-        <dd className="tabular-nums">
-          {config.resources.documentIds.length === 0 ? (
-            <span className="text-muted-foreground">None</span>
-          ) : (
-            `${config.resources.documentIds.length} document${config.resources.documentIds.length === 1 ? "" : "s"} readable via read_resource`
-          )}
-        </dd>
-      </dl>
+          <dt>Skills</dt>
+          <dd>
+            {config.skills.length === 0 ? (
+              <span className="muted">None</span>
+            ) : (
+              config.skills.map((skill) => skill.name).join(", ")
+            )}
+          </dd>
+
+          <dt>Resources</dt>
+          <dd style={{ fontVariantNumeric: "tabular-nums" }}>
+            {config.resources.documentIds.length === 0 ? (
+              <span className="muted">None</span>
+            ) : (
+              `${config.resources.documentIds.length} document${config.resources.documentIds.length === 1 ? "" : "s"} readable via read_resource`
+            )}
+          </dd>
+        </dl>
+      </div>
     </section>
   );
 }

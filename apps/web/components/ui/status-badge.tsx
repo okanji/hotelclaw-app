@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
  * domain lifecycle states (form published/closed, chatbot live/paused,
  * workflow ok/failed, conversation open/escalated…).
  *
- * Domains keep their own status→tone map (see lib/bookings/status-colors.ts
- * for the richest example) and render the badge with a `tone`; they never
+ * Domains keep their own status→tone map (see lib/fleet/status-colors.ts
+ * for an example) and render the badge with a `tone`; they never
  * re-pick color shades inline. Tones reuse the semantic ramp from
  * globals.css (--success/--warning/--info/--destructive) plus violet for
  * "in-progress/occupied" states.

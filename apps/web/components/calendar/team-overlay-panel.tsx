@@ -4,28 +4,10 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
 import { useCalendarPrefs } from "./calendar-prefs-context";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CountBadge } from "@/components/ui/count-badge";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
-import { cn } from "@/lib/utils";
-
-const PALETTE = [
-  "ef4444",
-  "f97316",
-  "eab308",
-  "22c55e",
-  "06b6d4",
-  "3b82f6",
-  "8b5cf6",
-  "ec4899",
-];
-
-/** Same hash as `calendar-room.tsx` — keep them in sync. */
-function colorFor(userId: string): string {
-  let h = 0;
-  for (const ch of userId) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
+import { Gi } from "@/components/gr8r/icon";
+import { Av, memberHue } from "@/components/gr8r/home-glyphs";
+import { g8c } from "@/components/gr8r/calendar-glyphs";
 
 /**
  * Right-rail panel listing every property member with toggle avatars. Each
@@ -51,57 +33,36 @@ export function TeamOverlayPanel({
 
   if (members.length === 0) return null;
 
+  // gr8r-styled rail section; each member's swatch is `memberHue` — the
+  // same colour the room hands the grid for their free/busy lane.
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-t border-border">
-      <div className="flex h-11 items-center justify-between gap-2 px-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-secondary-ink">
-          <Users className="size-3.5 shrink-0 text-faint-foreground" />
-          Team availability
-        </div>
+    <section className="cal-rail-sec" aria-label="Team availability">
+      <div className="cal-rail-h">
+        <Gi icon={Users} size={14} />
+        Team availability
         {overlayUsers.size > 0 ? (
-          <CountBadge>{overlayUsers.size} on</CountBadge>
+          <span className="cnt">{overlayUsers.size} on</span>
         ) : null}
       </div>
-      <ul role="list" className="flex max-h-56 flex-col gap-px overflow-auto p-2 pt-0">
+      <ul role="list" className="cal-rail-b" style={{ maxHeight: 224 }}>
         {members.map((m) => {
           const on = overlayUsers.has(m.id);
-          const color = colorFor(m.id);
           return (
             <li key={m.id}>
               <button
                 type="button"
+                aria-pressed={on}
                 onClick={() => toggleOverlayUser(m.id)}
-                className={cn(
-                  "flex min-h-[30px] w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm font-medium transition-colors focus-visible:shadow-focus focus-visible:outline-none",
-                  on
-                    ? "bg-accent-pressed text-foreground"
-                    : "text-secondary-ink hover:bg-accent",
-                )}
+                className={on ? "cal-mem on" : "cal-mem"}
               >
-                <Avatar className="size-6">
-                  <AvatarImage src={m.avatarUrl ?? undefined} />
-                  <AvatarFallback>
-                    {(m.name ?? "?").slice(0, 1).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate">{m.name ?? "Unnamed"}</span>
-                {/* Lane swatch — the colour the grid uses for this user's
-                    free/busy bars when they're toggled on. */}
-                <span
-                  aria-hidden
-                  className="ml-auto size-2.5 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: on ? `#${color}` : undefined,
-                    boxShadow: on
-                      ? undefined
-                      : `inset 0 0 0 1px #${color}`,
-                  }}
-                />
+                <Av member={m} size="md" />
+                <span className="trunc">{m.name ?? "Unnamed"}</span>
+                <span aria-hidden className="sw" style={g8c(memberHue(m.id))} />
               </button>
             </li>
           );
         })}
       </ul>
-    </aside>
+    </section>
   );
 }

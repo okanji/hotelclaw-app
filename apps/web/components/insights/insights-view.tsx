@@ -14,17 +14,11 @@ import {
   arrayMove,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { LineChart } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader, PageHeaderRow } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import {
-  CustomizeMenu,
-  EditorialSection,
-  HiddenTray,
-} from "@/components/home/editorial-section";
+import { EyeOff, LineChart } from "lucide-react";
+import { PageHeader } from "@/components/shell/page-header";
+import { CustomizeMenu } from "@/components/home/editorial-section";
+import { G8Empty } from "@/components/gr8r/members-shared";
+import { G8HiddenTray, G8Section, G8SortableSection } from "./g8-insights";
 import { useDashboardLayout } from "@/components/home/use-dashboard-layout";
 import { insightsMetricsQueryOptions } from "@/lib/query/insights-queries";
 import { useInsightsRealtime } from "@/lib/insights/use-insights-realtime";
@@ -36,7 +30,6 @@ import {
   type InsightTab,
 } from "./insights-registry";
 import { useInsightsTab, type InsightDashTab } from "./insights-tab-context";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { ReportsView } from "./reports-view";
 import { MyWeekView } from "./my-week-view";
 import { InsightsAskPanel } from "./insights-ask-panel";
@@ -143,123 +136,129 @@ export function InsightsView({
   }
 
   const heading = isStaff ? "My week" : "Insights";
+  const blurb = isStaff
+    ? "Your throughput, your stuck work, and this week's team update."
+    : (INSIGHT_TABS.find((t) => t.id === activeTab)?.blurb ?? "");
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
-      <PageHeader
-        title={heading}
-        icon={<LineChart />}
-        actions={
-          !isStaff ? (
-            <div className="flex items-center gap-1.5">
-              <ScopeSwitcher
-                propertyId={propertyId}
-                scope={scope}
-                onChange={setScope}
-              />
-              {role === "owner" ? (
-                <ApiAccessButton propertyId={propertyId} />
-              ) : null}
-              <InsightsFollowButton propertyId={propertyId} scope={scope} />
-              {!isReports ? (
-                <CustomizeMenu
-                  items={availableDefs}
-                  visibleCount={shown.length}
-                  isHidden={isHidden}
-                  onToggle={toggleHidden}
-                  onReset={reset}
-                />
-              ) : null}
-            </div>
-          ) : undefined
-        }
-      />
-      {!isStaff ? (
-        <PageHeaderRow>
-          <TabNav variant="pill" aria-label="Insights views">
-            {INSIGHT_TABS.filter((t) => !t.propertyOnly || isProperty).map(
-              (t) => (
-                <TabNavItem
-                  key={t.id}
-                  active={activeTab === t.id}
-                  title={t.blurb}
-                  onClick={() =>
-                    t.id === "reports"
-                      ? goReports()
-                      : goDash(t.id as InsightDashTab)
-                  }
-                >
-                  {t.label}
-                </TabNavItem>
-              ),
-            )}
-          </TabNav>
-        </PageHeaderRow>
-      ) : null}
+      <PageHeader title={heading} icon={<LineChart />} />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full pt-6 pb-24">
-          <PageShell width="full">
-          <div className="@container">
-            {isPending || !data ? (
-              <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
-                <InsightsSkeleton />
-              </div>
-            ) : data.role === "staff" ? (
-              <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
-                <MyWeekView propertyId={propertyId} data={data} />
-              </div>
-            ) : isReports ? (
-              <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
-                <ReportsView propertyId={propertyId} />
-              </div>
-            ) : shown.length === 0 ? (
-              <TabEmpty
-                onReset={reset}
-                hasHidden={hidden.some((id) => available.has(id))}
-              />
-            ) : (
-              <>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext items={shown} strategy={rectSortingStrategy}>
-                    <div className="grid grid-flow-row-dense grid-cols-1 items-start gap-x-12 gap-y-14 @4xl:grid-cols-2">
-                      {shown.map((id) => {
-                        const def = INSIGHT_SECTIONS_BY_ID.get(id);
-                        if (!def) return null;
-                        const props = { propertyId, metrics: data, scope };
-                        return (
-                          <EditorialSection
-                            key={id}
-                            id={id}
-                            kicker={def.kicker}
-                            title={def.title}
-                            wide={def.wide}
-                            headerRight={
-                              def.HeaderRight ? (
-                                <def.HeaderRight {...props} />
-                              ) : undefined
-                            }
-                            onHide={() => toggleHidden(id)}
-                          >
-                            <def.Component {...props} />
-                          </EditorialSection>
-                        );
-                      })}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-                <HiddenTray
-                  items={availableDefs}
-                  hidden={hidden.filter((id) => available.has(id))}
-                  onRestore={toggleHidden}
+        <div className="page wide @container" style={{ maxWidth: 1240 }}>
+          <div className="ph">
+            <div>
+              <h1>{heading}</h1>
+              {blurb ? <p>{blurb}</p> : null}
+            </div>
+            {!isStaff ? (
+              <div className="acts">
+                <ScopeSwitcher
+                  propertyId={propertyId}
+                  scope={scope}
+                  onChange={setScope}
                 />
-              </>
-            )}
+                {role === "owner" ? (
+                  <ApiAccessButton propertyId={propertyId} />
+                ) : null}
+                <InsightsFollowButton propertyId={propertyId} scope={scope} />
+                {!isReports ? (
+                  <CustomizeMenu
+                    items={availableDefs}
+                    visibleCount={shown.length}
+                    isHidden={isHidden}
+                    onToggle={toggleHidden}
+                    onReset={reset}
+                  />
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          </PageShell>
+          {!isStaff ? (
+            <div
+              className="tabs"
+              role="tablist"
+              aria-label="Insights views"
+              style={{ marginBottom: 16 }}
+            >
+              {INSIGHT_TABS.filter((t) => !t.propertyOnly || isProperty).map(
+                (t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === t.id}
+                    className={activeTab === t.id ? "tab on" : "tab"}
+                    title={t.blurb}
+                    onClick={() =>
+                      t.id === "reports"
+                        ? goReports()
+                        : goDash(t.id as InsightDashTab)
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ),
+              )}
+            </div>
+          ) : null}
+          {isPending || !data ? (
+            <div className="ins-grid">
+              <InsightsSkeleton />
+            </div>
+          ) : data.role === "staff" ? (
+            <div className="ins-grid">
+              <MyWeekView propertyId={propertyId} data={data} />
+            </div>
+          ) : isReports ? (
+            <div className="ins-grid">
+              <ReportsView propertyId={propertyId} />
+            </div>
+          ) : shown.length === 0 ? (
+            <TabEmpty
+              onReset={reset}
+              hasHidden={hidden.some((id) => available.has(id))}
+            />
+          ) : (
+            <>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={shown} strategy={rectSortingStrategy}>
+                  <div className="ins-grid">
+                    {shown.map((id) => {
+                      const def = INSIGHT_SECTIONS_BY_ID.get(id);
+                      if (!def) return null;
+                      const props = { propertyId, metrics: data, scope };
+                      return (
+                        <G8SortableSection
+                          key={id}
+                          id={id}
+                          kicker={def.kicker}
+                          title={def.title}
+                          wide={def.wide}
+                          headerRight={
+                            def.HeaderRight ? (
+                              <def.HeaderRight {...props} />
+                            ) : undefined
+                          }
+                          onHide={() => toggleHidden(id)}
+                        >
+                          <def.Component {...props} />
+                        </G8SortableSection>
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              <G8HiddenTray
+                items={availableDefs}
+                hidden={hidden.filter((id) => available.has(id))}
+                onRestore={toggleHidden}
+              />
+            </>
+          )}
         </div>
       </div>
       {data && data.role !== "staff" && !isReports ? (
@@ -279,38 +278,42 @@ function TabEmpty({
   hasHidden: boolean;
 }) {
   return (
-    <div className="col-span-full flex flex-col items-start gap-3 rounded-md bg-muted px-6 py-10">
-      <p className="text-sm text-muted-foreground">
-        {hasHidden
-          ? "Every section in this view is hidden."
-          : "Nothing to show in this view yet."}
-      </p>
-      {hasHidden ? (
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-sm font-medium text-foreground underline underline-offset-2 hover:no-underline"
-        >
-          Restore hidden sections
-        </button>
-      ) : null}
+    <div className="panel">
+      <G8Empty
+        icon={EyeOff}
+        title={hasHidden ? "Every section is hidden" : "Nothing here yet"}
+        text={
+          hasHidden
+            ? "Every section in this view is hidden."
+            : "Nothing to show in this view yet."
+        }
+      >
+        {hasHidden ? (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onReset}>
+            Restore hidden sections
+          </button>
+        ) : null}
+      </G8Empty>
     </div>
   );
 }
 
-/** Placeholder while the first metrics load — mirrors the section rhythm
- *  (label line, heading, content block) so the page doesn't reflow when data
- *  lands. */
+/** Placeholder while the first metrics load — mirrors the panel rhythm so
+ *  the page doesn't reflow when data lands. */
 function InsightsSkeleton() {
   return (
     <>
       {[0, 1].map((i) => (
-        <section key={i} className={cn("min-w-0", i === 0 && "@4xl:col-span-2")}>
-          <div className="mb-4 flex flex-col gap-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-6 w-32" />
+        <section key={i} className={i === 0 ? "panel ins-sec wide" : "panel ins-sec"}>
+          <div className="panel-h">
+            <div className="ins-ttl" style={{ gap: 6 }}>
+              <span className="sk" style={{ display: "block", height: 10, width: 64 }} />
+              <span className="sk" style={{ display: "block", height: 16, width: 128 }} />
+            </div>
           </div>
-          <Skeleton className={i === 0 ? "h-48 w-full" : "h-32 w-full"} />
+          <div className="panel-b">
+            <div className="sk" style={{ height: i === 0 ? 192 : 128 }} />
+          </div>
         </section>
       ))}
     </>
@@ -319,9 +322,8 @@ function InsightsSkeleton() {
 
 /* ── Shared section primitive for insight views ───────────────────────────── */
 
-/** Static (non-sortable) section — 12px sentence-case label + 16px/600
- *  heading, separated by whitespace rather than a rule (notion-spec §1).
- *  `wide` spans both columns of the @4xl two-column grid. */
+/** Static (non-sortable) section — a gr8r `.panel`. `wide` spans both
+ *  columns of the two-column grid. */
 export function InsightSection({
   kicker,
   title,
@@ -336,19 +338,8 @@ export function InsightSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn("min-w-0", wide && "@4xl:col-span-2")}>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-2">
-          <Eyebrow>{kicker}</Eyebrow>
-          <h2 className="truncate text-base leading-6 font-semibold text-foreground">
-            {title}
-          </h2>
-        </div>
-        {headerRight ? (
-          <div className="flex shrink-0 items-center gap-2">{headerRight}</div>
-        ) : null}
-      </div>
+    <G8Section kicker={kicker} title={title} headerRight={headerRight} wide={wide}>
       {children}
-    </section>
+    </G8Section>
   );
 }

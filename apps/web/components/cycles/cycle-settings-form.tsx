@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import type { CycleSettingsRow } from "@/lib/cycles/types";
@@ -145,20 +144,18 @@ export function CycleSettingsForm({
         {creating ? (
           <span />
         ) : (
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground"
+            className="btn btn-ghost btn-sm"
             disabled={pending}
             onClick={() => save(false)}
           >
             Turn off cycles
-          </Button>
+          </button>
         )}
-        <Button type="submit" size="sm" disabled={pending}>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>
           {creating ? "Enable cycles" : "Save"}
-        </Button>
+        </button>
       </div>
     </form>
   );

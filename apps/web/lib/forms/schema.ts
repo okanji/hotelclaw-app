@@ -165,6 +165,9 @@ export const FormFieldZod = z.object({
   maxRating: z.number().int().min(3).max(10).optional(),
   /** Map this answer onto a structured field of the auto-created task. */
   taskProperty: z.enum(TASK_PROPERTY_KINDS).optional(),
+  /** 0116 — also save this answer into a task CUSTOM field (its id). Only
+   *  type-compatible pairs are offered (lib/forms/field-mapping.ts). */
+  taskField: z.string().uuid().optional(),
   /** Show this field only when an earlier answer matches. */
   condition: FormFieldConditionZod.optional(),
 });
@@ -554,6 +557,10 @@ export type FormTaskProperties = {
   priority: "urgent" | "high" | "medium" | "low" | null;
   due_at: string | null;
   labels: string[];
+  /** 0116 — custom-field id → the answer, shaped for `setTaskFieldValueFor`
+   *  (choice answers as option LABELS, people as member ids, yes/no as a
+   *  boolean, files as the uploaded file list the runner copies). */
+  fields: Record<string, unknown>;
 };
 
 export function computeTaskProperties(
@@ -567,10 +574,22 @@ export function computeTaskProperties(
     priority: null,
     due_at: null,
     labels: [],
+    fields: {},
   };
   for (const field of visibleInputFields(schema, answers)) {
-    if (!field.taskProperty) continue;
     const value = answers[field.id];
+    if (field.taskField && value !== undefined && value !== null && value !== "") {
+      const resolved = labelsByField?.get(field.id);
+      const byOption = new Map((field.options ?? []).map((o) => [o.id, o.label]));
+      const label = (id: string) => resolved?.get(id) ?? byOption.get(id) ?? id;
+      let shaped: unknown = value;
+      if (field.type === "select" && typeof value === "string") shaped = label(value);
+      else if (field.type === "multi_select" && Array.isArray(value)) {
+        shaped = (value as unknown[]).filter((v): v is string => typeof v === "string").map(label);
+      } else if (field.type === "yes_no" || field.type === "consent") shaped = value === true;
+      out.fields[field.taskField] = shaped;
+    }
+    if (!field.taskProperty) continue;
     switch (field.taskProperty) {
       case "assignee":
         if (typeof value === "string" && value) out.assignee_id = value;

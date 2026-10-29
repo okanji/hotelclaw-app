@@ -18,7 +18,6 @@ import { CONTROL_ACTIONS } from "./control";
 import { SYSTEM_TRIGGERS, SYSTEM_ACTIONS } from "./system";
 import { EXTERNAL_TRIGGERS, EXTERNAL_ACTIONS } from "./external";
 import { CHATBOT_TRIGGERS } from "./chatbots";
-import { BOOKING_TRIGGERS, BOOKING_ACTIONS } from "./bookings";
 
 export const TRIGGERS: TriggerCatalogEntry[] = [
   ...TASKS_TRIGGERS,
@@ -30,7 +29,6 @@ export const TRIGGERS: TriggerCatalogEntry[] = [
   ...SYSTEM_TRIGGERS,
   ...EXTERNAL_TRIGGERS,
   ...CHATBOT_TRIGGERS,
-  ...BOOKING_TRIGGERS,
 ];
 
 export const STEPS: StepCatalogEntry[] = [
@@ -38,7 +36,6 @@ export const STEPS: StepCatalogEntry[] = [
   ...CHAT_ACTIONS,
   ...DOCS_ACTIONS,
   ...FORMS_ACTIONS,
-  ...BOOKING_ACTIONS,
   ...MEETINGS_ACTIONS,
   ...ENTITIES_ACTIONS,
   ...AI_ACTIONS,

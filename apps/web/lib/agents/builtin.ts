@@ -32,7 +32,6 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
       "Tasks (list + full-text search incl. done)",
       "Documents (search + list, incl. attached-PDF text)",
       "Meetings (past + upcoming)",
-      "Bookings (any window)",
       "Chat history search (your channels only)",
       "Forms + response summaries",
       "Guest chatbot activity",
@@ -117,8 +116,8 @@ export const BUILTIN_AGENTS: BuiltinAgentInfo[] = [
     where: "Public guest pages",
     description: "The bots you build under Chatbots — front desk, orders, reservations.",
     promptSummary:
-      "Injection-hardened guest runtime with only the tools each bot's config enables (knowledge, tickets, bookings, handoff).",
-    tools: ["Per-bot: knowledge search", "Tickets", "Bookings", "Handoff"],
+      "Injection-hardened guest runtime with only the tools each bot's config enables (knowledge, tickets, handoff).",
+    tools: ["Per-bot: knowledge search", "Tickets", "Handoff"],
     model: "Haiku / Sonnet",
   },
   {

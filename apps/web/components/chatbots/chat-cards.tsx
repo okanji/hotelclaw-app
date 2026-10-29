@@ -7,7 +7,8 @@ import { parseChatAttachments, type ChatCard } from "@/lib/chatbots/cards";
  * it reads identically on the warm public guest page and the dark in-app
  * test console — a legible "data card" on either background, no theme
  * coupling. `onSend` (when provided) turns affordances into a follow-up
- * guest message that drives the bot's booking flow; without it (staff
+ * guest message (historical booking cards — no tool produces new ones since
+ * Bookings was removed 2026-10-29); without it (staff
  * transcript) the cards are read-only.
  */
 export function ChatCards({

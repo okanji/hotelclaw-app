@@ -24,7 +24,6 @@ export type ShellSection =
   | "meetings"
   | "workflows"
   | "chatbots"
-  | "bookings"
   | "agents"
   | "assistant";
 
@@ -58,8 +57,10 @@ export function sectionFromPath(pathname: string): ShellSection | null {
   // Forms is its own node (under More); the Documents tree keeps a
   // convenience group pointing at the same routes.
   if (pathname.includes("/forms")) return "forms";
-  if (pathname.includes("/bookings")) return "bookings";
   if (pathname.includes("/activity")) return "activity";
+  // gr8r's Notifications page reads the same feed as the Inbox.
+  if (pathname.includes("/notifications")) return "activity";
+  if (/\/favorites(\/|$)/.test(pathname)) return "home";
   // Before the /chat check — "/chatbots" contains "/chat" as a substring.
   if (pathname.includes("/chatbots")) return "chatbots";
   if (pathname.includes("/agents")) return "agents";
@@ -135,7 +136,6 @@ const ALL_SECTIONS: ShellSection[] = [
   "meetings",
   "workflows",
   "chatbots",
-  "bookings",
   "agents",
   "assistant",
 ];

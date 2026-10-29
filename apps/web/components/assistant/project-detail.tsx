@@ -40,7 +40,8 @@ import {
   type AssistantProject,
   type AssistantProjectResource,
 } from "@/lib/assistant/types";
-import { TintIcon } from "@/components/ui/tint-card";
+import { Gi } from "@/components/gr8r/icon";
+import { tintVar } from "@/components/gr8r/ai-glyphs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -158,25 +159,27 @@ export function ProjectDetail({
           { label: project.name },
         ]}
         actions={
-          <div className="flex items-center gap-0.5">
-            <Button
-              variant="ghost"
-              size="icon-sm"
+          <div className="row" style={{ gap: 2 }}>
+            <button
+              type="button"
+              className={project.pinned ? "ibtn ibtn-sm on" : "ibtn ibtn-sm"}
               aria-label={project.pinned ? "Unpin project" : "Pin project"}
               aria-pressed={project.pinned}
               title={project.pinned ? "Unpin project" : "Pin project"}
               onClick={() => void patch({ pinned: !project.pinned })}
             >
               <Pin
-                className={cn("size-4", project.pinned && "fill-current text-foreground")}
+                size={15}
+                strokeWidth={1.8}
+                className={cn("i", project.pinned && "fill-current")}
               />
-            </Button>
+            </button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Project actions"
-                render={<Button variant="ghost" size="icon-sm" />}
+                className="ibtn ibtn-sm"
               >
-                <MoreVertical className="size-4" />
+                <Gi icon={MoreVertical} size={15} />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-40">
                 <DropdownMenuItem
@@ -211,20 +214,17 @@ export function ProjectDetail({
         }
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full max-w-workspace px-(--page-gutter) py-8">
-          <header className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <TintIcon tone={asTint(project.tint)} className="text-base">
-                {project.emoji}
-              </TintIcon>
-              <h1 className="mt-3 text-[2.5rem] leading-[3rem] font-bold text-balance text-foreground">
-                {project.name}
-              </h1>
-              {project.description ? (
-                <p className="mt-2 max-w-prose text-base leading-relaxed text-pretty text-muted-foreground">
-                  {project.description}
-                </p>
-              ) : null}
+        <div className="page wide" style={{ maxWidth: 1200 }}>
+          <header className="ph">
+            <span
+              className="picon lg"
+              style={{ ...tintVar(asTint(project.tint)), fontSize: 18 } as React.CSSProperties}
+            >
+              {project.emoji}
+            </span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h1>{project.name}</h1>
+              {project.description ? <p>{project.description}</p> : null}
             </div>
           </header>
 
@@ -233,8 +233,8 @@ export function ProjectDetail({
               this page barely 660px — the split fired there and squeezed the
               composer to ~350px, wrapping its own placeholder. The split should
               depend on the space this page actually has. */}
-          <div className="@container mt-8">
-          <div className="grid gap-10 @3xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="@container">
+          <div className="grid gap-6 @3xl:grid-cols-[minmax(0,1fr)_340px]">
             {/* Working column */}
             <div className="min-w-0">
               <AssistantComposer
@@ -256,38 +256,44 @@ export function ProjectDetail({
               {/* Recents. Rows are separated by hairlines and run tall (44px of
                   content + padding) — at this width a dense list reads as a
                   dropdown, not as the body of the page. */}
-              <section className="mt-8">
-                <h2 className="text-sm text-muted-foreground">Recents</h2>
+              <section className="panel" style={{ marginTop: 24 }}>
+                <div className="panel-h">
+                  <h2>Recents</h2>
+                  {chats.length ? <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>{chats.length}</span> : null}
+                </div>
                 {chats.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Nothing here yet. Anything you ask in this project inherits
-                    its instructions, memory, and context.
-                  </p>
+                  <div className="empty-state sm">
+                    <div className="glyph">
+                      <Gi icon={MessageSquare} />
+                    </div>
+                    <p>
+                      Nothing here yet. Anything you ask in this project inherits
+                      its instructions, memory, and context.
+                    </p>
+                  </div>
                 ) : (
-                  <ul role="list" className="mt-1 flex flex-col divide-y divide-border">
+                  <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
                     {chats.map((chat) => (
                       <li key={chat.id}>
                         <Link
                           href={`/p/${propertyId}/assistant?c=${chat.id}`}
-                          className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3.5 transition-colors hover:bg-accent"
+                          className="mini"
+                          style={{ minHeight: 44 }}
                         >
                           {/* A scheduled brief appears without anyone opening
                               it, so the icon has to say where it came from —
                               otherwise it reads as a conversation you forgot
                               having. */}
                           {chat.source === "scheduled" ? (
-                            <Clock
-                              className="size-4 shrink-0 text-faint-foreground"
-                              aria-label="Scheduled run"
-                            />
+                            <span aria-label="Scheduled run" className="row faint">
+                              <Gi icon={Clock} size={15} />
+                            </span>
                           ) : (
-                            <MessageSquare className="size-4 shrink-0 text-faint-foreground" />
+                            <Gi icon={MessageSquare} size={15} className="faint" />
                           )}
-                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                            {chat.title}
-                          </span>
+                          <span className="tt">{chat.title}</span>
                           <time
-                            className="shrink-0 text-xs text-faint-foreground"
+                            className="due"
                             dateTime={chat.last_message_at}
                             title={new Date(chat.last_message_at).toLocaleString()}
                           >
@@ -305,7 +311,7 @@ export function ProjectDetail({
                 floating cards. Three cards read as three unrelated widgets; the
                 reference groups them because they are one thing: what this
                 project knows before you type. */}
-            <aside className="@3xl:sticky @3xl:top-8 h-fit divide-y divide-border rounded-card bg-card shadow-card">
+            <aside className="panel g8-ai-rail @3xl:sticky @3xl:top-6 h-fit">
               <TextSection
                 title="Instructions"
                 hint="How the assistant should work here — tone, format, standing rules."
@@ -387,76 +393,77 @@ function TextSection({
   const [draft, setDraft] = useState(value ?? "");
 
   return (
-    <section className="p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-foreground">{title}</h2>
-        <div className="flex shrink-0 items-center gap-1">
+    <section>
+      <div className="panel-h">
+        <h2>{title}</h2>
+        <div className="acts">
           {badge ? (
-            <span className="inline-flex items-center gap-1 rounded-pill bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              <Lock className="size-3" aria-hidden />
+            <span className="badge gray">
+              <Gi icon={Lock} size={11} />
               {badge}
             </span>
           ) : null}
           {!editing ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
               aria-label={`${value ? "Edit" : "Add"} ${title.toLowerCase()}`}
               onClick={() => {
                 setDraft(value ?? "");
                 setEditing(true);
               }}
             >
-              {value ? <Pencil className="size-3.5" /> : <Plus className="size-4" />}
-            </Button>
+              {value ? <Gi icon={Pencil} size={13} /> : <Gi icon={Plus} size={15} />}
+            </button>
           ) : null}
         </div>
       </div>
 
       {editing ? (
-        <div className="mt-2 flex flex-col gap-2">
-          <Textarea
+        <div className="panel-b flex flex-col gap-2">
+          <textarea
+            className="textarea"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={placeholder}
             rows={6}
             autoFocus
           />
-          <div className="flex justify-end gap-1.5">
-            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+          <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>
               Cancel
-            </Button>
-            <Button
-              size="sm"
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
               onClick={async () => {
                 await onSave(draft.trim() || null);
                 setEditing(false);
               }}
             >
               Save
-            </Button>
+            </button>
           </div>
         </div>
       ) : value ? (
-        <>
+        <div className="panel-b">
           <p
-            className={cn(
-              "mt-1.5 text-sm leading-relaxed whitespace-pre-line text-secondary-ink",
-              !expanded && "line-clamp-3",
-            )}
+            className={cn("whitespace-pre-line", !expanded && "line-clamp-3")}
+            style={{ margin: 0, fontSize: "var(--g8-fs-sm)", lineHeight: 1.55, color: "var(--g8-text-2)" }}
           >
             {value}
           </p>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="mt-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="link"
+            style={{ marginTop: 4, fontSize: "var(--g8-fs-xs)" }}
           >
             {expanded ? "Show less" : "Show more"}
           </button>
-        </>
+        </div>
       ) : (
-        <p className="mt-1 text-sm text-pretty text-muted-foreground">{hint}</p>
+        <p className="panel-b muted" style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}>{hint}</p>
       )}
     </section>
   );
@@ -490,17 +497,18 @@ function ContextSection({
   }
 
   return (
-    <section className="p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-foreground">Context</h2>
+    <section>
+      <div className="panel-h">
+        <h2>Context</h2>
+        <div className="acts">
         {/* A single `+` opening a menu, matching the other sections' affordance
             — two text buttons made this header the loudest thing in the rail. */}
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Add context"
-            render={<Button variant="ghost" size="icon-sm" />}
+            className="ibtn ibtn-sm"
           >
-            <Plus className="size-4" />
+            <Gi icon={Plus} size={15} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">
             <DropdownMenuItem onClick={() => setAdding("document")}>
@@ -513,43 +521,46 @@ function ContextSection({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
+      <div className="panel-b">
       {resources.length === 0 ? (
         <button
           type="button"
           onClick={() => setAdding("document")}
-          className="mt-2 flex w-full flex-col items-center gap-2 rounded-md bg-muted px-4 py-7 text-center transition-colors hover:bg-accent"
+          className="dropzone"
+          style={{ width: "100%" }}
         >
-          <span className="flex items-end gap-1" aria-hidden>
-            <FileText className="size-5 text-faint-foreground" />
-            <FileText className="size-6 text-muted-foreground" />
-            <FileText className="size-5 text-faint-foreground" />
+          <span className="row" style={{ justifyContent: "center", gap: 4, color: "var(--g8-text-4)" }} aria-hidden>
+            <Gi icon={FileText} size={18} />
+            <Gi icon={FileText} size={22} />
+            <Gi icon={FileText} size={18} />
           </span>
-          <span className="text-sm text-pretty text-muted-foreground">
+          <span className="muted" style={{ fontSize: "var(--g8-fs-sm)" }}>
             Attach documents or notes for this project to always have to hand.
           </span>
         </button>
       ) : (
-        <ul role="list" className="mt-2 flex flex-col gap-0.5">
+        <ul role="list" className="flex flex-col gap-0.5" style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {resources.map((resource) => (
             <li
               key={resource.id}
-              className="group flex items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-accent"
+              className="group mi"
             >
               {resource.kind === "document" ? (
-                <FileText className="size-3.5 shrink-0 text-faint-foreground" />
+                <Gi icon={FileText} size={14} />
               ) : (
-                <StickyNote className="size-3.5 shrink-0 text-faint-foreground" />
+                <Gi icon={StickyNote} size={14} />
               )}
-              <span className="min-w-0 flex-1 truncate text-sm">{resource.title}</span>
+              <span className="trunc grow">{resource.title}</span>
               <button
                 type="button"
                 onClick={() => void remove(resource.id)}
                 aria-label={`Remove ${resource.title}`}
-                className="shrink-0 rounded-pill p-0.5 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+                className="ibtn ibtn-xs opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               >
-                <Trash2 className="size-3.5" />
+                <Gi icon={Trash2} size={13} />
               </button>
             </li>
           ))}
@@ -557,10 +568,11 @@ function ContextSection({
       )}
 
       {resources.length > 0 ? (
-        <p className="mt-2 text-xs leading-relaxed text-faint-foreground">
+        <p className="faint" style={{ margin: "8px 0 0", fontSize: "var(--g8-fs-xs)" }}>
           Documents stay live — the assistant reads the current version.
         </p>
       ) : null}
+      </div>
 
       <AddResourceDialog
         propertyId={propertyId}

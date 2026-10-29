@@ -13,7 +13,7 @@ export type PodToolInfo = {
   /** Mirrors approval: always() in pod-tools.ts — the runtime parks the
    * call for a human decision; the UI badges these. */
   gated: boolean;
-  category: "Tasks" | "Bookings" | "Documents" | "Chat" | "Money";
+  category: "Tasks" | "Documents" | "Chat" | "Money";
 };
 
 export const POD_TOOL_CATALOG: PodToolInfo[] = [
@@ -39,20 +39,6 @@ export const POD_TOOL_CATALOG: PodToolInfo[] = [
     category: "Tasks",
   },
   {
-    id: "get_bookings",
-    label: "List bookings",
-    description: "Read bookings in a date window (guest, party, status, service).",
-    gated: false,
-    category: "Bookings",
-  },
-  {
-    id: "get_booking",
-    label: "Look up booking",
-    description: "Fetch one booking by its BKG-XXXXXX reference.",
-    gated: false,
-    category: "Bookings",
-  },
-  {
     id: "search_docs",
     label: "Search documents",
     description: "Full-text search over the property's documents.",
@@ -74,13 +60,6 @@ export const POD_TOOL_CATALOG: PodToolInfo[] = [
     category: "Chat",
   },
   {
-    id: "refund_booking",
-    label: "Refund booking",
-    description: "Refund a booking. Parks for human approval before executing.",
-    gated: true,
-    category: "Money",
-  },
-  {
     id: "override_rate",
     label: "Override rate",
     description: "Override a rate for a stay. Parks for human approval before executing.",
@@ -90,7 +69,7 @@ export const POD_TOOL_CATALOG: PodToolInfo[] = [
   {
     id: "comp_night",
     label: "Comp a night",
-    description: "Comp a night on a booking. Parks for human approval before executing.",
+    description: "Comp a night on a stay. Parks for human approval before executing.",
     gated: true,
     category: "Money",
   },

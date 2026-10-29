@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type {
+  CustomFieldConfig,
   CustomFieldOption,
   CustomFieldType,
   CustomFieldValue,
@@ -13,9 +14,13 @@ import type {
 export type CustomFieldRow = {
   id: string;
   space_id: string | null;
+  /** 0114 — scoped to one list (null = not list-scoped). */
+  list_id: string | null;
   name: string;
   type: CustomFieldType;
   options: CustomFieldOption[];
+  /** 0116 — per-type settings (currency code, people multiple, …). */
+  config: CustomFieldConfig;
   position: number;
 };
 
@@ -26,7 +31,7 @@ export function customFieldsQueryOptions(propertyId: string) {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("custom_fields")
-        .select("id, space_id, name, type, options, position")
+        .select("id, space_id, list_id, name, type, options, config, position")
         .eq("property_id", propertyId)
         .is("archived_at", null)
         .order("position", { ascending: true })

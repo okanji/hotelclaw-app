@@ -37,6 +37,34 @@
  * ------------------------------------------------------------------------ */
 
 @theme inline {
+  /* gr8r-studio raw palette (2026-10-29). */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-sunken: var(--sunken);
+  --color-border-strong: var(--border-strong);
+  --color-divider: var(--divider);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-inv: var(--ink-inv);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-g-green: var(--g-green);
+  --color-g-amber: var(--g-amber);
+  --color-g-red: var(--g-red);
+  --color-g-blue: var(--g-blue);
+  --color-g-violet: var(--g-violet);
+  --color-g-teal: var(--g-teal);
+  --color-g-rose: var(--g-rose);
+  --color-g-orange: var(--g-orange);
+  --color-g-gray: var(--g-gray);
+  --color-st-backlog: var(--st-backlog);
+  --color-st-todo: var(--st-todo);
+  --color-st-progress: var(--st-progress);
+  --color-st-review: var(--st-review);
+  --color-st-done: var(--st-done);
+  --shadow-drag: var(--shadow-drag-raw);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   /* The PLAIN SYSTEM STACK — no webfont (notion-spec-v2 §2). Notion ships no
@@ -45,8 +73,11 @@
      wiring (`--font-sans-inter`) was deleted from app/layout.tsx on 2026-08-05
      — do not reintroduce it. Emoji + Arabic/Hebrew faces are IN the stack so a
      mixed-script string never falls through to a random installed face. */
+  /* gr8r-studio (2026-10-29): Geist, loaded by next/font in app/layout.tsx.
+     Supersedes the 2026-08-05 "no webfont" rule — the user adopted gr8r's
+     design system wholesale. */
   --font-sans:
-    ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display",
+    var(--font-geist), ui-sans-serif, -apple-system, "system-ui", "Segoe UI Variable Display",
     "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic",
     "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -211,8 +242,7 @@
   --container-page: var(--page-width);
   --container-workspace: var(--workspace-width);
   /* Guest palette — the warm-cream world every guest-facing surface lives in
-     (onboarding wizard, welcome, public booking, guest chatbot, event pages,
-     booking emails). NOT theme-switched: guest surfaces are always cream.
+     (onboarding wizard, welcome, guest chatbot). NOT theme-switched: guest surfaces are always cream.
      OUT OF SCOPE for the Notion normalization — do not touch. */
   --color-guest-bg: var(--guest-bg);
   --color-guest-card: var(--guest-card);
@@ -258,7 +288,7 @@
   --radius-modal: 1.25rem;
   /* FROZEN at their pre-normalization computed values. `rounded-xl/2xl/3xl`
      survive ONLY because the out-of-scope guest world consumes them
-     (components/public-booking/*, components/guest-chat/*, app/book/*).
+     (components/guest-chat/*, the /g/* guest pages).
      App-shell surfaces must use --radius or --radius-overlay instead —
      never these. Do not re-point them; convert app call sites. */
   --radius-xl: 0.7rem;
@@ -315,12 +345,12 @@
  *     delta plus the warm ring is the entire separation mechanism.
  * ------------------------------------------------------------------------ */
 :root {
-  --background: #f9f8f7;
-  --foreground: #2c2c2b;
+  --background: #fbfaf8;
+  --foreground: #1d1c1a;
   --card: #ffffff;
-  --card-foreground: #2c2c2b;
+  --card-foreground: #1d1c1a;
   --popover: #ffffff;
-  --popover-foreground: #2c2c2b;
+  --popover-foreground: #1d1c1a;
   /* NOTION BLUE (2026-08-05, notion-spec-v2 §0/§6). This deliberately
      overrides the 2026-07-17 "primary buttons stay warm ink" decision: the
      primary button is now #2383e2 with a near-white label, the SAME blue as
@@ -341,32 +371,32 @@
      --primary-ink   = blue used as TEXT (links, `text-primary-ink`). Must
                        lighten on the dark plane or it fails as body text:
                        #1a6ed8 on #191919 is only 3.57:1, #4a9df0 is 6.17:1. */
-  --primary: #1a6ed8;
+  --primary: #4b5bd6;
   --primary-foreground: #ffffff;
-  --primary-ink: #1a6ed8;
-  --secondary: #f1f0ee;
-  --secondary-foreground: #2c2c2b;
+  --primary-ink: #4b5bd6;
+  --secondary: #f6f5f2;
+  --secondary-foreground: #1d1c1a;
   /* Wells are TRANSLUCENT warm-black so the same `bg-muted` composites
      correctly on both the white content plane and the #f9f8f7 chrome plane. */
   --muted: rgb(33 27 23 / 4%);
   /* Ink ramp: primary → secondary → tertiary → faint. */
-  --secondary-ink: #5f5e59;
-  --muted-foreground: #7d7a75;
-  --faint-foreground: #a19e99;
+  --secondary-ink: #57544e;
+  --muted-foreground: #6b6760;
+  --faint-foreground: #8c8880;
   /* Hover / pressed fill. ONE value for both the app and the sidebar — the
      same gesture must not have two alphas. */
-  --accent: rgb(33 27 23 / 5%);
-  --accent-pressed: rgb(33 27 23 / 8%);
+  --accent: rgb(29 28 26 / 5.5%);
+  --accent-pressed: rgb(29 28 26 / 8.5%);
   /* Hover must NOT flip the label color, so accent-foreground == foreground. */
-  --accent-foreground: #2c2c2b;
-  --destructive: oklch(0.55 0.17 28);
+  --accent-foreground: #1d1c1a;
+  --destructive: #b23c30;
   /* THE signature warm ring. Divider, hairline, input edge, card boundary. */
-  --border: rgb(42 28 0 / 7%);
-  --shell-border: rgb(42 28 0 / 7%);
-  --input: rgb(42 28 0 / 7%);
+  --border: #e9e7e2;
+  --shell-border: #e9e7e2;
+  --input: #dad7d0;
   /* Focus color (Notion blue). Spent as a 1px inset+outer box-shadow, not a
      3px ring — see --focus-shadow. */
-  --ring: #2383e2;
+  --ring: #4b5bd6;
   /* Warm-tinted neutral ramp for charts (chroma 0 read as cold grey). */
   --chart-1: oklch(0.87 0.004 106);
   --chart-2: oklch(0.556 0.006 106);
@@ -397,32 +427,32 @@
   --rail: #211f1b;
   /* Sidebar and chrome are the SAME plane as --background (Notion's sidebar
      is not a separate card). */
-  --sidebar: #f9f8f7;
+  --sidebar: #f4f3f0;
   /* Idle row ink — darkened from #5f5e59 (2026-08-26, user request): idle
      rows should read comfortably, with the active row's #2c2c2b still a
      clear step above. */
-  --sidebar-foreground: #4f4d49;
-  --sidebar-primary: #2c2c2b;
+  --sidebar-foreground: #57544e;
+  --sidebar-primary: #1d1c1a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgb(33 27 23 / 5%);
+  --sidebar-accent: #eeede9;
   /* The active/hover row is the only sidebar row that gets primary ink. */
-  --sidebar-accent-foreground: #2c2c2b;
-  --sidebar-border: rgb(42 28 0 / 7%);
-  --sidebar-ring: #2383e2;
+  --sidebar-accent-foreground: #1d1c1a;
+  --sidebar-border: #e9e7e2;
+  --sidebar-ring: #4b5bd6;
   /* Tooltip: constant dark slab on both planes. */
-  --tooltip-bg: #2c2c2b;
-  --tooltip-foreground: #f0efed;
+  --tooltip-bg: #1d1c1a;
+  --tooltip-foreground: #ffffff;
   /* Ink on tint-card cover fills. */
   --cover-ink: #1f1e1b;
   /* Notification pink — count badges in shell chrome. Quieted. */
-  --notification: oklch(0.6 0.17 358);
+  --notification: #4b5bd6;
   /* Nav/doc icon accent — same blue family as the focus ring. */
-  --icon-accent: oklch(0.58 0.14 250);
+  --icon-accent: #4b5bd6;
   /* Semantic status colors — desaturated one rung so they read as warm
      accents on the quiet planes rather than saturated stock chips. */
-  --success: oklch(0.55 0.095 160);
-  --warning: oklch(0.62 0.115 62);
-  --info: oklch(0.58 0.14 250);
+  --success: #25754b;
+  --warning: #8f5e0e;
+  --info: #3570c4;
   /* Brand aubergine + lavender (Slack-heritage marks: switcher tile, rail
      badge, chat active-tab underline). */
   --brand: #4a154b;
@@ -505,26 +535,24 @@
      ring as its LAST layer — that ring IS the boundary, so these surfaces
      carry `border: none` and no `ring-*` utility. */
   /* CARD — resting content that represents a page. One soft far layer only. */
-  --card-shadow: rgb(25 25 25 / 2.7%) 0 4px 12px 0, rgb(42 28 0 / 7%) 0 0 0 1px;
+  --card-shadow: 0 1px 2px rgba(28,25,20,0.04), 0 0 0 1px #e9e7e2;
   /* POPOVER — floating chrome. `--overlay-shadow` is the pre-v2 name for this
      exact recipe and is consumed directly by several stylesheets
      (documents-editor.css, stream-chat-overrides.css, spreadsheet.css,
      document-drag-handle.css, insights/chart-style.ts), so it stays the
      canonical raw var and `--shadow-popover` maps onto it. */
-  --overlay-shadow:
-    rgb(25 25 25 / 5%) 0 20px 24px 0, rgb(25 25 25 / 2.7%) 0 5px 8px 0,
-    rgb(42 28 0 / 7%) 0 0 0 1px;
+  --overlay-shadow: 0 12px 32px -8px rgba(28,25,20,0.16), 0 2px 6px -2px rgba(28,25,20,0.06), 0 0 0 1px #e9e7e2;
   /* MODAL — the only tier with no ring: it sits on a translucent blurred
      fill, where a 1px ring reads as a seam. */
   --modal-shadow: rgb(25 25 25 / 24%) 0 24px 48px 0, rgb(25 25 25 / 14%) 0 4px 12px 0;
   --tooltip-shadow:
     rgb(0 0 0 / 8%) 0 4px 12px -2px, rgb(255 255 255 / 5%) 0 0 0 1px inset;
-  --ring-shadow: 0 0 0 1px rgb(42 28 0 / 7%);
-  --focus-shadow: #2383e2 0 0 0 1px inset, #2383e2 0 0 0 1px;
+  --ring-shadow: 0 0 0 1px #e9e7e2;
+  --focus-shadow: 0 0 0 2px var(--primary);
   --composer-ring-shadow: 0 0 0 1px rgb(42 28 0 / 14%);
   --composer-focus-shadow: 0 0 0 1px rgb(42 28 0 / 26%);
   /* The sidebar's right edge is a SHADOW, not a border (notion-spec §2). */
-  --sidebar-edge-shadow: inset -1px 0 0 #f0efed;
+  --sidebar-edge-shadow: inset -1px 0 0 #e9e7e2;
 
   /* Guest palette raw values (see @theme mapping above). Same in dark mode —
      guest surfaces are their own warm-cream world and never theme-switch.
@@ -543,6 +571,47 @@
   --guest-accent-hover: #b05236;
   --guest-accent-ink: #9d4a2f;
   --guest-danger: #b3422a;
+  /* --- gr8r-studio raw tokens (2026-10-29 port; SPEC §1) ------------------
+     The semantic tokens above are MAPPED onto these values; new gr8r-style
+     surfaces may use the raw names directly (Tailwind: bg-surface-2,
+     text-ink-3, border-strong, bg-st-progress …). */
+  --surface: #ffffff;
+  --surface-2: #f6f5f2;
+  --surface-3: #eeede9;
+  --sunken: #f7f6f3;
+  --overlay: rgba(24, 22, 19, 0.28);
+  --border-strong: #dad7d0;
+  --divider: #f0eeea;
+  --ink-2: #57544e;
+  --ink-3: #6b6760;
+  --ink-4: #8c8880;
+  --ink-inv: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--primary) 10%, transparent);
+  --accent-line: color-mix(in srgb, var(--primary) 38%, transparent);
+  --g-green: #25754b;
+  --g-amber: #8f5e0e;
+  --g-red: #b23c30;
+  --g-blue: #3570c4;
+  --g-violet: #7652c2;
+  --g-teal: #1e8580;
+  --g-rose: #bc4270;
+  --g-orange: #c0612b;
+  --g-gray: #8a867e;
+  --st-backlog: #a29e96;
+  --st-todo: #7c7870;
+  --st-progress: #c88a14;
+  --st-review: #7652c2;
+  --st-done: #2e8456;
+  --pc-mix: 100%;
+  --shadow-drag-raw: 0 16px 36px -10px rgba(28,25,20,0.28), 0 0 0 1px #dad7d0;
+  --gutter: 24px;
+  --side-w: 252px;
+  --side-row: 30px;
+  --row-h: 40px;
+  --topbar-h: 46px;
+  --ease-g: cubic-bezier(0.23, 1, 0.32, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* ---------------------------------------------------------------------------
@@ -554,12 +623,12 @@
  * switch never shifts temperature.
  * ------------------------------------------------------------------------ */
 .dark {
-  --background: #202020;
-  --foreground: #f0efed;
-  --card: #191919;
-  --card-foreground: #f0efed;
-  --popover: #252525;
-  --popover-foreground: #f0efed;
+  --background: #1a1a19;
+  --foreground: #eceae5;
+  --card: #1d1d1c;
+  --card-foreground: #eceae5;
+  --popover: #252524;
+  --popover-foreground: #eceae5;
   /* Notion blue does NOT invert with the theme — the button FILL is the same
      brand accent on both planes (#1a6ed8 + white = 4.92:1 for the label, and
      3.57:1 against the #191919 canvas, over the 3:1 UI floor). The old
@@ -567,23 +636,23 @@
      label, which fails AA — the fill must be judged against its LABEL.
      Blue-as-TEXT is the one that has to lighten here: --primary-ink #4a9df0
      is 6.17:1 on #191919, where the fill blue would be 3.57:1. */
-  --primary: #1a6ed8;
-  --primary-foreground: #ffffff;
-  --primary-ink: #4a9df0;
-  --secondary: #2a2a29;
-  --secondary-foreground: #f0efed;
+  --primary: #8e9af3;
+  --primary-foreground: #12131c;
+  --primary-ink: #8e9af3;
+  --secondary: #252524;
+  --secondary-foreground: #eceae5;
   --muted: rgb(255 255 255 / 4.5%);
-  --secondary-ink: #bcbab6;
-  --muted-foreground: #9a9893;
-  --faint-foreground: #73716c;
+  --secondary-ink: #b5b2ab;
+  --muted-foreground: #9a968f;
+  --faint-foreground: #6f6c66;
   --accent: rgb(255 255 255 / 5.5%);
   --accent-pressed: rgb(255 255 255 / 9%);
-  --accent-foreground: #f0efed;
-  --destructive: oklch(0.68 0.15 25);
-  --border: rgb(255 255 255 / 7.5%);
+  --accent-foreground: #eceae5;
+  --destructive: #e57d70;
+  --border: #2c2b29;
   --shell-border: rgb(255 255 255 / 7.5%);
-  --input: rgb(255 255 255 / 7.5%);
-  --ring: #2383e2;
+  --input: #3a3936;
+  --ring: #8e9af3;
   --chart-1: oklch(0.87 0.004 106);
   --chart-2: oklch(0.556 0.006 106);
   --chart-3: oklch(0.439 0.006 106);
@@ -598,22 +667,22 @@
   --series-6: oklch(0.80 0.12 85);
   --series-7: oklch(0.72 0.10 210);
   --series-8: oklch(0.68 0.10 140);
-  --sidebar: #202020;
-  --sidebar-foreground: #bcbab6;
-  --sidebar-primary: #f0efed;
+  --sidebar: #151514;
+  --sidebar-foreground: #b5b2ab;
+  --sidebar-primary: #eceae5;
   --sidebar-primary-foreground: #191919;
-  --sidebar-accent: rgb(255 255 255 / 5.5%);
-  --sidebar-accent-foreground: #f0efed;
-  --sidebar-border: rgb(255 255 255 / 7.5%);
-  --sidebar-ring: #2383e2;
-  --tooltip-bg: #2c2c2b;
-  --tooltip-foreground: #f0efed;
+  --sidebar-accent: #2d2d2b;
+  --sidebar-accent-foreground: #eceae5;
+  --sidebar-border: #2c2b29;
+  --sidebar-ring: #8e9af3;
+  --tooltip-bg: #eceae5;
+  --tooltip-foreground: #151514;
   --cover-ink: #1f1e1b;
-  --notification: oklch(0.68 0.17 358);
-  --icon-accent: oklch(0.7 0.12 248);
-  --success: oklch(0.74 0.13 163);
-  --warning: oklch(0.8 0.13 84);
-  --info: oklch(0.7 0.12 250);
+  --notification: #8e9af3;
+  --icon-accent: #8e9af3;
+  --success: #5cba86;
+  --warning: #d8a443;
+  --info: #72a5ea;
   --brand: #4a154b;
   --brand-accent: #cba4e6;
   --accent-red: oklch(0.7 0.12 40);
@@ -679,6 +748,38 @@
   --composer-ring-shadow: 0 0 0 1px rgb(255 255 255 / 15%);
   --composer-focus-shadow: 0 0 0 1px rgb(255 255 255 / 28%);
   --sidebar-edge-shadow: inset -1px 0 0 #2c2c2b;
+  /* gr8r-studio dark raw tokens (redefined, not inverted — SPEC §1.4). */
+  --surface: #1d1d1c;
+  --surface-2: #252524;
+  --surface-3: #2d2d2b;
+  --sunken: #181817;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --border-strong: #3a3936;
+  --divider: #252523;
+  --ink-2: #b5b2ab;
+  --ink-3: #9a968f;
+  --ink-4: #6f6c66;
+  --ink-inv: #151514;
+  --g-green: #5cba86;
+  --g-amber: #d8a443;
+  --g-red: #e57d70;
+  --g-blue: #72a5ea;
+  --g-violet: #a98deb;
+  --g-teal: #58c0b6;
+  --g-rose: #e68aab;
+  --g-orange: #e3925f;
+  --g-gray: #8f8b84;
+  --st-backlog: #6f6c66;
+  --st-todo: #a6a39c;
+  --st-progress: #d8a443;
+  --st-review: #a98deb;
+  --st-done: #5cba86;
+  --pc-mix: 72%;
+  --shadow-drag-raw: 0 18px 40px -10px rgba(0,0,0,0.7), 0 0 0 1px #3a3936;
+  --card-shadow: 0 0 0 1px #2c2b29;
+  --overlay-shadow: 0 16px 40px -10px rgba(0,0,0,0.6), 0 0 0 1px #3a3936;
+  --sidebar-edge-shadow: inset -1px 0 0 #2c2b29;
+  --focus-shadow: 0 0 0 2px var(--primary);
 }
 
 /* ---- Native mobile shell (WebView embed) chrome swaps -------------------
@@ -717,6 +818,9 @@ html[data-hotelclaw-embed] .documents-toolbar {
   }
   body {
     @apply bg-background text-foreground;
+    /* gr8r base: 13.5px / 1.45 (SPEC §1.1). */
+    font-size: 13.5px;
+    line-height: 1.45;
   }
 
   html {
@@ -730,7 +834,9 @@ html[data-hotelclaw-embed] .documents-toolbar {
        letter-spacing is `normal` everywhere (notion-spec-v2 §2) and the old
        global `-0.011em` was a Linear signature. Do not reintroduce it, and
        do not add `tracking-tight` / `tracking-[0.18em]` to app surfaces. */
-    font-feature-settings: normal;
+    /* gr8r: Geist stylistic set 1 + cv11 (SPEC §1.1). */
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
   }
 
   /* Slack-style slim scrollbars — standard properties ONLY (`scrollbar-width`
@@ -751,13 +857,58 @@ html[data-hotelclaw-embed] .documents-toolbar {
 }
 
 :root {
-  --scrollbar-thumb: rgb(33 27 23 / 18%);
-  --scrollbar-thumb-hover: rgb(33 27 23 / 30%);
+  --scrollbar-thumb: #dad7d0;
+  --scrollbar-thumb-hover: #8c8880;
 }
 
 .dark {
-  --scrollbar-thumb: rgb(255 255 255 / 18%);
-  --scrollbar-thumb-hover: rgb(255 255 255 / 30%);
+  --scrollbar-thumb: #3a3936;
+  --scrollbar-thumb-hover: #6f6c66;
+}
+
+/* --- gr8r-studio base + motion (SPEC §1.8–1.10) --------------------------- */
+::selection {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+:root {
+  caret-color: var(--primary);
+}
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-bottom-width: 1.5px;
+  background: var(--surface);
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@keyframes g-rise-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes g-slide-in-r { from { opacity: 0; transform: translateX(18px); } }
+@keyframes g-grow-x { from { transform: scaleX(0); } }
+@keyframes g-pop-check { 0% { transform: scale(0.55); } 55% { transform: scale(1.2); } 100% { transform: scale(1); } }
+@keyframes g-done-wash { from { background-color: color-mix(in srgb, var(--g-green) 11%, transparent); } }
+@keyframes g-add-wash { from { background-color: var(--accent-soft); } }
+@keyframes g-land { from { transform: scale(1.04) rotate(-1.2deg); box-shadow: var(--shadow-drag-raw); } }
+@keyframes g-drawer-in { from { opacity: 0; transform: translateX(48px); } }
+@keyframes g-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@keyframes g-pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+@keyframes g-tab-in { from { opacity: 0; transform: scaleX(0.4); } }
+@keyframes g-fade { from { opacity: 0; } }
+/* One-shot entrance used by gr8r pages: direct children rise in, staggered. */
+.g-page > * { animation: g-rise-in 0.36s var(--ease-g) both; }
+.g-page > *:nth-child(2) { animation-delay: 0.035s; }
+.g-page > *:nth-child(3) { animation-delay: 0.07s; }
+.g-page > *:nth-child(n + 4) { animation-delay: 0.1s; }
+.g-grow-x { transform-origin: left; animation: g-grow-x 0.8s 0.12s var(--ease-g) both; }
+.g-pop-check { animation: g-pop-check 0.42s var(--spring); }
+@media (prefers-reduced-motion: reduce) {
+  .g-page > *, .g-grow-x, .g-pop-check { animation: g-fade 0.12s both; }
 }
 
 /* Stream Chat theming overrides.

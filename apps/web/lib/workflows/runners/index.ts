@@ -6,6 +6,7 @@ import {
   updateTaskRunner,
   assignTaskRunner,
   addLabelRunner,
+  addChecklistRunner,
   removeLabelRunner,
   setTaskFieldRunner,
   queryTasksRunner,
@@ -16,7 +17,6 @@ import {
   mentionUserRunner,
 } from "./chat";
 import { formSendRunner } from "./forms";
-import { createBookingRunner, setBookingStatusRunner } from "./bookings";
 import { notifyUserRunner, notifyRoleRunner } from "./notify";
 import {
   createEntityRunner,
@@ -66,6 +66,7 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   "action.task.update": updateTaskRunner as Runner,
   "action.task.assign": assignTaskRunner as Runner,
   "action.task.add_label": addLabelRunner as Runner,
+  "action.task.add_checklist": addChecklistRunner as Runner,
   "action.task.remove_label": removeLabelRunner as Runner,
   "action.task.set_field": setTaskFieldRunner as Runner,
 
@@ -77,9 +78,6 @@ export const RUNNERS: Partial<Record<StepType, Runner>> = {
   // Forms
   "action.form.send": formSendRunner as Runner,
 
-  // Bookings
-  "action.booking.create": createBookingRunner as Runner,
-  "action.booking.set_status": setBookingStatusRunner as Runner,
 
   // Docs
   "action.doc.create": createDocRunner as Runner,

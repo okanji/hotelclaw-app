@@ -1,11 +1,13 @@
 "use client";
 
-import { isDone } from "@/lib/tasks/statuses";
-import { useMemo, useState } from "react";
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
+import { isDone, isUuid, type StatusCatalog } from "@/lib/tasks/statuses";
+import { useStatusCatalog } from "@/lib/query/status-queries";
+import { FIELD_TYPE_ICON } from "./field-type-icon";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
-  CalendarDays,
   Check,
   Circle,
   Flag,
@@ -16,10 +18,7 @@ import {
   PenLine,
   Plus,
   Sparkles,
-  SquareCheck,
   Tag,
-  Tags,
-  Type,
   User,
   X,
   Zap,
@@ -57,11 +56,9 @@ import {
 } from "@/lib/query/custom-field-queries";
 import { isChoiceField, optionColor } from "@/lib/tasks/custom-field-options";
 import type {
-  CustomFieldType,
   EntityColor,
   RecordSource,
   TaskPriority,
-  TaskStatus,
 } from "@/lib/db/types";
 import {
   COLUMNS,
@@ -100,7 +97,9 @@ export type BoardFilters = {
   assignees: string[]; // member ids; `UNASSIGNED` sentinel = no assignee
   creators: string[]; // member ids (created_by)
   priorities: TaskPriority[];
-  statuses: TaskStatus[];
+  /** Category literals (`todo` …, any list) and/or status ids (one list's
+   *  pipeline stage, 0114) — OR'd like every facet. */
+  statuses: string[];
   spaceIds: string[]; // teams; `NONE` sentinel = no team
   projectIds: string[]; // `NONE` sentinel = no project
   labelIds: string[];
@@ -313,8 +312,9 @@ export function matchesFacets(
   fieldIndex?: FieldValueIndex,
 ): boolean {
   if (filters.assignees.length) {
+    const ids = taskAssigneeIds(task);
     const ok = filters.assignees.some((a) =>
-      a === UNASSIGNED ? task.assignee_id == null : task.assignee_id === a,
+      a === UNASSIGNED ? ids.length === 0 : ids.includes(a),
     );
     if (!ok) return false;
   }
@@ -324,8 +324,11 @@ export function matchesFacets(
   if (filters.priorities.length && !filters.priorities.includes(task.priority)) {
     return false;
   }
-  if (filters.statuses.length && !filters.statuses.includes(task.status)) {
-    return false;
+  if (filters.statuses.length) {
+    const ok = filters.statuses.some((s) =>
+      isUuid(s) ? task.status_id === s : task.status === s,
+    );
+    if (!ok) return false;
   }
   if (filters.spaceIds.length) {
     const ok = filters.spaceIds.some((s) =>
@@ -409,6 +412,8 @@ export type Option = {
   /** Search keywords (name + email etc.) for the Command filter. */
   keywords?: string;
   node: React.ReactNode; // leading glyph
+  /** Section heading in the picker; consecutive options share one group. */
+  group?: string;
 };
 
 function ColorDot({ color }: { color: EntityColor }) {
@@ -437,17 +442,11 @@ export type FacetData = {
   /** Live cycles (current + upcoming, plus recent past), labelled with their team. */
   cycles: { id: string; label: string; current: boolean }[];
   customFields: CustomFieldRow[];
+  /** Lists + pipelines (0114) — the Status facet groups stages by list. */
+  catalog: StatusCatalog;
 };
 
-/** Icon per custom-field type — mirrors the task sidebar's Fields section. */
-const FIELD_TYPE_ICON: Record<CustomFieldType, typeof User> = {
-  text: Type,
-  number: Hash,
-  select: ListFilter,
-  multi_select: Tags,
-  date: CalendarDays,
-  checkbox: SquareCheck,
-};
+/** Icon per custom-field type — shared with the sidebar and the manager. */
 
 /** Chip/menu metadata for any facet, built-in or custom field. */
 function facetMeta(
@@ -459,8 +458,8 @@ function facetMeta(
   return {
     label: field?.name ?? "Field",
     Icon: field ? FIELD_TYPE_ICON[field.type] : ListFilter,
-    // Dropdowns can carry a long option list; the rest are 2-3 rows.
-    searchable: (field?.options.length ?? 0) > 8,
+    // Dropdowns and people can carry a long list; the rest are 2-3 rows.
+    searchable: field?.type === "people" || (field?.options.length ?? 0) > 8,
   };
 }
 
@@ -508,11 +507,16 @@ function buildOptions(
         ),
       }));
     case "status":
-      return COLUMNS.map<Option>((c) => ({
-        value: c.id,
-        label: c.label,
-        node: <StatusIcon status={c.id} className="size-3.5" />,
-      }));
+      return [
+        ...COLUMNS.map<Option>((c) => ({
+          value: c.id,
+          label: c.label,
+          keywords: `${c.label} any list category`,
+          group: "Any list",
+          node: <StatusIcon status={c.id} className="size-3.5" />,
+        })),
+        ...pipelineStatusOptions(data),
+      ];
     case "space":
       return [
         {
@@ -597,6 +601,49 @@ function buildOptions(
 }
 
 /**
+ * One group per status PIPELINE in use, headed by the list(s) that run it —
+ * lists sharing a set (every team list inheriting the property default) would
+ * otherwise repeat the same stages N times. Values are status ids, so a
+ * saved filter survives a rename. The category rows above stay the way to say
+ * "done anywhere".
+ */
+function pipelineStatusOptions(data: FacetData): Option[] {
+  const { catalog } = data;
+  const listsBySet = new Map<string, string[]>();
+  for (const l of catalog.lists) {
+    if (l.archived_at) continue;
+    const names = listsBySet.get(l.status_set_id) ?? [];
+    names.push(l.name);
+    listsBySet.set(l.status_set_id, names);
+  }
+  const out: Option[] = [];
+  for (const [setId, names] of listsBySet) {
+    const set = catalog.sets.get(setId);
+    const heading =
+      names.length === 1
+        ? names[0]!
+        : `${set?.name ?? "Shared"} · ${names.length} lists`;
+    for (const s of catalog.statusesOfSet(setId)) {
+      out.push({
+        value: s.id,
+        label: s.name,
+        keywords: `${s.name} ${names.join(" ")}`,
+        group: heading,
+        node: (
+          <StatusIcon
+            category={s.category}
+            blocked={s.is_blocked}
+            color={s.color}
+            className="size-3.5"
+          />
+        ),
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Options for a custom-field facet. Dropdowns list their real options (values
  * are option ids, so renaming an option never breaks a saved filter) and
  * checkboxes list both states; free-text / number / date fields can't offer a
@@ -626,6 +673,18 @@ function buildFieldOptions(facet: FacetKey, data: FacetData): Option[] {
             className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[optionColor(o)])}
           />
         ),
+      })),
+      emptyOption,
+    ];
+  }
+  // People fields filter like the assignee facet: anyone ticked matches.
+  if (field.type === "people") {
+    return [
+      ...data.members.map<Option>((m) => ({
+        value: m.id,
+        label: m.name ?? "Member",
+        keywords: `${m.name ?? ""} ${m.email ?? ""}`,
+        node: <MemberAvatar member={m} />,
       })),
       emptyOption,
     ];
@@ -665,11 +724,20 @@ export function ValuePicker({
   searchable: boolean;
   searchPlaceholder: string;
 }) {
+  // Consecutive options sharing `group` render under one heading; ungrouped
+  // pickers stay a single headless group.
+  const groups: { heading?: string; options: Option[] }[] = [];
+  for (const opt of options) {
+    const last = groups[groups.length - 1];
+    if (last && last.heading === opt.group) last.options.push(opt);
+    else groups.push({ heading: opt.group, options: [opt] });
+  }
   const rows = (
-    <CommandList className="max-h-64">
+    <CommandList className="max-h-72">
       <CommandEmpty>No matches.</CommandEmpty>
-      <CommandGroup>
-        {options.map((opt) => {
+      {groups.map((g, gi) => (
+      <CommandGroup key={`${gi}:${g.heading ?? ""}`} heading={g.heading}>
+        {g.options.map((opt) => {
           const isOn = selected.includes(opt.value);
           return (
             <CommandItem
@@ -692,6 +760,7 @@ export function ValuePicker({
           );
         })}
       </CommandGroup>
+      ))}
     </CommandList>
   );
 
@@ -775,44 +844,33 @@ function FacetControl({
         if (!o && selected.length === 0) onEmptyClose();
       }}
     >
-      <span
-        className={cn(
-          "inline-flex h-7 items-center rounded-md text-xs font-medium transition-colors",
-          selected.length > 0
-            ? "bg-accent-pressed text-foreground"
-            : "text-faint-foreground hover:bg-accent",
-        )}
-      >
+      {/* gr8r `.chip` (view-engine.js filterChips): "<icon> <b>Field</b> is
+          <values>" opens the value picker; the ✕ drops the facet. A facet
+          that was just added (no values yet) reads "is any". */}
+      <span className="chip">
         <PopoverTrigger
           render={
             <button
               type="button"
               aria-label={`${meta.label} filter`}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md pr-2 pl-2.5 focus-visible:outline-none focus-visible:shadow-focus"
+              style={{ display: "inline-flex", gap: 5, alignItems: "center" }}
             />
           }
         >
-          <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="font-medium">{meta.label}</span>
-          {selected.length > 0 ? (
-            <>
-              <span aria-hidden className="text-muted-foreground">
-                :
-              </span>
-              <span className="max-w-[10rem] truncate">{summary}</span>
-            </>
-          ) : null}
+          <Icon className="i" size={12} strokeWidth={1.8} aria-hidden />
+          <b>{meta.label}</b> is{" "}
+          <span className="max-w-[10rem] truncate">
+            {selected.length > 0 ? summary : "any"}
+          </span>
         </PopoverTrigger>
-        {selected.length > 0 ? (
-          <button
-            type="button"
-            onClick={clear}
-            aria-label={`Clear ${meta.label} filter`}
-            className="mr-1 inline-flex size-4 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
-          >
-            <X className="size-3" />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="ibtn"
+          onClick={clear}
+          aria-label={`Remove ${meta.label} filter`}
+        >
+          <X className="i" size={12} strokeWidth={1.8} aria-hidden />
+        </button>
       </span>
       <PopoverContent align="start" className="w-64 p-0">
         <ValuePicker
@@ -841,11 +899,14 @@ export function FilterMenu({
   filters,
   onPick,
   customFields = [],
+  variant = "toolbar",
 }: {
   filters: BoardFilters;
   onPick: (facet: FacetKey) => void;
   /** Custom fields offered alongside the built-in facets. */
   customFields?: CustomFieldRow[];
+  /** `toolbar` = gr8r's "Filter" button; `add` = the chips bar's "+ Add". */
+  variant?: "toolbar" | "add";
 }) {
   const [open, setOpen] = useState(false);
   const inactive = FACET_ORDER.filter((f) => facetValues(filters, f).length === 0);
@@ -858,30 +919,41 @@ export function FilterMenu({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <button
-            type="button"
-            aria-label="Add filter"
-            title="Add filter"
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors",
-              activeCount > 0
-                ? "text-foreground"
-                : "text-secondary-ink",
-              "hover:bg-accent",
-              "focus-visible:outline-none focus-visible:shadow-focus",
-              "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
-              "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
-            )}
-          />
+          variant === "add" ? (
+            <button
+              type="button"
+              aria-label="Add filter"
+              className="btn btn-sm btn-ghost"
+            />
+          ) : (
+            <button
+              type="button"
+              aria-label="Add filter"
+              title="Add filter"
+              className={cn("btn btn-ghost", activeCount > 0 && "on")}
+            />
+          )
         }
       >
-        <ListFilter className="size-3.5" />
-        <span>Filter</span>
-        {activeCount > 0 ? (
-          <span className="rounded-md bg-accent-pressed px-1 text-xs tabular-nums text-foreground">
-            {activeCount}
-          </span>
-        ) : null}
+        {variant === "add" ? (
+          <>
+            <Plus className="i" size={12} strokeWidth={1.8} aria-hidden />
+            Add
+          </>
+        ) : (
+          <>
+            <ListFilter className="i" size={14} strokeWidth={1.8} aria-hidden />
+            Filter
+            {activeCount > 0 ? (
+              <span
+                className="badge accent"
+                style={{ height: 16, padding: "0 5px" }}
+              >
+                {activeCount}
+              </span>
+            ) : null}
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-52 p-0">
         <Command>
@@ -950,6 +1022,7 @@ export function ActiveFilterBar({
   currentUserId,
   addedFacet,
   onResolveAdded,
+  onPick,
 }: {
   propertyId: string;
   filters: BoardFilters;
@@ -957,6 +1030,8 @@ export function ActiveFilterBar({
   currentUserId: string;
   addedFacet: FacetKey | null;
   onResolveAdded: () => void;
+  /** Adds another facet from the bar's "+ Add" (the board's handler). */
+  onPick?: (facet: FacetKey) => void;
 }) {
   const { data: members = [] } = useQuery(
     propertyMembersQueryOptions(propertyId),
@@ -968,6 +1043,7 @@ export function ActiveFilterBar({
     customFieldsQueryOptions(propertyId),
   );
   const { data: cyclesPayload } = useQuery(cyclesQueryOptions(propertyId));
+  const catalog = useStatusCatalog(propertyId);
 
   const cycles = useMemo(() => {
     const list = cyclesPayload?.cycles ?? [];
@@ -992,8 +1068,8 @@ export function ActiveFilterBar({
   }, [cyclesPayload, spaces]);
 
   const data: FacetData = useMemo(
-    () => ({ members, spaces, projects, labels, cycles, customFields }),
-    [members, spaces, projects, labels, cycles, customFields],
+    () => ({ members, spaces, projects, labels, cycles, customFields, catalog }),
+    [members, spaces, projects, labels, cycles, customFields, catalog],
   );
 
   const active: FacetKey[] = [
@@ -1006,28 +1082,41 @@ export function ActiveFilterBar({
   if (shown.length === 0) return null;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-1.5">
-      {shown.map((facet) => (
-        <FacetControl
-          key={facet}
-          facet={facet}
-          filters={filters}
-          onChange={onChange}
-          currentUserId={currentUserId}
-          data={data}
-          autoOpen={facet === addedFacet}
-          onEmptyClose={onResolveAdded}
-        />
+    // gr8r `.chipsbar`: filter glyph, one `.chip` per facet joined by "and",
+    // "+ Add", then "Clear all" pushed right.
+    <div className="chipsbar">
+      <ListFilter className="i" size={13} strokeWidth={1.8} aria-hidden />
+      {shown.map((facet, i) => (
+        <Fragment key={facet}>
+          {i > 0 ? <span>and</span> : null}
+          <FacetControl
+            facet={facet}
+            filters={filters}
+            onChange={onChange}
+            currentUserId={currentUserId}
+            data={data}
+            autoOpen={facet === addedFacet}
+            onEmptyClose={onResolveAdded}
+          />
+        </Fragment>
       ))}
+      {onPick ? (
+        <FilterMenu
+          filters={filters}
+          onPick={onPick}
+          customFields={customFields}
+          variant="add"
+        />
+      ) : null}
+      <span className="sp" />
       <button
         type="button"
+        className="btn btn-sm btn-ghost"
         onClick={() => {
           onChange(clearFacets(filters));
           onResolveAdded();
         }}
-        className="ml-0.5 inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent"
       >
-        <Plus aria-hidden className="size-3 rotate-45" />
         Clear all
       </button>
     </div>

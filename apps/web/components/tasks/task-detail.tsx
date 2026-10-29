@@ -1,6 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { ChecklistsPanel } from "./checklists-panel";
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+  type DragEvent,
+} from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThreads } from "@liveblocks/react/suspense";
@@ -9,16 +20,31 @@ import "@liveblocks/react-ui/styles.css";
 import {
   ChevronDown,
   ChevronUp,
+  Circle,
+  CircleCheck,
+  ClockAlert,
+  File as FileIcon,
+  FileSpreadsheet,
+  FileText,
+  Folder,
+  FolderArchive,
+  Image as ImageIcon,
+  Link as LinkIcon,
   ListChecks,
-  Paperclip,
+  Maximize2,
+  Minimize2,
   PanelRight,
-  Smile,
+  Paperclip,
+  Plus,
+  SquareArrowOutUpRight,
+  Star,
+  Upload,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { deleteTask, escalateTask, updateTask } from "./actions";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
 import { PresenceBar } from "./presence-bar";
 import { STATUS_IDS, taskKey } from "./kanban";
 import {
@@ -42,7 +68,13 @@ import { taskHref } from "@/lib/tasks/task-href";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
 import type { TaskPriority, TaskRecurrence, TaskStatus } from "@/lib/db/types";
 import { useTaskStatusOptions } from "@/lib/query/status-queries";
+import { describeStatus, type ColumnDef } from "@/lib/tasks/statuses";
 import type { StatusRowFields } from "./task-property-menus";
+import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
+import { cVar } from "@/components/gr8r/my-tasks-glyphs";
+import { useTaskDrawerChrome } from "@/components/gr8r/task-drawer-context";
 
 type Task = {
   id: string;
@@ -55,6 +87,8 @@ type Task = {
   statusRow?: StatusRowFields;
   priority: TaskPriority;
   assigneeId: string | null;
+  /** Everyone on the task, primary first (0115); absent → [assigneeId]. */
+  assigneeIds?: string[];
   dueAt: string | null;
   /** Repeat cadence (migration 0107). */
   recurrence?: TaskRecurrence | null;
@@ -112,7 +146,10 @@ export function TaskDetail({
   const [status, setStatus] = useState<string>(task.statusId ?? task.status);
   const statusOptions = useTaskStatusOptions(propertyId, task.listId);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
-  const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(() =>
+    taskAssigneeIds({ assignee_ids: task.assigneeIds, assignee_id: task.assigneeId }),
+  );
+  const assigneeId = assigneeIds[0] ?? null;
   const [dueAt, setDueAt] = useState<string | null>(task.dueAt);
   const [recurrence, setRecurrence] = useState<TaskRecurrence | null>(
     task.recurrence ?? null,
@@ -141,7 +178,7 @@ export function TaskDetail({
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [railOpen]);
 
-  const assignees = useAssigneesMap([assigneeId, task.createdBy]);
+  const assignees = useAssigneesMap([...assigneeIds, task.createdBy]);
   const assignee = assigneeId ? assignees[assigneeId] : undefined;
   const creator = task.createdBy ? assignees[task.createdBy] : undefined;
 
@@ -240,8 +277,12 @@ export function TaskDetail({
   }
 
   function saveAssignee(next: string | null) {
-    setAssigneeId(next);
-    persist({ taskId: task.id, assigneeId: next });
+    saveAssignees(next ? [next] : []);
+  }
+
+  function saveAssignees(next: string[]) {
+    setAssigneeIds(next);
+    persist({ taskId: task.id, assigneeIds: next });
   }
 
   function saveDueAt(next: string | null) {
@@ -321,6 +362,55 @@ export function TaskDetail({
     });
   }
 
+  // A host drawer (components/gr8r/task-drawer.tsx) hands down its Full
+  // page / Open as page / Close buttons for the `.drawer-h` row.
+  const chrome = useTaskDrawerChrome();
+  const [tab, setTab] = useState<"comments" | "activity">("comments");
+
+  // gr8r's title + description textareas grow with their text.
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    autosize(titleRef.current);
+  }, [title]);
+  useLayoutEffect(() => {
+    autosize(descRef.current);
+  }, [description]);
+
+  // Mark complete / Reopen — the list's own done (else closed) status, or
+  // its open status back; legacy literals when the pipeline isn't loaded
+  // (the DB resolves them to the task's list either way).
+  const statusView = describeStatus(statusOptions, status, task.statusRow);
+  const isComplete =
+    statusView.category === "done" || statusView.category === "closed";
+  function toggleComplete() {
+    saveStatus(
+      isComplete ? reopenTarget(statusOptions) : completeTarget(statusOptions),
+    );
+  }
+  const overdueDays = !isComplete && dueAt ? daysOverdue(dueAt) : 0;
+
+  async function uploadFiles(files: FileList | File[]) {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    let ok = 0;
+    for (const file of list) {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(
+        `/api/properties/${propertyId}/tasks/${task.id}/attachments`,
+        { method: "POST", body },
+      );
+      if (res.ok) ok += 1;
+      else {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(data.error ?? `Couldn't upload ${file.name}`);
+      }
+    }
+    if (ok) toast.success(ok === 1 ? "File attached" : `${ok} files attached`);
+    invalidate();
+  }
+
   const sidebarProps = {
     propertyId,
     taskId: task.id,
@@ -330,6 +420,9 @@ export function TaskDetail({
     priority,
     assigneeId,
     assignee,
+    assigneeIds,
+    assigneeInfos: assignees,
+    onAssigneesChange: saveAssignees,
     dueAt,
     members,
     meta: mutations.meta,
@@ -350,6 +443,9 @@ export function TaskDetail({
     onAutomate: automateFromTask,
   };
 
+  const favorited = mutations.meta?.favorited ?? false;
+  const projectName = mutations.meta?.projectName ?? null;
+
   return (
     // `@container/task`: the rail docks by the width this view actually
     // gets (the shell sidebar eats a variable share), not the viewport.
@@ -367,220 +463,356 @@ export function TaskDetail({
           actions={
             <>
               {sequence.index >= 0 && sequence.total > 1 ? (
-                <span className="mr-1 text-xs text-faint-foreground tabular-nums">
+                <span className="faint num g8-task-seq">
                   {sequence.index + 1} / {sequence.total}
                 </span>
               ) : null}
-              <IconGhostButton
-                label="Previous task (k)"
+              <button
+                type="button"
+                className="ibtn ibtn-sm"
+                aria-label="Previous task (k)"
+                data-tip="Previous  K"
                 disabled={!prevId}
                 onClick={() => prevId && openTask(prevId)}
               >
-                <ChevronUp className="size-4" />
-              </IconGhostButton>
-              <IconGhostButton
-                label="Next task (j)"
+                <Gi icon={ChevronUp} size={15} />
+              </button>
+              <button
+                type="button"
+                className="ibtn ibtn-sm"
+                aria-label="Next task (j)"
+                data-tip="Next  J"
                 disabled={!nextId}
                 onClick={() => nextId && openTask(nextId)}
               >
-                <ChevronDown className="size-4" />
-              </IconGhostButton>
-              <span className="@4xl/task:hidden">
-                <IconGhostButton
-                  label="Task details & actions"
-                  onClick={() => setRailOpen(true)}
-                >
-                  <PanelRight className="size-4" />
-                </IconGhostButton>
-              </span>
+                <Gi icon={ChevronDown} size={15} />
+              </button>
             </>
           }
         />
       )}
       <div className="relative flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto">
-            {/* One page width for the whole column (PageShell owns it), pushed
-                down from the top so the title gets the same "page header"
-                breathing room Linear gives its work item view. Embedded hosts
-                bring their own header, so the gutters tighten and the short id
-                moves into a slim row that also carries the rail toggle. */}
-            <PageShell
-              className={cn(
-                "pt-16 pb-12",
-                embedded && "px-6 pt-5 pb-10",
-              )}
-            >
-            {embedded ? (
-              <div className="mb-5 flex items-center justify-between">
-                <span className="font-mono text-xs font-medium text-faint-foreground">
-                  {taskKey(task)}
+          {/* gr8r's `.drawer-h`: where the task lives, then its quick actions. */}
+          <div className="drawer-h">
+            {projectName ? (
+              <>
+                <span className="pillbtn g8-task-crumb">
+                  <Gi icon={Folder} size={13} />
+                  <span className="trunc">{projectName}</span>
                 </span>
-                <IconGhostButton
-                  label="Task details & actions"
-                  onClick={() => setRailOpen(true)}
-                >
-                  <PanelRight className="size-4" />
-                </IconGhostButton>
-              </div>
+                <span className="faint">/</span>
+              </>
             ) : null}
-            <textarea
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={saveTitle}
-              rows={1}
-              aria-label="Task title"
-              disabled={pending}
+            <span className="mono faint g8-task-key">{taskKey(task)}</span>
+            <span className="sp" />
+            <button
+              type="button"
               className={cn(
-                "w-full resize-none border-0 bg-transparent p-0",
-                "text-2xl leading-8 font-semibold text-foreground",
-                "focus-visible:outline-none",
+                "btn btn-sm",
+                isComplete ? "btn-secondary g8-task-done" : "btn-ghost",
               )}
-            />
-
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={saveDescription}
-              placeholder="Add description…"
-              aria-label="Task description"
+              onClick={toggleComplete}
               disabled={pending}
-              rows={3}
-              className={cn(
-                "mt-3 w-full resize-none border-0 bg-transparent p-0",
-                // Reading content sits on the 16px/24px body rung
-                "text-base leading-6 text-foreground",
-                "placeholder:text-faint-foreground",
-                "focus-visible:outline-none",
-              )}
-            />
-
-            {/* The inline strip is the narrow-width home of properties. On
-                the full page, once the rail docks (@4xl), the rail is the
-                single home — Linear shows properties in one place. */}
-            <div className={cn(!embedded && "@4xl/task:hidden")}>
-            <TaskDetailInlineProperties
-              propertyId={propertyId}
-              taskId={task.id}
-              status={status}
-              statusOptions={statusOptions}
-              statusRow={task.statusRow}
-              priority={priority}
-              assigneeId={assigneeId}
-              assignee={assignee}
-              dueAt={dueAt}
-              members={members}
-              meta={mutations.meta}
-              openers={mutations.openers}
-              removers={mutations.removers}
-              onStatusChange={saveStatus}
-              onPriorityChange={savePriority}
-              onAssigneeChange={saveAssignee}
-              onDueAtChange={saveDueAt}
-              recurrence={recurrence}
-              onRecurrenceChange={saveRecurrence}
-            />
-            </div>
-
-            <div className="mt-3">
-              <TaskTriageSuggestions propertyId={propertyId} taskId={task.id} />
-            </div>
-
-            <div className="mt-4 flex items-center gap-1">
-              <IconGhostButton label="Add reaction">
-                <Smile className="size-4" />
-              </IconGhostButton>
-              <IconGhostButton
-                label="Attach file"
-                onClick={mutations.openers.attachFile}
+              aria-pressed={isComplete}
+            >
+              <Gi icon={isComplete ? CircleCheck : Circle} size={14} />
+              <span className="hide-m">
+                {isComplete ? "Completed" : "Mark complete"}
+              </span>
+            </button>
+            <button
+              type="button"
+              className={cn("ibtn ibtn-sm", favorited && "g8-on-star")}
+              onClick={mutations.removers.toggleFavorite}
+              aria-pressed={favorited}
+              aria-label="Favorite"
+              data-tip={favorited ? "Unfavorite" : "Favorite"}
+            >
+              <Gi icon={Star} size={15} />
+            </button>
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
+              onClick={copyTaskLink}
+              aria-label="Copy link"
+              data-tip="Copy link"
+            >
+              <Gi icon={LinkIcon} size={15} />
+            </button>
+            <span className={cn(!embedded && "@4xl/task:hidden")}>
+              <button
+                type="button"
+                className="ibtn ibtn-sm"
+                onClick={() => setRailOpen(true)}
+                aria-label="Task details & actions"
+                data-tip="Details & actions"
               >
-                <Paperclip className="size-4" />
-              </IconGhostButton>
-            </div>
+                <Gi icon={PanelRight} size={15} />
+              </button>
+            </span>
+            {chrome ? (
+              <>
+                <button
+                  type="button"
+                  className="ibtn ibtn-sm hide-m"
+                  onClick={chrome.onToggleFull}
+                  aria-label="Toggle full page"
+                  data-tip={chrome.full ? "Side panel" : "Full page"}
+                >
+                  <Gi icon={chrome.full ? Minimize2 : Maximize2} size={15} />
+                </button>
+                <Link
+                  href={chrome.expandHref}
+                  className="ibtn ibtn-sm"
+                  aria-label="Open as page"
+                  data-tip="Open as page"
+                >
+                  <Gi icon={SquareArrowOutUpRight} size={15} />
+                </Link>
+                <button
+                  type="button"
+                  className="ibtn ibtn-sm"
+                  onClick={chrome.onClose}
+                  aria-label="Close"
+                  data-tip="Close  Esc"
+                >
+                  <Gi icon={X} size={16} />
+                </button>
+              </>
+            ) : null}
+          </div>
 
-            <SubIssuesPanel
-              propertyId={propertyId}
-              taskId={task.id}
-              status={status}
-              adding={addingSubIssue}
-              onStartAdd={() => setAddingSubIssue(true)}
-              onCancelAdd={() => setAddingSubIssue(false)}
-            />
-
-            <section className="mt-10 border-t border-border pt-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-sm font-medium text-foreground">
-                  Activity
-                </h2>
-                <PresenceBar />
-              </div>
-
-              {task.createdAt ? (
-                <div className="mb-4 flex items-start gap-2.5 text-sm">
-                  <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs/[1] font-medium text-faint-foreground">
-                    ·
+          <div
+            className={cn(
+              "drawer-b",
+              !embedded && "g8-task-page",
+              chrome?.full && "g8-task-page",
+            )}
+          >
+            <div className="g8-task-col">
+              {isComplete ? (
+                <div className="alert ok g8-task-alert">
+                  <Gi icon={CircleCheck} size={15} />
+                  <span>
+                    Completed.{" "}
+                    <button type="button" className="link" onClick={toggleComplete}>
+                      Reopen task
+                    </button>
                   </span>
-                  <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground">
-                    <span className="text-foreground">Task created</span>
-                    {creator ? (
-                      <span>
-                        by{" "}
-                        <span className="text-foreground">
-                          {creator.name}
-                        </span>
-                      </span>
-                    ) : null}
-                    <WorkflowProvenanceBadge
-                      propertyId={propertyId}
-                      source={task.source}
-                      workflowId={task.sourceWorkflowId}
-                      workflowRunId={task.sourceWorkflowRunId}
-                    />
-                    {" · "}
-                    {formatRelative(task.createdAt)}
-                  </p>
+                </div>
+              ) : overdueDays > 0 ? (
+                <div className="alert danger g8-task-alert">
+                  <Gi icon={ClockAlert} size={15} />
+                  <span>
+                    Overdue by {overdueDays} day{overdueDays > 1 ? "s" : ""}.
+                  </span>
                 </div>
               ) : null}
 
-              <TaskHistory propertyId={propertyId} taskId={task.id} />
+              <textarea
+                ref={titleRef}
+                className="ttl-edit"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  // gr8r: Enter commits the title (blur saves it).
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
+                    setTitle(savedTitle.current);
+                    e.currentTarget.blur();
+                  }
+                }}
+                rows={1}
+                aria-label="Task title"
+                disabled={pending}
+              />
 
-              <div className="space-y-3">
-                {threads.map((thread) => (
-                  <Thread key={thread.id} thread={thread} />
-                ))}
+              {/* The `.kv` grid is the narrow-width home of properties. On the
+                  full page, once the rail docks (@4xl), the rail is the single
+                  home — properties live in one place. */}
+              <div className={cn("g8-task-props", !embedded && "@4xl/task:hidden")}>
+                <TaskDetailInlineProperties
+                  propertyId={propertyId}
+                  taskId={task.id}
+                  status={status}
+                  statusOptions={statusOptions}
+                  statusRow={task.statusRow}
+                  priority={priority}
+                  assigneeId={assigneeId}
+                  assignee={assignee}
+                  assigneeIds={assigneeIds}
+                  assigneeInfos={assignees}
+                  onAssigneesChange={saveAssignees}
+                  dueAt={dueAt}
+                  members={members}
+                  meta={mutations.meta}
+                  openers={mutations.openers}
+                  removers={mutations.removers}
+                  onStatusChange={saveStatus}
+                  onPriorityChange={savePriority}
+                  onAssigneeChange={saveAssignee}
+                  onDueAtChange={saveDueAt}
+                  recurrence={recurrence}
+                  onRecurrenceChange={saveRecurrence}
+                />
               </div>
 
-              <div className="mt-4 rounded-md bg-muted p-1">
-                <Composer metadata={{ taskId: task.id }} />
+              <div className="g8-task-triage">
+                <TaskTriageSuggestions propertyId={propertyId} taskId={task.id} />
               </div>
 
-              <TaskAiPanel propertyId={propertyId} taskId={task.id} />
-            </section>
-            </PageShell>
+              <div className="dsec">
+                <div className="dsec-h">
+                  <h3 id={`d-desc-${task.id}`}>Description</h3>
+                </div>
+                <div className="rte">
+                  <textarea
+                    ref={descRef}
+                    className="rte-body g8-rte-text"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={saveDescription}
+                    placeholder="Add a description…"
+                    aria-labelledby={`d-desc-${task.id}`}
+                    disabled={pending}
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <SubIssuesPanel
+                propertyId={propertyId}
+                taskId={task.id}
+                status={status}
+                adding={addingSubIssue}
+                onStartAdd={() => setAddingSubIssue(true)}
+                onCancelAdd={() => setAddingSubIssue(false)}
+              />
+
+              <ChecklistsPanel propertyId={propertyId} taskId={task.id} />
+
+              <AttachmentsSection
+                meta={mutations.meta}
+                onUpload={uploadFiles}
+                onPick={mutations.openers.attachFile}
+                onRemove={mutations.removers.removeAttachment}
+              />
+
+              <div className="dsec">
+                <div className="tabs g8-task-tabs" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "comments"}
+                    className={cn("tab", tab === "comments" && "on")}
+                    onClick={() => setTab("comments")}
+                  >
+                    Comments<span className="cnt">{threads.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "activity"}
+                    className={cn("tab", tab === "activity" && "on")}
+                    onClick={() => setTab("activity")}
+                  >
+                    Activity
+                  </button>
+                  <span className="sp" />
+                  <PresenceBar />
+                </div>
+
+                {tab === "comments" ? (
+                  <div role="tabpanel">
+                    {threads.length === 0 ? (
+                      <p className="faint g8-task-empty">
+                        No comments yet. Start the conversation.
+                      </p>
+                    ) : (
+                      <div className="g8-task-threads">
+                        {threads.map((thread) => (
+                          <Thread key={thread.id} thread={thread} />
+                        ))}
+                      </div>
+                    )}
+                    <div className="cbox g8-lb-composer">
+                      <Composer metadata={{ taskId: task.id }} />
+                    </div>
+                  </div>
+                ) : (
+                  <div role="tabpanel" className="g8-task-activity">
+                    <TaskHistory propertyId={propertyId} taskId={task.id} />
+                    {task.createdAt ? (
+                      <div className="act-line">
+                        <span className="ico">
+                          {creator && task.createdBy ? (
+                            <Av
+                              member={{
+                                id: task.createdBy,
+                                name: creator.name,
+                                avatarUrl: creator.avatar,
+                              }}
+                            />
+                          ) : (
+                            <Gi icon={Plus} size={13} />
+                          )}
+                        </span>
+                        <span className="grow">
+                          {creator ? (
+                            <>
+                              <b>{creator.name}</b> created the task
+                            </>
+                          ) : (
+                            "Task created"
+                          )}{" "}
+                          <WorkflowProvenanceBadge
+                            propertyId={propertyId}
+                            source={task.source}
+                            workflowId={task.sourceWorkflowId}
+                            workflowRunId={task.sourceWorkflowRunId}
+                          />
+                        </span>
+                        <time className="faint g8-task-time">
+                          {formatRelative(task.createdAt)}
+                        </time>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              <div className="dsec">
+                <TaskAiPanel propertyId={propertyId} taskId={task.id} />
+              </div>
+            </div>
           </div>
         </div>
 
         {railOpen ? (
-            <>
-              {/* Click-away layer: a whisper of tint so the drawer reads as a
-                  layer, and any click on the task beneath dismisses it. */}
-              <button
-                type="button"
-                aria-label="Close task details"
-                onClick={() => setRailOpen(false)}
-                className={cn(
-                  "absolute inset-0 z-10 cursor-default bg-black/5 duration-300 animate-in fade-in motion-reduce:animate-none",
-                  !embedded && "@4xl/task:hidden",
-                )}
-              />
-              <TaskDetailSidebar
-                {...sidebarProps}
-                className={cn(
-                  "absolute inset-y-2 right-2 z-20 max-w-[calc(100%-1rem)] rounded-card border-l-0 bg-popover shadow-popover duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] animate-in fade-in slide-in-from-right-4 motion-reduce:animate-none",
-                  !embedded && "@4xl/task:hidden",
-                )}
-              />
-            </>
+          <>
+            {/* Click-away layer: a whisper of tint so the drawer reads as a
+                layer, and any click on the task beneath dismisses it. */}
+            <button
+              type="button"
+              aria-label="Close task details"
+              onClick={() => setRailOpen(false)}
+              className={cn(
+                "g8-trail-scrim absolute inset-0 z-10 cursor-default",
+                !embedded && "@4xl/task:hidden",
+              )}
+            />
+            <TaskDetailSidebar
+              {...sidebarProps}
+              className={cn(
+                "g8-trail-float absolute inset-y-2 right-2 z-20 max-w-[calc(100%-1rem)]",
+                !embedded && "@4xl/task:hidden",
+              )}
+            />
+          </>
         ) : null}
         {embedded ? null : (
           <TaskDetailSidebar
@@ -596,27 +828,170 @@ export function TaskDetail({
   );
 }
 
-function IconGhostButton({
-  label,
-  children,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
+function autosize(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+function completeTarget(options: ColumnDef[]): string {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+    options.find((o) => o.category === "done")?.id ??
+    options.find((o) => o.category === "closed")?.id ??
+    "done"
+  );
+}
+
+function reopenTarget(options: ColumnDef[]): string {
+  return (
+    options.find((o) => o.category === "open")?.id ??
+    options.find((o) => o.category === "unstarted")?.id ??
+    "todo"
+  );
+}
+
+function daysOverdue(iso: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((today.getTime() - d.getTime()) / 86_400_000));
+}
+
+/** gr8r FT: a file's kind → glyph + palette token. */
+function fileKind(name: string, mime: string | null) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (mime?.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg", "heic"].includes(ext))
+    return { icon: ImageIcon, c: "var(--g8-teal)", n: "Image", image: true };
+  if (mime === "application/pdf" || ext === "pdf")
+    return { icon: FileText, c: "var(--g8-red)", n: "PDF", image: false };
+  if (["xls", "xlsx", "csv", "numbers"].includes(ext) || mime?.includes("spreadsheet"))
+    return { icon: FileSpreadsheet, c: "var(--g8-green)", n: "Spreadsheet", image: false };
+  if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
+    return { icon: FolderArchive, c: "var(--g8-gray)", n: "Archive", image: false };
+  if (["doc", "docx", "txt", "md", "rtf", "pages"].includes(ext))
+    return { icon: FileText, c: "var(--g8-blue)", n: "Document", image: false };
+  return { icon: FileIcon, c: "var(--g8-gray)", n: "File", image: false };
+}
+
+function formatBytes(n: number | null): string {
+  if (n == null) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * gr8r's drawer "Attachments" section: an `.att` grid of `.attc` file cards
+ * (image previews inline), Upload in the header, and a `.dropzone` when
+ * empty. Drop files anywhere on the section to attach them. Slot files
+ * (0116 Files fields) are left to their field.
+ */
+function AttachmentsSection({
+  meta,
+  onUpload,
+  onPick,
+  onRemove,
+}: {
+  meta: TaskDetailMeta | undefined;
+  onUpload: (files: FileList | File[]) => Promise<void>;
+  onPick: () => void;
+  onRemove: (attachmentId: string) => void;
+}) {
+  const [over, setOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const files = (meta?.attachments ?? []).filter((f) => !f.fieldId);
+
+  function onDragOver(e: DragEvent) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    setOver(true);
+  }
+  async function onDrop(e: DragEvent) {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    setOver(false);
+    setUploading(true);
+    try {
+      await onUpload(e.dataTransfer.files);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      className="dsec"
+      onDragOver={onDragOver}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => void onDrop(e)}
     >
-      {children}
-    </button>
+      <div className="dsec-h">
+        <h3>Attachments</h3>
+        <span className="cnt">{files.length}</span>
+        <div className="acts">
+          <button
+            type="button"
+            className={cn("btn btn-sm btn-ghost", uploading && "is-loading")}
+            onClick={onPick}
+          >
+            <Gi icon={Upload} size={13} />
+            Upload
+          </button>
+        </div>
+      </div>
+      {files.length ? (
+        <div className={cn("att", over && "g8-att-over")}>
+          {files.map((f) => {
+            const k = fileKind(f.fileName, f.mimeType);
+            return (
+              <div key={f.id} className="attc">
+                <a
+                  href={f.url || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="g8-attc-link"
+                >
+                  <div className="fprev">
+                    {k.image && f.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={f.url} alt="" className="g8-attc-img" />
+                    ) : (
+                      <span className="ftype" style={cVar(k.c)}>
+                        <Gi icon={k.icon} size={14} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="fi">
+                    <div className="trunc g8-attc-name">{f.fileName}</div>
+                    <div className="faint">
+                      {k.n}
+                      {f.byteSize != null ? ` · ${formatBytes(f.byteSize)}` : ""}
+                    </div>
+                  </div>
+                </a>
+                <button
+                  type="button"
+                  className="ibtn ibtn-xs x"
+                  onClick={() => onRemove(f.id)}
+                  aria-label={`Remove ${f.fileName}`}
+                >
+                  <Gi icon={X} size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={cn("dropzone g8-task-drop", over && "over")}
+          onClick={onPick}
+        >
+          <Gi icon={Paperclip} size={15} />
+          <span>{uploading ? "Uploading…" : "Drop files or click to attach"}</span>
+        </button>
+      )}
+    </div>
   );
 }

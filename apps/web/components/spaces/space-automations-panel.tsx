@@ -4,8 +4,9 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
-import { ArrowUpRight, Workflow } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowUpRight, Workflow, Zap } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -81,49 +82,38 @@ export function SpaceAutomationsPanel({
   }, [propertyId, spaceName]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Automations</h2>
+        {!isPending ? <span className="faint">{workflows.length}</span> : null}
+        <span className="sp" />
+        <Link href={prefillHref} className="btn btn-secondary btn-sm">
+          <Gi icon={Workflow} size={14} />
+          Automate this team
+        </Link>
+      </div>
       {isPending ? (
-        <p className="text-sm text-muted-foreground">Checking automations…</p>
+        <div className="panel-b faint">Checking automations…</div>
       ) : workflows.length === 0 ? (
-        <p className="px-6 py-8 text-center text-sm text-muted-foreground">
-          No automations reference this team yet.
-        </p>
+        <G8Empty
+          icon={Zap}
+          title="No automations yet"
+          text="No workflows reference this team. Automate a routine hand-off and it will show up here."
+          sm
+        />
       ) : (
-        <ul className="flex flex-col divide-y divide-border rounded-md bg-muted">
-          {workflows.map((w) => (
-            <li key={w.id}>
-              <Link
-                href={`/p/${propertyId}/workflows/${w.id}`}
-                className="group flex items-center min-h-[37px] gap-3 px-4 text-sm transition-colors hover:bg-accent"
-              >
-                <Workflow className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                  {w.name}
-                </span>
-                <span
-                  className={
-                    w.enabled
-                      ? "text-xs text-success"
-                      : "text-xs text-faint-foreground"
-                  }
-                >
-                  {w.enabled ? "On" : "Off"}
-                </span>
-                <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        workflows.map((w) => (
+          <Link key={w.id} href={`/p/${propertyId}/workflows/${w.id}`} className="mini">
+            <Gi icon={Workflow} size={14} />
+            <span className="tt">{w.name}</span>
+            <span className={w.enabled ? "badge green" : "badge gray"}>
+              <span className="dot" />
+              {w.enabled ? "On" : "Off"}
+            </span>
+            <Gi icon={ArrowUpRight} size={13} />
+          </Link>
+        ))
       )}
-      <Button nativeButton={false}
-        size="sm"
-        variant="outline"
-        className="w-fit"
-        render={<Link href={prefillHref} />}
-      >
-        <Workflow className="size-4" />
-        Automate this team
-      </Button>
-    </div>
+    </section>
   );
 }

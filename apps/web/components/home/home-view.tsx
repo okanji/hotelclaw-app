@@ -1,6 +1,5 @@
 "use client";
 
-import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -14,13 +13,25 @@ import {
 import {
   SortableContext,
   arrayMove,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Check, Eye, Home as HomeIcon, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Check,
+  Eye,
+  FolderPlus,
+  Home as HomeIcon,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/section-header";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
+import { InviteDialog } from "@/components/shell/invite-dialog";
+import { CreateEntityDialog } from "@/components/projects/create-entity-dialog";
+import { Gi } from "@/components/gr8r/icon";
+import { HomeOverview } from "@/components/gr8r/home-overview";
 import { QuickAccessRow } from "./quick-access";
 import {
   DropdownMenu,
@@ -32,11 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import {
-  tasksQueryOptions,
-  propertyMembersQueryOptions,
-} from "@/lib/query/section-queries";
-import { pendingBookingsCountQueryOptions } from "@/lib/query/booking-queries";
+import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { insightsMetricsQueryOptions } from "@/lib/query/insights-queries";
 import { useNotifications } from "@/components/shell/use-notifications";
 import {
@@ -109,7 +116,10 @@ export function HomeView({
   propertyName: string;
 }) {
   const [filter, setFilter] = useState<DashboardFilter>({ kind: "all" });
-  const greeting = useGreeting(userName);
+  const { greeting, today } = useGreeting(userName);
+  const router = useRouter();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [projectOpen, setProjectOpen] = useState(false);
 
   // Role drives the lens. `viewAs` lets an owner/manager preview another
   // persona's Home; it never changes data scope (the APIs stay role-shaped) —
@@ -132,6 +142,7 @@ export function HomeView({
     role: HomeRole;
   } | null>(null);
   const role: HomeLens = viewAsUser?.role ?? viewAs ?? realRole;
+  const canManage = realRole === "owner" || realRole === "manager";
   const effectiveUserId = viewAsUser?.id ?? userId;
 
   const {
@@ -151,8 +162,8 @@ export function HomeView({
       roleWeightedOrder(role),
     );
 
-  const summary = usePersonalSummary(propertyId, effectiveUserId);
-  const metrics = useHomeMetrics(role, summary, propertyId);
+  const { unseenCount } = useNotifications(effectiveUserId);
+  const metrics = useHomeMetrics(role, unseenCount, propertyId);
 
   // The one signal lifted out of the masonry into the "Today" hero for this
   // lens. `intelligence` is hero-only (not a registry tile); the others are
@@ -166,6 +177,7 @@ export function HomeView({
   const gridIds = visible.filter(
     (id) =>
       id !== heroId &&
+      !GR8R_COVERED.has(id) &&
       (!viewAsUser || IMPERSONATION_SAFE_WIDGETS.has(id)),
   );
 
@@ -222,8 +234,10 @@ export function HomeView({
               onChange={setFilter}
             />
             <CustomizeMenu
-              items={DASHBOARD_WIDGETS}
-              visibleCount={visible.length}
+              items={STACK_WIDGETS}
+              visibleCount={
+                visible.filter((id) => !GR8R_COVERED.has(id)).length
+              }
               isHidden={isHidden}
               onToggle={toggleHidden}
               onReset={reset}
@@ -238,59 +252,113 @@ export function HomeView({
           </div>
         }
       />
-    {/* The page gutter (40px from `sm`) also keeps the block-gutter grips
-        (−28px) inside the scroll box, so they never widen the page. */}
-    <div className="min-h-0 flex-1 overflow-y-auto pt-6 pb-24">
-      <PageShell width="full" className="flex flex-col">
-        <SectionHeader title={greeting} />
-
-        <MetricsLine items={metrics} />
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="page">
+        <div className="ph">
+          <div>
+            <h1>{greeting}</h1>
+            <p>
+              {today ? <span className="num">{today}</span> : null}
+              {today ? " · " : null}
+              Here&apos;s what&apos;s happening across your workspace.
+            </p>
+            <MetricsLine items={metrics} />
+          </div>
+          <div className="acts">
+            {canManage ? (
+              <button
+                type="button"
+                className="btn btn-secondary hide-m"
+                onClick={() => setInviteOpen(true)}
+              >
+                <Gi icon={UserPlus} size={14} />
+                Invite member
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary hide-m"
+              onClick={() => setProjectOpen(true)}
+            >
+              <Gi icon={FolderPlus} size={14} />
+              New project
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => router.push(`/p/${propertyId}/tasks/new`)}
+            >
+              <Gi icon={Plus} size={14} />
+              New task
+            </button>
+          </div>
+        </div>
 
         {viewAsUser ? (
-          <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-pill-warning px-3.5 py-2.5 text-sm">
-            <Eye className="size-4 shrink-0 text-pill-warning-ink" />
-            <span className="text-foreground">
-              Viewing as <strong>{viewAsUser.name}</strong> ({ROLE_LABEL[viewAsUser.role]})
+          <div
+            className="panel row"
+            style={{
+              marginBottom: 16,
+              padding: "10px 14px",
+              gap: 10,
+              flexWrap: "wrap",
+              background: "var(--g8-amber-soft)",
+            }}
+          >
+            <Gi icon={Eye} size={15} />
+            <span>
+              Viewing as <b>{viewAsUser.name}</b> ({ROLE_LABEL[viewAsUser.role]})
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="muted" style={{ fontSize: "var(--g8-fs-xs)" }}>
               Read-only preview — personal sections (shift brief, notifications)
               are hidden; anything you click still acts as you.
             </span>
             <button
               type="button"
+              className="btn btn-sm btn-ghost"
+              style={{ marginLeft: "auto" }}
               onClick={() => setViewAsUser(null)}
-              className="ml-auto text-sm font-medium text-foreground underline-offset-2 hover:underline"
             >
               Exit
             </button>
           </div>
         ) : null}
 
-        <div className="mt-10">
-          <QuickAccessRow propertyId={propertyId} />
-        </div>
+        <HomeOverview propertyId={propertyId} userId={effectiveUserId} />
 
-        {/* The stack: the promoted "today" section, then every other section,
-            separated by whitespace alone (no rules, no cards). */}
-        <div className="mt-14 flex flex-col gap-14">
+        {/* Below gr8r's dashboard: the promoted AI "today" panel, then every
+            other Home section as a gr8r panel in a reorderable grid. */}
+        <div className="stack" style={{ marginTop: 16 }}>
           {showHero && hero ? (
-            <section className="min-w-0">
-              <SectionHeading title={hero.title} subLabel={hero.kicker} />
-              <HeroBody heroId={heroId!} propertyId={propertyId} />
+            <section className="panel min-w-0">
+              <SectionHeading title={hero.title} subLabel={hero.kicker}>
+                <Gi icon={Sparkles} size={14} className="faint" />
+              </SectionHeading>
+              <div className="panel-b min-w-0">
+                <HeroBody heroId={heroId!} propertyId={propertyId} />
+              </div>
             </section>
           ) : null}
 
+          <QuickAccessRow propertyId={propertyId} />
+
           {gridIds.length === 0 ? (
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-sm text-pretty text-muted-foreground">
-                {showHero
-                  ? "Everything else is hidden — bring a section back from the tray below."
-                  : "Every section is hidden — bring one back from the tray below."}
-              </p>
-              <Button type="button" size="sm" variant="outline" onClick={reset}>
-                <RotateCcw className="size-4" />
-                Restore default layout
-              </Button>
+            <div className="panel">
+              <div className="empty-state sm">
+                <p>
+                  {showHero
+                    ? "Everything else is hidden — bring a section back from the tray below."
+                    : "Every section is hidden — bring one back from the tray below."}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  onClick={reset}
+                >
+                  <Gi icon={RotateCcw} size={14} />
+                  Restore default layout
+                </button>
+              </div>
             </div>
           ) : (
             <DndContext
@@ -298,11 +366,16 @@ export function HomeView({
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-              <SortableContext
-                items={gridIds}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="flex flex-col gap-14">
+              <SortableContext items={gridIds} strategy={rectSortingStrategy}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(min(100%, 380px), 1fr))",
+                    gap: 16,
+                    alignItems: "start",
+                  }}
+                >
                   {gridIds.map((id) => {
                     const def = WIDGETS_BY_ID.get(id);
                     if (!def) return null;
@@ -329,13 +402,24 @@ export function HomeView({
         </div>
 
         <HiddenTray
-          items={DASHBOARD_WIDGETS}
+          items={STACK_WIDGETS}
           hidden={hidden}
           onRestore={toggleHidden}
         />
-      </PageShell>
+      </div>
     </div>
     </div>
+    <InviteDialog
+      propertyId={propertyId}
+      open={inviteOpen}
+      onOpenChange={setInviteOpen}
+    />
+    <CreateEntityDialog
+      open={projectOpen}
+      onOpenChange={setProjectOpen}
+      propertyId={propertyId}
+      kind="project"
+    />
     </DashboardFilterProvider>
   );
 }
@@ -357,71 +441,62 @@ type HomeMetric = {
 };
 
 /**
- * The metrics line — what the 3-across KPI card strip became. Notion never
- * opens a page with boxed stats, so these are plain inline pairs: a 24px
- * weight-600 tabular value beside a 12px faint sentence-case label, items
- * separated by whitespace only. Each pair is still a deep link to its surface.
+ * The role-tuned signals gr8r's 4-stat strip doesn't carry (insight
+ * attention, unread) — a quiet line of links under the
+ * page-head subtitle, each a deep link to its surface.
  */
 function MetricsLine({ items }: { items: HomeMetric[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="mt-4 flex flex-wrap items-baseline gap-x-10 gap-y-3">
+    <p className="row" style={{ flexWrap: "wrap", gap: "2px 14px" }}>
       {items.map((item) => (
         <Link
           key={item.label}
           href={item.href}
-          className="group/metric flex items-baseline gap-2 rounded-md focus-visible:shadow-focus"
+          className="muted"
+          style={{ fontSize: "var(--g8-fs-sm)" }}
         >
           <span
-            className={cn(
-              "text-2xl leading-8 font-semibold tabular-nums",
-              item.attention && item.value > 0
-                ? "text-pill-warning-ink"
-                : "text-foreground",
-            )}
+            className="num"
+            style={{
+              fontWeight: 600,
+              color:
+                item.attention && item.value > 0
+                  ? "var(--g8-amber)"
+                  : "var(--g8-text)",
+            }}
           >
             {item.value}
-          </span>
-          <span className="text-xs leading-3 font-medium text-faint-foreground group-hover/metric:text-muted-foreground">
-            {item.label}
-          </span>
+          </span>{" "}
+          {item.label}
         </Link>
       ))}
-    </div>
+    </p>
   );
 }
 
-/** Role-tuned headline numbers. Owners lead with the front-desk + risk figures;
- *  everyone else keeps the personal task/unread read. All values come from
- *  queries the sections below already fetch — no new endpoint. */
+/** Role-tuned extra numbers. Owners get the risk figure beside
+ *  unread; everyone else just unread (open / due work is in the stat strip).
+ *  All values come from queries the sections below already fetch. */
 function useHomeMetrics(
   role: HomeLens,
-  summary: { open: number; dueSoon: number; unread: number },
+  unread: number,
   propertyId: string,
 ): HomeMetric[] {
-  const { data: pendingBookings = 0 } = useQuery(
-    pendingBookingsCountQueryOptions(propertyId),
-  );
   const { data: metrics } = useQuery(insightsMetricsQueryOptions(propertyId));
   const attention = metrics?.attention.length ?? 0;
   const base = `/p/${propertyId}`;
 
   const unreadMetric: HomeMetric = {
-    label: "Unread",
-    value: summary.unread,
+    label: "unread",
+    value: unread,
     href: `${base}/activity`,
   };
 
   if (role === "owner") {
     return [
       {
-        label: "Bookings waiting on a yes",
-        value: pendingBookings,
-        href: `${base}/bookings?view=pending`,
-        attention: true,
-      },
-      {
-        label: "Need attention",
+        label: "need attention",
         value: attention,
         href: `${base}/home/insights`,
         attention: true,
@@ -429,20 +504,14 @@ function useHomeMetrics(
       unreadMetric,
     ];
   }
-  return [
-    {
-      label: "Open tasks",
-      value: summary.open,
-      href: `${base}/tasks`,
-    },
-    {
-      label: "Due within 7 days",
-      value: summary.dueSoon,
-      href: `${base}/tasks`,
-    },
-    unreadMetric,
-  ];
+  return [unreadMetric];
 }
+
+/** Registry sections gr8r's dashboard above already covers ("My tasks",
+ *  "Recent activity") — kept out of the panel grid so they don't render
+ *  twice. Their saved hidden/order state is untouched. */
+const GR8R_COVERED = new Set(["your-tasks", "workspace-activity"]);
+const STACK_WIDGETS = DASHBOARD_WIDGETS.filter((w) => !GR8R_COVERED.has(w.id));
 
 /* ── The promoted "today" section ──────────────────────────────────────────── */
 
@@ -482,7 +551,6 @@ const IMPERSONATION_SAFE_WIDGETS = new Set([
   "property-pulse",
   "attention",
   "workflow-health",
-  "bookings-today",
   "recent-docs",
   "pinned",
 ]);
@@ -590,37 +658,27 @@ function ViewAsMenu({
   );
 }
 
-/* ── Personal summary + greeting ───────────────────────────────────────────── */
+/* ── Greeting ──────────────────────────────────────────────────────────────── */
 
-/** Personal at-a-glance counts for the header: my open tasks, due-soon, and
- *  unread activity. Cheap client aggregation over already-cached queries. */
-function usePersonalSummary(propertyId: string, userId: string) {
-  const { data: tasks = [] } = useQuery(tasksQueryOptions(propertyId));
-  const { unseenCount } = useNotifications(userId);
-
-  return useMemo(() => {
-    const mineOpen = tasks.filter(
-      (t) => t.assignee_id === userId && !isDone(t),
-    );
-    // eslint-disable-next-line react-hooks/purity
-    const cutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    const dueSoon = mineOpen.filter(
-      (t) => t.due_at && new Date(t.due_at).getTime() <= cutoff,
-    ).length;
-    return { open: mineOpen.length, dueSoon, unread: unseenCount };
-  }, [tasks, userId, unseenCount]);
-}
-
-/** Time-of-day greeting; computed in an effect so it's SSR-safe (and pure). */
-function useGreeting(name: string | null): string {
-  const [greeting, setGreeting] = useState("Welcome back");
+/** Time-of-day greeting + gr8r's "<Weekday>, <Month> <d>" line; computed in an
+ *  effect so it's SSR-safe (and pure). */
+function useGreeting(name: string | null): { greeting: string; today: string } {
+  const [state, setState] = useState({ greeting: "Welcome back", today: "" });
   useEffect(() => {
-    const h = new Date().getHours();
+    const now = new Date();
+    const h = now.getHours();
     const part =
       h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
     const first = name?.trim().split(/\s+/)[0];
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setGreeting(first ? `${part}, ${first}` : part);
+    setState({
+      greeting: first ? `${part}, ${first}` : part,
+      today: now.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      }),
+    });
   }, [name]);
-  return greeting;
+  return state;
 }

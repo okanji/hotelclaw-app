@@ -1,12 +1,8 @@
 "use client";
 
 import { Line, LineChart, ResponsiveContainer } from "recharts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { StatCard, StatCardPill } from "@/components/ui/stat-card";
-import {
-  DividerList,
-  WidgetEmpty,
-} from "@/components/home/editorial-section";
+import { Av } from "@/components/gr8r/home-glyphs";
+import { G8Legend, G8Note, G8Rows, G8Stats } from "./g8-insights";
 import type { InsightsMetrics, WorkloadRow } from "@/lib/insights/metrics";
 import { COLOR } from "./chart-style";
 
@@ -23,57 +19,48 @@ export function WorkloadBody({ metrics }: { metrics: InsightsMetrics }) {
   const unassignedUrgent = metrics.attention.filter(
     (a) => a.kind === "unassigned_urgent",
   ).length;
+  const blockedTotal = rows.reduce((a, r) => a + r.blocked, 0);
 
   return (
     <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatCard label="People with open work" value={rows.length} />
-          <StatCard
-            label="Blocked anywhere"
-            value={rows.reduce((a, r) => a + r.blocked, 0)}
-            pill={
-              rows.reduce((a, r) => a + r.blocked, 0) > 0 ? (
-                <StatCardPill tone="warning">Unblock</StatCardPill>
-              ) : undefined
-            }
-          />
-          <StatCard
-            label="Urgent unassigned"
-            value={unassignedUrgent}
-            pill={
-              unassignedUrgent > 0 ? (
-                <StatCardPill tone="warning">Assign</StatCardPill>
-              ) : undefined
-            }
-          />
-        </div>
+        <G8Stats
+          items={[
+            { k: "People with open work", v: rows.length },
+            {
+              k: "Blocked anywhere",
+              v: blockedTotal,
+              flag:
+                blockedTotal > 0 ? (
+                  <span className="badge amber">Unblock</span>
+                ) : undefined,
+            },
+            {
+              k: "Urgent unassigned",
+              v: unassignedUrgent,
+              flag:
+                unassignedUrgent > 0 ? (
+                  <span className="badge amber">Assign</span>
+                ) : undefined,
+            },
+          ]}
+        />
         {rows.length === 0 ? (
-          <WidgetEmpty>No assigned open work yet.</WidgetEmpty>
+          <G8Note>No assigned open work yet.</G8Note>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-destructive" />
-                Overdue
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-warning" />
-                Urgent
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-faint-foreground" />
-                Other open
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-[2px] w-4 rounded-full bg-success" />
-                Completed/week
-              </span>
-            </div>
-            <DividerList>
+            <G8Legend
+              items={[
+                { label: "Overdue", color: "var(--g8-red)" },
+                { label: "Urgent", color: "var(--g8-amber)" },
+                { label: "Other open", color: "var(--g8-text-4)" },
+                { label: "Completed/week", color: COLOR.done, line: true },
+              ]}
+            />
+            <G8Rows>
               {rows.map((row) => (
                 <PersonRow key={row.userId} row={row} maxOpen={maxOpen} />
               ))}
-            </DividerList>
+            </G8Rows>
           </>
         )}
     </div>
@@ -86,34 +73,27 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
   const overduePct = row.open > 0 ? (row.overdue / row.open) * 100 : 0;
   const urgentPct = row.open > 0 ? (row.urgent / row.open) * 100 : 0;
   const spark = row.doneByWeek.map((done, i) => ({ i, done }));
-  const initials = row.name
-    .split(/\s+/)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   return (
-    <li className="flex items-center gap-3 px-2 py-2.5">
-      <Avatar className="size-7 shrink-0">
-        {row.avatarUrl ? <AvatarImage src={row.avatarUrl} alt="" /> : null}
-        <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-      </Avatar>
+    <div className="mini" style={{ cursor: "default", padding: "8px 14px" }}>
+      <Av
+        member={{ id: row.userId, name: row.name, avatarUrl: row.avatarUrl }}
+        size="md"
+      />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="truncate text-sm font-medium text-foreground">
+          <span className="trunc" style={{ fontWeight: 500 }}>
             {row.name}
           </span>
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+          <span className="m">
             {row.open} open
             {row.blocked > 0 ? (
-              <span className="text-destructive"> · {row.blocked} blocked</span>
+              <span style={{ color: "var(--g8-red)" }}> · {row.blocked} blocked</span>
             ) : null}
             {row.overdue > 0 ? (
-              <span className="text-destructive"> · {row.overdue} overdue</span>
+              <span style={{ color: "var(--g8-red)" }}> · {row.overdue} overdue</span>
             ) : null}
             {row.urgent > 0 ? (
-              <span className="text-warning"> · {row.urgent} urgent</span>
+              <span style={{ color: "var(--g8-amber)" }}> · {row.urgent} urgent</span>
             ) : null}
             {row.meetingHours > 0 ? (
               <span> · {row.meetingHours}h meetings</span>
@@ -121,23 +101,22 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
           </span>
         </div>
         <div
-          className="h-[3px] overflow-hidden rounded-full bg-muted"
+          className="ins-bar"
+          style={{ height: 4, gap: 0 }}
           role="img"
           aria-label={`${row.open} open tasks`}
         >
-          <div
-            className="flex h-full"
-            style={{ width: `${Math.max(widthPct, 2)}%` }}
-          >
-            <div
-              className="h-full bg-destructive"
-              style={{ width: `${overduePct}%` }}
+          <div className="flex h-full" style={{ width: `${Math.max(widthPct, 2)}%` }}>
+            <i style={{ "--g8-c": "var(--g8-red)", width: `${overduePct}%` } as CSSVars} />
+            <i
+              style={
+                {
+                  "--g8-c": "var(--g8-amber)",
+                  width: `${Math.max(0, urgentPct - overduePct)}%`,
+                } as CSSVars
+              }
             />
-            <div
-              className="h-full bg-warning"
-              style={{ width: `${Math.max(0, urgentPct - overduePct)}%` }}
-            />
-            <div className="h-full flex-1 bg-faint-foreground" />
+            <i style={{ "--g8-c": "var(--g8-text-4)", flex: 1 } as CSSVars} />
           </div>
         </div>
       </div>
@@ -154,6 +133,8 @@ function PersonRow({ row, maxOpen }: { row: WorkloadRow; maxOpen: number }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </li>
+    </div>
   );
 }
+
+type CSSVars = React.CSSProperties & Record<`--${string}`, string | number>;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { FieldEditorContext } from "./custom-field-rich-editors";
 import { useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
@@ -40,23 +41,31 @@ export function TaskCustomFields({
   const { data: values = [] } = useQuery(taskFieldValuesQueryOptions(taskId));
 
   // The task's team decides which team-scoped fields apply.
-  const { data: taskSpaceId } = useQuery({
-    queryKey: ["task-space", taskId] as const,
-    queryFn: async (): Promise<string | null> => {
+  const { data: taskScope } = useQuery({
+    queryKey: ["task-scope", taskId] as const,
+    queryFn: async (): Promise<{ space_id: string | null; list_id: string | null } | null> => {
       const supabase = createClient();
       const { data } = await supabase
         .from("tasks")
-        .select("space_id")
+        .select("space_id, list_id")
         .eq("id", taskId)
         .maybeSingle();
-      return data?.space_id ?? null;
+      return data ?? null;
     },
     staleTime: 30_000,
   });
 
+  const taskSpaceId = taskScope?.space_id ?? null;
+  const taskListId = taskScope?.list_id ?? null;
+  // Team- and list-scoped fields (0114) only apply to their own tasks.
   const applicable = useMemo(
-    () => fields.filter((f) => !f.space_id || f.space_id === taskSpaceId),
-    [fields, taskSpaceId],
+    () =>
+      fields.filter(
+        (f) =>
+          (!f.space_id || f.space_id === taskSpaceId) &&
+          (!f.list_id || f.list_id === taskListId),
+      ),
+    [fields, taskSpaceId, taskListId],
   );
   const valueByField = useMemo(
     () => new Map(values.map((v) => [v.field_id, v.value])),
@@ -92,11 +101,12 @@ export function TaskCustomFields({
           value={valueByField.get(f.id) ?? null}
           disabled={pending}
           onSave={(v) => save(f.id, v)}
+          context={{ propertyId, taskId }}
         />
       ))}
       <AddFieldPopover
         propertyId={propertyId}
-        taskSpaceId={taskSpaceId ?? null}
+        taskSpaceId={taskSpaceId}
         onCreated={() =>
           void queryClient.invalidateQueries({
             queryKey: ["custom-fields", propertyId],
@@ -114,11 +124,13 @@ function FieldRow({
   value,
   disabled,
   onSave,
+  context,
 }: {
   field: CustomFieldRow;
   value: CustomFieldValue | null;
   disabled: boolean;
   onSave: (value: CustomFieldValue | null) => void;
+  context: FieldEditorContext;
 }) {
   const Icon = TYPE_ICON[field.type];
   return (
@@ -135,6 +147,7 @@ function FieldRow({
           value={value}
           disabled={disabled}
           onSave={onSave}
+          context={context}
         />
       </div>
     </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { StatCard, StatCardPill } from "@/components/ui/stat-card";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -18,12 +17,8 @@ import {
   Sparkles,
   UserX,
 } from "lucide-react";
-import {
-  DividerList,
-  ROW_CLASS,
-  WidgetEmpty,
-} from "@/components/home/editorial-section";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Legend, G8Note, G8Rows, G8Stats, type G8Stat } from "./g8-insights";
 import type { InsightsMetrics, AttentionItem } from "@/lib/insights/metrics";
 import { insightsBriefQueryOptions } from "@/lib/query/insights-queries";
 import { PROPERTY_SCOPE, type InsightScope } from "@/lib/insights/scope";
@@ -35,23 +30,14 @@ import {
   TOOLTIP_LABEL_STYLE,
 } from "./chart-style";
 
-const STATUS_META: Record<string, { label: string; dot: string; fill: string }> = {
-  todo: {
-    label: "To do",
-    dot: "bg-(--chart-3)",
-    fill: "bg-(--chart-3)",
-  },
-  in_progress: {
-    label: "In progress",
-    dot: "bg-(--chart-2)",
-    fill: "bg-(--chart-2)",
-  },
-  blocked: {
-    label: "Blocked",
-    dot: "bg-destructive",
-    fill: "bg-destructive",
-  },
+/** Open-work categories in gr8r's status ink (`--st-*`, red for blocked). */
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  todo: { label: "To do", color: "var(--g8-st-todo)" },
+  in_progress: { label: "In progress", color: "var(--g8-st-progress)" },
+  blocked: { label: "Blocked", color: "var(--g8-red)" },
 };
+
+type CSSVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
 /**
  * Flow — the heartbeat hero for owners/managers: the AI's plain-language
@@ -81,31 +67,39 @@ export function FlowBody({
   return (
     <div className="flex flex-col gap-5">
       <MetricsExplainer propertyId={propertyId} scope={scope} />
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-5">
-            <StatCard label="Created this week" value={thisWeek?.created ?? 0} />
-            <StatCard label="Completed this week" value={thisWeek?.done ?? 0} />
-            <StatCard label="Open" value={metrics.snapshot.openTotal} />
-            <StatCard
-              label="Overdue"
-              value={metrics.snapshot.overdueTotal}
-              pill={
-                metrics.snapshot.overdueTotal > 0 ? (
-                  <StatCardPill tone="warning">Review</StatCardPill>
-                ) : undefined
-              }
-            />
-            {metrics.cycleTime.medianDays !== null ? (
-              <StatCard
-                label="Median cycle time"
-                value={`${metrics.cycleTime.medianDays}d`}
-                sub={
-                  cycleDelta !== null
-                    ? `${cycleDelta > 0 ? "+" : ""}${cycleDelta}d vs prior week`
-                    : undefined
-                }
-              />
-            ) : null}
-          </div>
+          <G8Stats
+            items={[
+              { k: "Created this week", v: thisWeek?.created ?? 0 },
+              { k: "Completed this week", v: thisWeek?.done ?? 0 },
+              { k: "Open", v: metrics.snapshot.openTotal },
+              {
+                k: "Overdue",
+                v: metrics.snapshot.overdueTotal,
+                flag:
+                  metrics.snapshot.overdueTotal > 0 ? (
+                    <span className="badge amber">Review</span>
+                  ) : undefined,
+              },
+              ...(metrics.cycleTime.medianDays !== null
+                ? [
+                    {
+                      k: "Median cycle time",
+                      v: `${metrics.cycleTime.medianDays}d`,
+                      d:
+                        cycleDelta !== null
+                          ? `${cycleDelta > 0 ? "+" : ""}${cycleDelta}d vs prior week`
+                          : undefined,
+                      tone:
+                        cycleDelta !== null && cycleDelta > 0
+                          ? ("bad" as const)
+                          : cycleDelta !== null && cycleDelta < 0
+                            ? ("up" as const)
+                            : undefined,
+                    } satisfies G8Stat,
+                  ]
+                : []),
+            ]}
+          />
           {hasFlowData ? (
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -151,22 +145,18 @@ export function FlowBody({
               </ResponsiveContainer>
             </div>
           ) : (
-            <WidgetEmpty>
+            <G8Note>
               No task activity in the last 8 weeks — the flow chart starts
               with the first created or completed task.
-            </WidgetEmpty>
+            </G8Note>
           )}
       {hasFlowData ? (
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="h-[2px] w-4 rounded-full bg-success" />
-            Completed
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-[2px] w-4 rounded-full bg-(--chart-3)" />
-            Created
-          </span>
-        </div>
+        <G8Legend
+          items={[
+            { label: "Completed", color: COLOR.done, line: true },
+            { label: "Created", color: COLOR.series3, line: true },
+          ]}
+        />
       ) : null}
     </div>
   );
@@ -205,10 +195,10 @@ function MetricsExplainer({
   const summary = data?.brief?.summary;
   if (!summary) return null;
   return (
-    <p className="flex max-w-[72ch] items-start gap-2.5 text-sm leading-relaxed text-pretty text-muted-foreground">
-      <Sparkles className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
+    <div className="alert info" style={{ maxWidth: "72ch" }}>
+      <Gi icon={Sparkles} size={14} />
       <span>{summary}</span>
-    </p>
+    </div>
   );
 }
 
@@ -224,51 +214,42 @@ function OpenWorkDistribution({
   openTotal: number;
 }) {
   if (openTotal === 0)
-    return <WidgetEmpty>No open work — everything is done.</WidgetEmpty>;
+    return <G8Note>No open work — everything is done.</G8Note>;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex h-2 w-full gap-px overflow-hidden rounded-full">
+      <div className="ins-bar">
         {byStatus
           .filter((s) => s.count > 0)
           .map((s) => (
-            <div
+            <i
               key={s.status}
-              className={cn("h-full", STATUS_META[s.status]?.fill)}
-              style={{ width: `${(s.count / openTotal) * 100}%` }}
+              style={
+                {
+                  "--g8-c": STATUS_META[s.status]?.color ?? "var(--g8-gray)",
+                  width: `${(s.count / openTotal) * 100}%`,
+                } as CSSVars
+              }
               title={`${STATUS_META[s.status]?.label}: ${s.count}`}
             />
           ))}
       </div>
-      <ul role="list" className="-mx-2 flex flex-col divide-y divide-border">
+      <G8Rows>
         {byStatus.map((s) => (
-          <li key={s.status}>
-            <Link
-              href={`/p/${propertyId}/tasks`}
-              className="group flex min-h-[37px] items-baseline gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
-            >
-              <span
-                className={cn(
-                  "size-2 shrink-0 self-center rounded-full",
-                  STATUS_META[s.status]?.dot,
-                )}
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
-                {STATUS_META[s.status]?.label ?? s.status}
-              </span>
-              {s.overdue > 0 ? (
-                <span className="shrink-0 text-xs tabular-nums text-destructive">
-                  {s.overdue} overdue
-                </span>
-              ) : null}
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                {s.count}
-              </span>
-            </Link>
-          </li>
+          <Link key={s.status} href={`/p/${propertyId}/tasks`} className="mini">
+            <span
+              className="pdot"
+              style={{ "--g8-c": STATUS_META[s.status]?.color ?? "var(--g8-gray)" } as CSSVars}
+              aria-hidden="true"
+            />
+            <span className="tt">{STATUS_META[s.status]?.label ?? s.status}</span>
+            {s.overdue > 0 ? <span className="m bad">{s.overdue} overdue</span> : null}
+            <span className="num" style={{ fontWeight: 600 }}>
+              {s.count}
+            </span>
+          </Link>
         ))}
-      </ul>
+      </G8Rows>
     </div>
   );
 }
@@ -304,46 +285,41 @@ export function AttentionList({
 }) {
   if (items.length === 0)
     return (
-      <WidgetEmpty>
+      <G8Note>
         Nothing stuck — no blocked, overdue, or unassigned urgent work.
-      </WidgetEmpty>
+      </G8Note>
     );
   return (
-    <DividerList>
+    <G8Rows>
       {items.slice(0, 12).map((item) => {
         const meta = KIND_META[item.kind];
-        const Icon = meta.icon;
         return (
-          <li key={`${item.kind}-${item.taskId}`}>
-            <Link
-              href={`/p/${propertyId}/tasks/${item.taskId}`}
-              className={`${ROW_CLASS} group`}
-            >
-              <Icon
-                className={cn(
-                  "size-4 shrink-0",
+          <Link
+            key={`${item.kind}-${item.taskId}`}
+            href={`/p/${propertyId}/tasks/${item.taskId}`}
+            className="mini"
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                color:
                   item.kind === "blocked"
-                    ? "text-destructive"
+                    ? "var(--g8-red)"
                     : item.kind === "overdue"
-                      ? "text-warning"
-                      : "text-muted-foreground",
-                )}
-              />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
-                {item.title}
-              </span>
-              <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
-                {meta.label(item)}
-              </span>
-              {item.assigneeName ? (
-                <span className="hidden shrink-0 text-xs text-faint-foreground sm:inline">
-                  {item.assigneeName}
-                </span>
-              ) : null}
-            </Link>
-          </li>
+                      ? "var(--g8-amber)"
+                      : "var(--g8-text-3)",
+              }}
+            >
+              <Gi icon={meta.icon} size={14} />
+            </span>
+            <span className="tt">{item.title}</span>
+            <span className="m">{meta.label(item)}</span>
+            {item.assigneeName ? (
+              <span className="m hidden sm:inline">{item.assigneeName}</span>
+            ) : null}
+          </Link>
         );
       })}
-    </DividerList>
+    </G8Rows>
   );
 }

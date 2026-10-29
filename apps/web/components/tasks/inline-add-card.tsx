@@ -1,9 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { createTask } from "./actions";
 
 type Props = {
@@ -17,6 +15,10 @@ type Props = {
   scopeSpaceId?: string | null;
   /** When the board is scoped to a list (`?list=`), quick-adds land in it. */
   scopeListId?: string | null;
+  /** When the board is a project's, quick-adds join that project. */
+  scopeProjectId?: string | null;
+  /** Hands off to the full-page create ("Details…"). */
+  onOpenFullCreate?: () => void;
 };
 
 /**
@@ -36,6 +38,8 @@ export function InlineAddCard({
   onClose,
   scopeSpaceId,
   scopeListId,
+  scopeProjectId,
+  onOpenFullCreate,
 }: Props) {
   const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
@@ -63,6 +67,7 @@ export function InlineAddCard({
         // creator's home team).
         ...(scopeSpaceId ? { spaceId: scopeSpaceId } : {}),
         ...(scopeListId ? { listId: scopeListId } : {}),
+        ...(scopeProjectId ? { projectId: scopeProjectId } : {}),
       });
       if ("error" in result) {
         toast.error(result.error);
@@ -75,17 +80,14 @@ export function InlineAddCard({
   }
 
   return (
-    <div
-      // Active composer: the ONE case where a resting surface earns a visible
-      // edge, because it is the focused thing on the board. Ring only — no
-      // stroke, no elevation.
-      className={cn("rounded-card bg-card px-2.5 py-2 shadow-focus")}
-    >
-      <Textarea
-        bare
+    // gr8r `.composer` (src/views/board.js): a ringed card with a bare
+    // textarea and an Enter / Esc hint row. "Details…" opens the full-page
+    // create for a task that needs more up-front.
+    <div className="composer">
+      <textarea
         autoFocus
         name="quick-add-title"
-        aria-label="New task title"
+        aria-label="New task name"
         rows={2}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -98,17 +100,39 @@ export function InlineAddCard({
             onClose();
           }
         }}
-        onBlur={submit}
-        placeholder="Task title…"
+        onBlur={(e) => {
+          // Moving to the composer's own buttons isn't leaving it.
+          if (e.currentTarget.parentElement?.contains(e.relatedTarget as Node | null)) return;
+          submit();
+        }}
+        placeholder="Task name"
         disabled={pending}
-        className="min-h-0 resize-none px-1 py-1 text-sm leading-[1.125rem]"
       />
-      <div className="mt-1 flex items-center justify-between px-1 pb-0.5 text-xs text-faint-foreground">
-        <span className="text-faint-foreground">
-          <kbd className="font-sans">Enter</kbd> to add ·{" "}
-          <kbd className="font-sans">Esc</kbd> to cancel
+      <div className="row">
+        <span className="faint" style={{ fontSize: 11 }}>
+          {pending ? "Adding…" : "Enter to add · Esc to cancel"}
         </span>
-        {pending ? <span>Adding…</span> : null}
+        <span className="sp" />
+        {onOpenFullCreate ? (
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onOpenFullCreate}
+            title="Open the full editor"
+          >
+            Details…
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={submit}
+          disabled={pending}
+        >
+          Add
+        </button>
       </div>
     </div>
   );

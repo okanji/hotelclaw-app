@@ -37,10 +37,12 @@ function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            // POPOVER TIER (notion-spec-v2 §5): 10px radius + the popover
-            // elevation, no border and no ring utility (the 1px warm ring is
-            // the last layer of `shadow-popover`), fade + 4px slide.
-            "z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-card bg-popover p-2.5 text-sm text-popover-foreground shadow-popover outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-1 data-[side=inline-end]:slide-in-from-left-1 data-[side=inline-start]:slide-in-from-right-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+            // gr8r `.pop` (overlays.css, SPEC §5.4): surface fill, r-lg 10px,
+            // shadow-pop (its last layer is the 1px ring — no border), 13.5px,
+            // popIn on enter (0.16s), quick fade on exit. Padding stays 10px:
+            // a generic popover hosts forms/calendars, not `.mi` rows (menus
+            // that want gr8r's 4px pass `p-1`).
+            "z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-card bg-surface p-2.5 text-[13.5px] text-popover-foreground shadow-popover outline-hidden duration-100 data-open:animate-[g-pop-in_160ms_var(--ease-g)_both] data-closed:animate-out data-closed:fade-out-0",
             className
           )}
           {...props}
@@ -54,7 +56,7 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="popover-header"
-      className={cn("flex flex-col gap-0.5 text-sm", className)}
+      className={cn("flex flex-col gap-0.5 text-[13.5px]", className)}
       {...props}
     />
   )
@@ -64,7 +66,7 @@ function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   return (
     <PopoverPrimitive.Title
       data-slot="popover-title"
-      className={cn("font-medium", className)}
+      className={cn("font-semibold", className)}
       {...props}
     />
   )
@@ -77,7 +79,7 @@ function PopoverDescription({
   return (
     <PopoverPrimitive.Description
       data-slot="popover-description"
-      className={cn("text-muted-foreground", className)}
+      className={cn("text-[12.5px] text-muted-foreground", className)}
       {...props}
     />
   )

@@ -3,15 +3,15 @@ import type { CalendarEvent } from "@/lib/calendar/types";
 /**
  * Single source of truth for event-source colors on the calendar.
  *
- *   meeting = blue · task = amber · booking = violet ·
+ *   meeting = blue · task = amber ·
  *   external google = emerald · external microsoft = indigo
  *
  * Week grid (block tint), month grid (chip), and the details dialog (swatch/
  * dot) must all derive from this map — before it existed the details chip
- * had no booking branch and painted bookings indigo while the grids said
- * violet. An explicit `event.color` still overrides at the call site.
+ * and the grids disagreed on a source's hue. An explicit `event.color`
+ * still overrides at the call site.
  *
- * These five hues are CATEGORY colors — the calendar's whole legibility
+ * These four hues are CATEGORY colors — the calendar's whole legibility
  * rests on telling a meeting from a task at a glance, so they stay. What
  * went (docs/notion-spec.md §1/§5) is the stroke: blocks used to carry a
  * `ring-<hue>/20` outline on top of the fill. A block is now a warm tinted
@@ -23,15 +23,14 @@ import type { CalendarEvent } from "@/lib/calendar/types";
  * so it belongs to the same family as labels/projects/teams — and the pill
  * tokens are warm-shifted and already theme-aware, so the `dark:` ink
  * variants these used to need are gone (the token flips itself).
- * Microsoft maps to `slate` because the entity family has no indigo; the five
+ * Microsoft maps to `slate` because the entity family has no indigo; the four
  * sources stay mutually distinct, which is the only property that matters.
  */
-type EventSourceKey = "meeting" | "task" | "booking" | "google" | "microsoft";
+type EventSourceKey = "meeting" | "task" | "google" | "microsoft";
 
 export function eventSourceKey(event: CalendarEvent): EventSourceKey {
   if (event.source === "meeting") return "meeting";
   if (event.source === "task") return "task";
-  if (event.source === "booking") return "booking";
   return event.provider === "google" ? "google" : "microsoft";
 }
 
@@ -50,12 +49,6 @@ export const EVENT_VISUALS: Record<
     chip: "bg-pill-amber text-pill-amber-ink",
     dot: "bg-pill-amber-ink",
     swatch: "var(--pill-amber-ink)",
-  },
-  booking: {
-    block: "border-l-pill-violet-ink bg-pill-violet text-pill-violet-ink",
-    chip: "bg-pill-violet text-pill-violet-ink",
-    dot: "bg-pill-violet-ink",
-    swatch: "var(--pill-violet-ink)",
   },
   google: {
     block: "border-l-pill-green-ink bg-pill-green text-pill-green-ink",

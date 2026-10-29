@@ -6,13 +6,10 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, IterationCcw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shell/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { COLUMNS, PRIORITY_META } from "@/components/tasks/kanban";
-import { StatusIcon } from "@/components/tasks/task-icons";
+import { Gi } from "@/components/gr8r/icon";
+import { StIcon } from "@/components/gr8r/home-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { cyclesHref } from "@/lib/query/cycle-queries";
 import { buildBurnup, type HistoryEvent } from "@/lib/cycles/burnup";
 import { diffDays, formatRange, type DateStr } from "@/lib/cycles/dates";
@@ -120,93 +117,118 @@ export function CycleDetail({
           { label: cycleLabel(cycle) },
         ]}
         actions={
-          <div className="flex items-center gap-1">
+          <div className="row" style={{ gap: 2 }}>
             <NavButton
               propertyId={propertyId}
               target={prev}
               label="Previous cycle"
-              icon={<ChevronLeft />}
+              icon={<Gi icon={ChevronLeft} size={15} />}
             />
             <NavButton
               propertyId={propertyId}
               target={next}
               label="Next cycle"
-              icon={<ChevronRight />}
+              icon={<Gi icon={ChevronRight} size={15} />}
             />
           </div>
         }
       />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <main className="min-w-0 flex-1 px-(--page-gutter) pt-4 pb-16 lg:overflow-y-auto">
-          {inCycle.length === 0 && movedOut.length === 0 ? (
-            <EmptyState icon={IterationCcw} title="Nothing planned yet" className="mt-8">
-              Add tasks to this cycle from a task&apos;s Cycle property, or
-              filter the board by cycle to see what&apos;s in it.
-            </EmptyState>
-          ) : (
-            <div className="flex flex-col gap-5">
-              {STATUS_ORDER.map((status) => {
-                const rows = inCycle.filter((t) => t.status === status);
-                if (rows.length === 0) return null;
-                return (
-                  <StatusGroup
-                    key={status}
-                    status={status}
-                    count={rows.length}
-                    points={rows.reduce((n, t) => n + (t.estimate ?? 1), 0)}
-                  >
-                    {rows.map((t) => (
-                      <CycleTaskRow
-                        key={t.id}
-                        propertyId={propertyId}
-                        task={t}
-                        lookups={lookups}
-                      />
-                    ))}
-                  </StatusGroup>
-                );
-              })}
-              {movedOut.length > 0 ? (
-                <section>
-                  <Eyebrow className="px-2 pb-2">
-                    Moved on · {movedOut.length}
-                  </Eyebrow>
-                  <ul role="list" className="flex flex-col gap-px">
-                    {movedOut.map((t) => (
-                      <CycleTaskRow
-                        key={t.id}
-                        propertyId={propertyId}
-                        task={t}
-                        lookups={lookups}
-                        note={
-                          t.cycle_id ? `Now in ${siblingName(t.cycle_id)}` : "Removed"
-                        }
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-            </div>
-          )}
+        <main className="min-w-0 flex-1 lg:overflow-y-auto">
+          <div className="page wide" style={{ paddingTop: 20 }}>
+            {inCycle.length === 0 && movedOut.length === 0 ? (
+              <div className="panel">
+                <G8Empty
+                  icon={IterationCcw}
+                  title="Nothing planned yet"
+                  text="Add tasks to this cycle from a task's Cycle property, or filter the board by cycle to see what's in it."
+                />
+              </div>
+            ) : (
+              <div className="stack">
+                {STATUS_ORDER.map((status) => {
+                  const rows = inCycle.filter((t) => t.status === status);
+                  if (rows.length === 0) return null;
+                  return (
+                    <StatusGroup
+                      key={status}
+                      status={status}
+                      count={rows.length}
+                      points={rows.reduce((n, t) => n + (t.estimate ?? 1), 0)}
+                    >
+                      {rows.map((t) => (
+                        <CycleTaskRow
+                          key={t.id}
+                          propertyId={propertyId}
+                          task={t}
+                          lookups={lookups}
+                        />
+                      ))}
+                    </StatusGroup>
+                  );
+                })}
+                {movedOut.length > 0 ? (
+                  <section className="panel" style={{ overflow: "hidden" }}>
+                    <div className="panel-h">
+                      <h2>Moved on</h2>
+                      <span className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
+                        {movedOut.length}
+                      </span>
+                    </div>
+                    <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                      {movedOut.map((t) => (
+                        <CycleTaskRow
+                          key={t.id}
+                          propertyId={propertyId}
+                          task={t}
+                          lookups={lookups}
+                          note={
+                            t.cycle_id ? `Now in ${siblingName(t.cycle_id)}` : "Removed"
+                          }
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            )}
+          </div>
         </main>
 
-        <aside className="shrink-0 border-t border-border px-4 py-5 lg:w-[340px] lg:overflow-y-auto lg:border-t-0 lg:shadow-(--sidebar-edge-shadow)">
+        <aside
+          className="shrink-0 lg:w-[340px] lg:overflow-y-auto"
+          style={{
+            borderLeft: "1px solid var(--g8-border)",
+            borderTop: "1px solid var(--g8-border)",
+            background: "var(--g8-bg-side)",
+            padding: "20px 18px",
+          }}
+        >
           <CycleName cycle={cycle} />
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground tabular-nums">
+          <div className="row muted num" style={{ marginTop: 4, flexWrap: "wrap", fontSize: "var(--g8-fs-sm)" }}>
             {formatRange(cycle.starts_on, cycle.ends_on, refYear)}
-            <StatusBadge
-              tone={phase === "current" ? "info" : phase === "past" ? "success" : "neutral"}
+            <span
+              className={
+                phase === "current"
+                  ? "badge accent"
+                  : phase === "past"
+                    ? "badge green"
+                    : "badge gray"
+              }
             >
+              <span className="dot" />
               {phase === "current"
                 ? `${diffDays(today, cycle.ends_on)}d left`
                 : phase === "past"
                   ? "Completed"
                   : `Starts in ${diffDays(today, cycle.starts_on)}d`}
-            </StatusBadge>
+            </span>
           </div>
 
-          <Eyebrow className="mt-6 mb-3">Progress</Eyebrow>
-          <dl className="grid grid-cols-3 gap-3">
+          <div className="eyebrow" style={{ margin: "24px 0 10px" }}>
+            Progress
+          </div>
+          <dl className="grid grid-cols-3 gap-3" style={{ margin: 0 }}>
             <ProgressStat label="Scope" value={s.scope} />
             <ProgressStat
               label="Started"
@@ -247,21 +269,20 @@ function NavButton({
 }) {
   if (!target) {
     return (
-      <Button variant="ghost" size="icon-sm" aria-label={label} disabled>
+      <button type="button" className="ibtn" aria-label={label} disabled>
         {icon}
-      </Button>
+      </button>
     );
   }
   return (
-    <Button nativeButton={false}
-      variant="ghost"
-      size="icon-sm"
+    <Link
+      href={`/p/${propertyId}/cycles/${target.id}`}
+      className="ibtn"
       aria-label={`${label}: ${cycleLabel(target)}`}
       title={cycleLabel(target)}
-      render={<Link href={`/p/${propertyId}/cycles/${target.id}`} />}
     >
       {icon}
-    </Button>
+    </Link>
   );
 }
 
@@ -278,16 +299,18 @@ function StatusGroup({
 }) {
   const label = COLUMNS.find((c) => c.id === status)?.label ?? status;
   return (
-    <section>
-      <div className="flex items-center gap-2 px-2 pb-1.5 text-sm">
-        <StatusIcon status={status} className="size-3.5" />
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="text-faint-foreground tabular-nums">{count}</span>
-        <span className="ml-auto text-xs text-faint-foreground tabular-nums">
-          {points} {points === 1 ? "point" : "points"}
+    <section className="panel" style={{ overflow: "hidden" }}>
+      <div className="panel-h">
+        <StIcon task={{ status }} />
+        <h2>{label}</h2>
+        <span className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
+          {count}
         </span>
+        <div className="acts faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
+          {points} {points === 1 ? "point" : "points"}
+        </div>
       </div>
-      <ul role="list" className="flex flex-col gap-px">
+      <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
         {children}
       </ul>
     </section>
@@ -305,13 +328,18 @@ function ProgressStat({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="truncate text-xs leading-3 font-medium text-faint-foreground">
+      <dt className="trunc faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
         {label}
       </dt>
-      <dd className="mt-1.5 flex items-baseline gap-1.5 text-lg font-semibold text-foreground tabular-nums">
+      <dd
+        className="row num"
+        style={{ margin: "6px 0 0", gap: 6, alignItems: "baseline", fontSize: 19, fontWeight: 600 }}
+      >
         {value}
         {sub ? (
-          <span className="text-xs font-normal text-muted-foreground">{sub}</span>
+          <span className="muted" style={{ fontSize: "var(--g8-fs-xs)", fontWeight: 400 }}>
+            {sub}
+          </span>
         ) : null}
       </dd>
     </div>
@@ -348,7 +376,17 @@ function CycleName({ cycle }: { cycle: CycleRow }) {
       aria-label="Cycle name"
       maxLength={80}
       disabled={pending}
-      className="w-full rounded-md bg-transparent text-2xl leading-[1.3] font-semibold text-foreground placeholder:text-foreground focus-visible:outline-none"
+      className="ttl-edit"
+      style={{
+        width: "100%",
+        background: "transparent",
+        fontSize: "var(--g8-fs-xl)",
+        fontWeight: 600,
+        letterSpacing: "-0.015em",
+        border: 0,
+        outline: "none",
+        padding: 0,
+      }}
     />
   );
 }
@@ -398,41 +436,52 @@ function Breakdowns({
   };
 
   return (
-    <Tabs
-      value={tab}
-      onValueChange={(v) => setTab(v as BreakdownTab)}
-      className="mt-6"
-    >
-      <TabsList className="flex-wrap">
-        <TabsTrigger value="assignees">Assignees</TabsTrigger>
-        <TabsTrigger value="labels">Labels</TabsTrigger>
-        <TabsTrigger value="priority">Priority</TabsTrigger>
-        <TabsTrigger value="projects">Projects</TabsTrigger>
-        <TabsTrigger value="teams">Teams</TabsTrigger>
-      </TabsList>
-      {(Object.keys(rows) as BreakdownTab[]).map((key) => (
-        <TabsContent key={key} value={key}>
-          {rows[key].length === 0 ? (
-            <p className="px-2 py-3 text-sm text-faint-foreground">No tasks yet.</p>
-          ) : (
-            <ul role="list" className="flex flex-col gap-px">
-              {rows[key].map(({ row, label }) => (
-                <li
-                  key={row.key}
-                  className="flex h-[30px] items-center gap-2 px-2 text-sm"
-                >
-                  <span className="min-w-0 flex-1 truncate text-secondary-ink">
-                    {label || emptyLabel[key]}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {row.pct}% of {row.scope}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-      ))}
-    </Tabs>
+    <div style={{ marginTop: 24 }}>
+      <div className="tabs" role="tablist" aria-label="Breakdown" style={{ marginBottom: 6 }}>
+        {(
+          [
+            ["assignees", "Assignees"],
+            ["labels", "Labels"],
+            ["priority", "Priority"],
+            ["projects", "Projects"],
+            ["teams", "Teams"],
+          ] as const
+        ).map(([k, n]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            className={tab === k ? "tab on" : "tab"}
+            onClick={() => setTab(k)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      {rows[tab].length === 0 ? (
+        <p className="faint" style={{ margin: 0, padding: "12px 0", fontSize: "var(--g8-fs-sm)" }}>
+          No tasks yet.
+        </p>
+      ) : (
+        <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {rows[tab].map(({ row, label }) => (
+            <li key={row.key} className="row" style={{ height: 30, gap: 8 }}>
+              <span className="trunc muted" style={{ flex: 1 }}>
+                {label || emptyLabel[tab]}
+              </span>
+              <span style={{ width: 56, flexShrink: 0 }} className="row">
+                <span className="prog green">
+                  <i style={{ "--g8-p": row.pct / 100 } as React.CSSProperties} />
+                </span>
+              </span>
+              <span className="faint num" style={{ flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}>
+                {row.pct}% of {row.scope}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

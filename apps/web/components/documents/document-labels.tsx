@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, Plus, Tag, X } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -112,15 +113,12 @@ export function DocumentLabels({
           <button
             type="button"
             title="Labels"
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors hover:bg-accent",
-              count > 0 ? "text-foreground" : "text-muted-foreground",
-            )}
+            className={count > 0 ? "btn btn-ghost btn-sm on" : "btn btn-ghost btn-sm"}
           />
         }
       >
-        <Tag className="size-3.5" />
-        <span className="tabular-nums">{count > 0 ? count : "Label"}</span>
+        <Gi icon={Tag} size={13} />
+        <span className="num">{count > 0 ? count : "Label"}</span>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-72 p-0">
         {count > 0 ? (

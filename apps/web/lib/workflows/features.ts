@@ -35,7 +35,6 @@ export type AutomationFeature =
   | "meetings"
   | "calendar"
   | "forms"
-  | "bookings"
   | "chatbots"
   | "entities";
 
@@ -46,7 +45,6 @@ export const AUTOMATION_FEATURES: AutomationFeature[] = [
   "meetings",
   "calendar",
   "forms",
-  "bookings",
   "chatbots",
   "entities",
 ];
@@ -96,11 +94,6 @@ const FEATURES: Record<AutomationFeature, FeatureDef> = {
     label: "Forms",
     blurb: "Send every submission somewhere it gets acted on.",
     surfaces: ["forms"],
-  },
-  bookings: {
-    label: "Bookings",
-    blurb: "Confirm, chase, and flag reservations on their own.",
-    surfaces: ["bookings"],
   },
   chatbots: {
     label: "Chatbots",

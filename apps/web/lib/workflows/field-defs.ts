@@ -362,6 +362,30 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       help: TEMPLATE_HELP,
     },
   ],
+  "action.task.add_checklist": [
+    {
+      kind: "template",
+      key: "task_id",
+      label: "Task",
+      placeholder: "{{trigger.new.id}}",
+      required: true,
+    },
+    {
+      kind: "template",
+      key: "name",
+      label: "Checklist name",
+      placeholder: "Task Prep",
+      required: true,
+    },
+    {
+      kind: "textarea",
+      key: "items",
+      label: "Items",
+      placeholder: "Keys\nRadios\nFloat\n  Spare batteries",
+      help: "One per line. Indent a line to make it a sub-item; \"- [x]\" starts it ticked.",
+      required: true,
+    },
+  ],
   "action.task.add_label": [
     {
       kind: "template",
@@ -461,75 +485,6 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       placeholder: "Please fill out this form",
       help: TEMPLATE_HELP,
       rows: 2,
-    },
-  ],
-
-  // ─── Bookings ──────────────────────────────────────────────────────────
-  "action.booking.create": [
-    {
-      kind: "template",
-      key: "service_id",
-      label: "Service",
-      placeholder: "Service ID — copy it from Bookings → Services",
-      help: "The bookable service's ID. Hours and capacity are enforced — the step fails if the slot is full.",
-      required: true,
-    },
-    {
-      kind: "template",
-      key: "starts_at",
-      label: "Start time",
-      placeholder: '{{trigger.starts_at}} or "2026-07-01T19:00"',
-      help: "ISO timestamp, or a wall time in the service's timezone when no offset is given.",
-      required: true,
-    },
-    {
-      kind: "template",
-      key: "guest_name",
-      label: "Guest name",
-      placeholder: "{{trigger.guest_name}}",
-      required: true,
-    },
-    {
-      kind: "template",
-      key: "party_size",
-      label: "Party size",
-      placeholder: "{{trigger.party_size}} or 2",
-    },
-    {
-      kind: "template",
-      key: "guest_phone",
-      label: "Guest phone (optional)",
-      placeholder: "{{trigger.guest_phone}}",
-    },
-    {
-      kind: "textarea",
-      key: "notes",
-      label: "Notes (optional)",
-      placeholder: "Booked automatically — {{trigger.form_title}}",
-      help: TEMPLATE_HELP,
-      rows: 2,
-    },
-  ],
-  "action.booking.set_status": [
-    {
-      kind: "template",
-      key: "booking_id",
-      label: "Booking",
-      placeholder: "{{trigger.booking_id}}",
-      help: "Usually the booking that triggered this workflow.",
-      required: true,
-    },
-    {
-      kind: "enum",
-      key: "status",
-      label: "Set status to",
-      options: [
-        { value: "confirmed", label: "Confirmed" },
-        { value: "cancelled", label: "Cancelled" },
-        { value: "completed", label: "Completed" },
-        { value: "no_show", label: "No-show" },
-      ],
-      default: "confirmed",
     },
   ],
 
@@ -680,6 +635,15 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       label: "Assign to",
       placeholder: "Who to assign it to",
       required: true,
+    },
+    {
+      kind: "enum",
+      key: "mode",
+      label: "Existing assignees",
+      options: [
+        { value: "replace", label: "Replace the primary assignee" },
+        { value: "add", label: "Add alongside them" },
+      ],
     },
   ],
   "action.chat.post_thread_reply": [
@@ -981,7 +945,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       key: "brief",
       label: "What should the assistant do?",
       placeholder:
-        "Review this week's open tasks and bookings, flag anything at risk of slipping, and list what needs my decision.",
+        "Review this week's open tasks and meetings, flag anything at risk of slipping, and list what needs my decision.",
       help: TEMPLATE_HELP,
       required: true,
       rows: 4,
@@ -1005,7 +969,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       key: "goal",
       label: "Goal for the agent",
       placeholder:
-        "Investigate this booking's history and create a summary task for the front desk.",
+        "Investigate this guest's history and create a summary task for the front desk.",
       help: TEMPLATE_HELP,
       required: true,
       rows: 3,
@@ -1064,7 +1028,7 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       kind: "template",
       key: "subject",
       label: "Subject",
-      placeholder: "Your booking is confirmed",
+      placeholder: "Your request is confirmed",
       required: true,
       help: TEMPLATE_HELP,
     },

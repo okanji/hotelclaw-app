@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Database, History, LayoutTemplate, Workflow } from "lucide-react";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * Route-based sub-navigation for the workflows section. Unlike TasksBoard's
  * local-state tabs, the workflows surface picks its view from the pathname
  * (see workflows-surface.tsx), so these are real <Link>s — Next navigates,
  * `usePathname` updates, and the surface swaps the view. Active state is
- * derived from the current path, never local state.
+ * derived from the current path, never local state. Drawn as gr8r's `.tabs`
+ * strip, under the page's `.ph` header.
  */
 export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
   const pathname = usePathname() ?? "";
@@ -51,18 +52,19 @@ export function WorkflowsTabs({ propertyId }: { propertyId: string }) {
   ];
 
   return (
-    <TabNav aria-label="Workflows sections" className="px-(--page-gutter)">
+    <nav className="tabs" aria-label="Workflows sections" style={{ marginBottom: 16 }}>
       {tabs.map((t) => (
-        <TabNavItem
+        <Link
           key={t.key}
-          active={active === t.key}
+          href={t.href}
           title={t.hint}
-          render={<Link href={t.href} />}
+          className={active === t.key ? "tab on" : "tab"}
+          aria-current={active === t.key ? "page" : undefined}
         >
-          <t.Icon />
+          <Gi icon={t.Icon} size={14} />
           {t.label}
-        </TabNavItem>
+        </Link>
       ))}
-    </TabNav>
+    </nav>
   );
 }

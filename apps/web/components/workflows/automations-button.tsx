@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import {
   featureMeta,
@@ -20,10 +20,11 @@ import { AutomationsDialog } from "./automations-dialog";
  *   <AutomationsButton propertyId={propertyId} feature="docs" />
  *
  * Two shapes, matching the two kinds of header it lands in:
- *   `toolbar` (default) — compact ghost button, for dense h-9 toolbars and
- *                         icon-row headers (board toolbar, channel header).
- *   `outline`           — a peer of "New form" / "New service" on the roomy
- *                         SectionHeader mastheads.
+ *   `toolbar` (default) — gr8r `btn btn-ghost btn-sm`, for dense toolbars,
+ *                         the topbar and icon-row headers (board toolbar,
+ *                         channel header).
+ *   `outline`           — gr8r `btn btn-secondary`, a peer of "New form" /
+ *                         "New service" in a page's `.ph .acts`.
  *
  * The count badge is the whole reason this is a button and not a menu item:
  * it answers "is anything already automated here?" before you click. It reads
@@ -59,38 +60,20 @@ export function AutomationsButton({
 
   return (
     <>
-      {variant === "outline" ? (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setOpen(true)}
-          title={label}
-          aria-label={label}
-          className={className}
-        >
-          <Zap data-slot="icon" />
-          Automations
-          {count > 0 ? (
-            <span className="ml-0.5 tabular-nums text-muted-foreground">{count}</span>
-          ) : null}
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => setOpen(true)}
-          title={label}
-          aria-label={label}
-          className={cn("h-7 gap-1 px-2 text-xs", className)}
-        >
-          <Zap className="size-3.5 shrink-0" aria-hidden />
-          {showLabel ? "Automations" : null}
-          {count > 0 ? (
-            <span className="tabular-nums text-muted-foreground">{count}</span>
-          ) : null}
-        </Button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={label}
+        aria-label={label}
+        className={cn(
+          variant === "outline" ? "btn btn-secondary" : "btn btn-ghost btn-sm",
+          className,
+        )}
+      >
+        <Gi icon={Zap} size={14} />
+        {showLabel || variant === "outline" ? "Automations" : null}
+        {count > 0 ? <span className="faint num">{count}</span> : null}
+      </button>
       {/* Mounted only once opened — keeps the suggestion request off page load,
           and unmounting on close means reopening re-reads the (cached) list. */}
       {open ? (

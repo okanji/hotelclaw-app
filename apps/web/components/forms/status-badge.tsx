@@ -1,27 +1,18 @@
-import { StatusBadge } from "@/components/ui/status-badge";
+import { PStatus } from "@/components/gr8r/home-glyphs";
 import type { FormStatus } from "@/lib/db/types";
 
 /**
- * Shared draft/published/closed badge for the forms list and detail header.
- * All three rungs are the house StatusBadge so a form's lifecycle reads with
- * the same pill geometry as a chatbot's or a workflow's — draft used to be a
- * bare `Badge variant="secondary"`, which is the same fill but a different
- * component and no state dot.
+ * Shared draft/published/closed pill for the forms list, detail header and
+ * settings — gr8r's `.pstatus` (a hairline pill with a coloured state dot),
+ * the same geometry a project's status uses.
  */
+const META: Record<FormStatus, { name: string; color: string }> = {
+  published: { name: "Published", color: "var(--g8-green)" },
+  closed: { name: "Closed", color: "var(--g8-gray)" },
+  draft: { name: "Draft", color: "var(--g8-amber)" },
+};
+
 export function FormStatusBadge({ status }: { status: FormStatus }) {
-  if (status === "published") {
-    return <StatusBadge tone="success">Published</StatusBadge>;
-  }
-  if (status === "closed") {
-    return (
-      <StatusBadge tone="neutral" dot={false}>
-        Closed
-      </StatusBadge>
-    );
-  }
-  return (
-    <StatusBadge tone="neutral" dot={false}>
-      Draft
-    </StatusBadge>
-  );
+  const m = META[status] ?? META.draft;
+  return <PStatus name={m.name} color={m.color} />;
 }

@@ -10,8 +10,7 @@ import {
   XAxis,
 } from "recharts";
 import type { ChatbotAnalytics } from "@/lib/chatbots/analytics";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
 import { ChartTooltipContent } from "./chart-tooltip";
 
 /** `YYYY-MM-DD` → "Aug 12" without a timezone shift. */
@@ -57,15 +56,15 @@ export function AnalyticsTab({
 
   if (error) {
     return (
-      <p className="py-12 text-center text-sm text-muted-foreground">
+      <p className="muted py-12 text-center">
         Couldn&apos;t load analytics — try again in a moment.
       </p>
     );
   }
   if (!data) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
+      <div className="row muted justify-center py-12">
+        <Gi icon={Loader2} size={16} className="animate-spin" />
         Crunching conversations…
       </div>
     );
@@ -89,17 +88,23 @@ export function AnalyticsTab({
 
   if (totals.conversations === 0) {
     return (
-      <EmptyState icon={ChartNoAxesColumn} title="No conversations yet">
-        Once guests start chatting, topics, sentiment, and volume show up
-        here.
-      </EmptyState>
+      <div className="panel">
+        <div className="empty-state">
+          <div className="glyph">
+            <Gi icon={ChartNoAxesColumn} />
+          </div>
+          <p className="es-h">No conversations yet</p>
+          <p>Once guests start chatting, topics, sentiment, and volume show up here.</p>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* gr8r `.stats` strip — six cells, wrapping to 3 / 2 on narrow panes. */}
+      <div className="stats grid-cols-2! sm:grid-cols-3! lg:grid-cols-6!">
         <Stat label="Conversations" value={totals.conversations} />
         <Stat label="Messages" value={totals.messages} />
         <Stat label="Orders placed" value={totals.ordersPlaced} />
@@ -109,10 +114,10 @@ export function AnalyticsTab({
       </div>
 
       {/* 14-day volume */}
-      <section className="rounded-lg p-4 shadow-ring">
-        <p className="mb-3 text-sm font-medium">Bot replies — last 14 days</p>
+      <section className="panel" style={{ padding: 14 }}>
+        <p className="label" style={{ marginBottom: 12 }}>Bot replies — last 14 days</p>
         {volume.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No traffic yet.</p>
+          <p className="hint">No traffic yet.</p>
         ) : (
           <div className="h-32 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -149,8 +154,8 @@ export function AnalyticsTab({
 
       {/* Sentiment */}
       {sentimentTotal > 0 ? (
-        <section className="rounded-lg p-4 shadow-ring">
-          <p className="mb-3 text-sm font-medium">Guest sentiment</p>
+        <section className="panel" style={{ padding: 14 }}>
+          <p className="label" style={{ marginBottom: 12 }}>Guest sentiment</p>
           <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
             <span
               className="bg-success"
@@ -167,7 +172,8 @@ export function AnalyticsTab({
           </div>
           <ul
             role="list"
-            className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+            className="muted mt-2 flex flex-wrap gap-x-4 gap-y-1"
+            style={{ fontSize: 12 }}
           >
             <li className="flex items-center gap-1.5">
               <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-success" />
@@ -186,41 +192,41 @@ export function AnalyticsTab({
       ) : null}
 
       {/* Topics */}
-      <section className="rounded-lg p-4 shadow-ring">
-        <p className="mb-1 text-sm font-medium">What guests ask about</p>
-        <p className="mb-3 text-xs text-muted-foreground">
+      <section className="panel" style={{ padding: 14 }}>
+        <p className="label" style={{ marginBottom: 4 }}>What guests ask about</p>
+        <p className="hint" style={{ marginBottom: 12 }}>
           Topics are labeled automatically once a conversation settles. A
           topic trending negative is your cue to fix the knowledge base or
           the underlying problem.
         </p>
         {topics.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="hint">
             Nothing labeled yet — check back after a few conversations.
           </p>
         ) : (
-          <ul role="list" className="divide-y divide-border">
+          <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {topics.map((t) => {
               const negShare = t.count > 0 ? t.sentiment.negative / t.count : 0;
               return (
-                <li key={t.topic} className="py-2">
+                <li key={t.topic} className="py-2" style={{ borderTop: "1px solid var(--g8-divider)" }}>
                   <div className="flex items-center gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {t.topic}
                     </span>
                     {negShare >= 0.34 ? (
-                      <StatusBadge tone="danger">trending negative</StatusBadge>
+                      <span className="badge red">
+                        <span className="dot" />
+                        trending negative
+                      </span>
                     ) : null}
-                    <span className="w-10 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                    <span className="muted num w-10 shrink-0 text-right">
                       {t.count}
                     </span>
                   </div>
                   {/* Count-proportional meter (SummaryStrip pattern) — a
                       VALUE, so warm ink, never `--primary`. */}
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-secondary-ink"
-                      style={{ width: `${(t.count / maxTopicCount) * 100}%` }}
-                    />
+                  <div className="meter mt-1.5" style={{ height: 4 }}>
+                    <i style={{ width: `${(t.count / maxTopicCount) * 100}%` }} />
                   </div>
                 </li>
               );
@@ -234,9 +240,9 @@ export function AnalyticsTab({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg p-3 shadow-ring">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="stat">
+      <span className="k">{label}</span>
+      <span className="v">{value}</span>
     </div>
   );
 }

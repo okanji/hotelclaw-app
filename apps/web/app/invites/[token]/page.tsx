@@ -3,15 +3,9 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { isOnboarded, needsPasswordSetup } from "@/lib/auth/onboarding";
 import { createServiceClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Building2, MailX, UserRound } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { AuthAlert, AuthCardMark, AuthShell } from "@/components/auth/auth-shell";
 import {
   AcceptButton,
   RequestAccessButton,
@@ -64,7 +58,7 @@ export default async function InvitePage({
       />
     );
   }
-  if (new Date(invite.expires_at).getTime() < Date.now()) {
+  if (isExpired(invite.expires_at)) {
     return (
       <ErrorView
         title="Invite expired"
@@ -79,87 +73,70 @@ export default async function InvitePage({
   const emailMismatch =
     user.email && user.email.toLowerCase() !== invite.email.toLowerCase();
 
+  // gr8r auth card: plate, title, who you're signed in as, then the choice.
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Join {property?.name ?? "this property"}</CardTitle>
-          <CardDescription>
-            You've been invited as <span className="font-medium">{invite.role}</span>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p className="text-muted-foreground">
+    <AuthShell>
+      <div className="auth-card fx-auth">
+        <AuthCardMark icon={Building2} />
+        <h1>Join {property?.name ?? "this property"}</h1>
+        <p className="sub">
+          You&apos;ve been invited as{" "}
+          <b style={{ color: "var(--g8-text)", textTransform: "capitalize" }}>
+            {invite.role}
+          </b>
+          .
+        </p>
+        <div className="panel row" style={{ padding: "10px 14px", gap: 10 }}>
+          <Gi icon={UserRound} size={15} className="faint" />
+          <span className="muted" style={{ fontSize: 13 }}>
             Signed in as{" "}
-            <span className="font-medium text-foreground">{user.email}</span>
-          </p>
-          {emailMismatch ? (
-            <div className="space-y-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              <p>
-                This invite was sent to{" "}
-                <span className="font-medium break-all">{invite.email}</span>,
-                so it can&apos;t be accepted from this account.
-              </p>
-              <p>
-                Sign in with that address to join — or, if it isn&apos;t yours,
-                ask whoever invited you to re-send it here.
-              </p>
-            </div>
-          ) : null}
-        </CardContent>
-        {/* The mismatch case stacks: two full-width choices read as two real
-            options, and neither long email address gets squeezed into a row. */}
-        <CardFooter
-          className={
-            emailMismatch
-              ? "flex flex-col items-stretch gap-2"
-              : "flex justify-between gap-2"
-          }
-        >
-          {emailMismatch ? (
-            <>
-              <SwitchAccountButton token={token} invitedEmail={invite.email} />
-              <RequestAccessButton token={token} myEmail={user.email!} />
-              <Button
-                variant="ghost"
-                nativeButton={false}
-                render={<Link href="/" />}
-              >
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="ghost"
-                nativeButton={false}
-                render={<Link href="/" />}
-              >
-                Cancel
-              </Button>
-              <AcceptButton token={token} />
-            </>
-          )}
-        </CardFooter>
-      </Card>
-    </main>
+            <b style={{ color: "var(--g8-text)", fontWeight: 500 }}>
+              {user.email}
+            </b>
+          </span>
+        </div>
+        {emailMismatch ? (
+          <>
+            <AuthAlert tone="warn">
+              This invite was sent to{" "}
+              <b style={{ wordBreak: "break-all" }}>{invite.email}</b>, so it
+              can&apos;t be accepted from this account. Sign in with that
+              address to join — or, if it isn&apos;t yours, ask whoever invited
+              you to re-send it here.
+            </AuthAlert>
+            {/* Stacked: two full-width choices read as two real options, and
+                neither long email address gets squeezed into a row. */}
+            <SwitchAccountButton token={token} invitedEmail={invite.email} />
+            <RequestAccessButton token={token} myEmail={user.email!} />
+          </>
+        ) : (
+          <AcceptButton token={token} block />
+        )}
+        <p className="auth-foot">
+          <Link href="/" className="link">
+            Cancel
+          </Link>
+        </p>
+      </div>
+    </AuthShell>
   );
+}
+
+function isExpired(expiresAt: string): boolean {
+  return new Date(expiresAt).getTime() < Date.now();
 }
 
 function ErrorView({ title, message }: { title: string; message: string }) {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{message}</CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button variant="ghost" nativeButton={false} render={<Link href="/" />}>
-            Back to app
-          </Button>
-        </CardFooter>
-      </Card>
-    </main>
+    <AuthShell>
+      <div className="auth-card fx-auth">
+        <AuthCardMark icon={MailX} color="var(--g8-red)" />
+        <h1>{title}</h1>
+        <p className="sub">{message}</p>
+        <Link href="/" className="btn btn-secondary btn-lg btn-block">
+          Back to app
+        </Link>
+      </div>
+    </AuthShell>
   );
 }

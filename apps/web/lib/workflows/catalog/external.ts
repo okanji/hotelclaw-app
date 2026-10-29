@@ -51,6 +51,8 @@ const triggers: TriggerCatalogEntry[] = [
         priority: z.string().nullable(),
         due_at: z.string().nullable(),
         labels: z.array(z.string()),
+        /** 0116 — custom-field id → answer, for questions saved into fields. */
+        fields: z.record(z.string(), z.unknown()),
       }),
     }),
     explain: () => "When a form is submitted",

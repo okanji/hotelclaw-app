@@ -56,7 +56,13 @@ export async function getUserMemberships(): Promise<Membership[]> {
   return rows.filter((m) => !m.property.archived_at);
 }
 
-export async function getMembershipForProperty(propertyId: string) {
+/**
+ * The caller's membership in a property — ANY role, guests included (0118).
+ * Use only where a guest is legitimately allowed (a granted task's
+ * attachments, the shell layout); everything else wants
+ * `getMembershipForProperty`, which fails closed for guests.
+ */
+export async function getPropertyAccess(propertyId: string) {
   const supabase = await createClient();
   const user = await getSessionUser();
   if (!user) return null;
@@ -67,6 +73,19 @@ export async function getMembershipForProperty(propertyId: string) {
     .eq("user_id", user.id)
     .maybeSingle();
   return data;
+}
+
+/**
+ * The caller's FULL membership (owner / manager / staff) — `null` for a
+ * guest (0118). ~65 routes and actions use this as their gate before acting
+ * through the service client, so it fails CLOSED: a guest's membership row
+ * must never unlock insights, workflows, chatbots, forms, AI
+ * panels, meetings… A route that should admit granted guests uses
+ * `getPropertyAccess` and checks the grant itself.
+ */
+export async function getMembershipForProperty(propertyId: string) {
+  const access = await getPropertyAccess(propertyId);
+  return access && isFullMember(access.role) ? access : null;
 }
 
 export type MembershipGate =
@@ -86,7 +105,7 @@ export async function requireFullMember(
 ): Promise<MembershipGate> {
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Unauthorized", status: 401 };
-  const membership = await getMembershipForProperty(propertyId);
+  const membership = await getPropertyAccess(propertyId);
   if (!membership || !isFullMember(membership.role)) {
     return { ok: false, error: "Not a member of this property", status: 403 };
   }

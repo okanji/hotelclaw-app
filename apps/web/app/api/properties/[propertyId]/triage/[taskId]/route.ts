@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { resolveApiCaller } from "@/lib/auth/api-caller";
+import { callerIsFullMember, resolveApiCaller } from "@/lib/auth/api-caller";
 import {
   AcceptTriageSchema,
   DeclineTriageSchema,
@@ -33,6 +33,9 @@ export async function POST(
   const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!(await callerIsFullMember(supabase, user.id, propertyId))) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -13,7 +13,12 @@ import {
   startOfDay,
 } from "@/lib/calendar/time";
 import { cn } from "@/lib/utils";
-import { eventTint, eventDotClass, EVENT_VISUALS } from "@/lib/calendar/event-visuals";
+import { Gi } from "@/components/gr8r/icon";
+import {
+  SOURCE_G8,
+  evStyle,
+  g8c,
+} from "@/components/gr8r/calendar-glyphs";
 import {
   Popover,
   PopoverContent,
@@ -152,21 +157,15 @@ export function WeekGrid({
   }, [days, events]);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      {/* All-day band */}
-      <div className="flex border-b border-border">
-        <div className="w-14 shrink-0 border-r border-border" />
+    <div className="tg">
+      {/* All-day band — each day opens with gr8r's `.wcol-h` (big date +
+          weekday), then its all-day `.cev` chips. */}
+      <div className="tg-band">
+        <div className="tg-gut" />
         {days.map((d) => (
-          <div
-            key={d.toDateString()}
-            className={cn(
-              "flex flex-1 flex-col gap-1 border-r border-border px-1.5 py-1.5",
-              isWeekend(d) && "bg-muted",
-              isSameDay(d, new Date()) && "bg-accent",
-            )}
-          >
+          <div key={d.toDateString()} className="tg-dayh">
             <DayHeader date={d} />
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               {(allDayByDay[d.toDateString()] ?? []).map((ev) => (
                 <EventPopover
                   key={`${ev.source}:${ev.id}`}
@@ -175,16 +174,18 @@ export function WeekGrid({
                   currentUserId={currentUserId}
                   onEditEvent={onEditEvent}
                   onMutated={onMutated}
-                  triggerClassName={cn(
-                    // All-day chip = the measured select/status pill rung
-                    // (notion-spec-v2 §4/§6): 4px radius, not the 6px
-                    // clickable rung. Fill + ink come from
-                    // `lib/calendar/event-visuals.ts`.
-                    "truncate rounded-pill border-l-2 px-1.5 py-0.5 text-left text-xs font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
-                    eventTint(ev),
-                  )}
+                  // gr8r's month chip: tasks solid, other sources dashed.
+                  triggerClassName={ev.source === "task" ? "cev" : "cev event"}
+                  triggerStyle={evStyle(ev)}
                 >
-                  {ev.title}
+                  {ev.source === "task" && ev.due_only ? (
+                    <>
+                      <span className="trunc">{ev.title}</span>
+                      <span className="due-tag">Due</span>
+                    </>
+                  ) : (
+                    <span className="trunc">{ev.title}</span>
+                  )}
                 </EventPopover>
               ))}
             </div>
@@ -193,7 +194,7 @@ export function WeekGrid({
       </div>
 
       {/* Timed grid */}
-      <div ref={scrollRef} className="flex flex-1 overflow-auto">
+      <div ref={scrollRef} className="tg-body">
         <HourAxis />
         {days.map((day) => (
           <DayColumn
@@ -218,27 +219,15 @@ export function WeekGrid({
 
 function DayHeader({ date }: { date: Date }) {
   const today = isSameDay(date, new Date());
+  // gr8r `.wcol-h`: the date large, the weekday muted beside it, accent ink
+  // on today.
   return (
-    <div className="flex items-baseline justify-between">
-      {/* Sentence case, no tracking — the uppercase tracked weekday was the
-          loudest "template" tell on the grid (notion-spec §3). */}
-      <span
-        className={cn(
-          "text-xs leading-3 font-medium",
-          today ? "text-foreground" : "text-faint-foreground",
-        )}
-      >
-        {date.toLocaleDateString(undefined, { weekday: "short" })}
-      </span>
-      <span
-        className={cn(
-          "flex size-6 items-center justify-center rounded-full text-sm font-medium tabular-nums",
-          today
-            ? "bg-primary text-primary-foreground"
-            : "text-foreground",
-        )}
-      >
+    <div className={today ? "wcol-h today" : "wcol-h"}>
+      <span className="n" aria-current={today ? "date" : undefined}>
         {date.getDate()}
+      </span>
+      <span className="muted" style={{ fontSize: 12 }}>
+        {date.toLocaleDateString(undefined, { weekday: "short" })}
       </span>
     </div>
   );
@@ -246,13 +235,13 @@ function DayHeader({ date }: { date: Date }) {
 
 function HourAxis() {
   return (
-    <div className="w-14 shrink-0 border-r border-border">
+    <div className="tg-gut">
       {Array.from({ length: 24 }, (_, h) => (
         <div key={h} className="relative" style={{ height: HOUR_HEIGHT_PX }}>
           {/* Label sits centered on the hour rule, Google Calendar style,
               rather than floating below it. */}
           {h > 0 ? (
-            <div className="absolute inset-x-0 top-0 -translate-y-1/2 pr-2 text-right text-xs leading-3 font-medium tabular-nums text-faint-foreground">
+            <div className="tg-ax">
               {formatHourLabel(h)}
             </div>
           ) : null}
@@ -404,10 +393,9 @@ function DayColumn({
         droppable.setNodeRef(node);
       }}
       className={cn(
-        "relative flex-1 border-r border-border",
-        isWeekend(day) && "bg-muted",
-        isSameDay(day, new Date()) && "bg-accent",
-        droppable.isOver && "bg-accent-pressed",
+        "tg-col",
+        isSameDay(day, new Date()) && "today",
+        droppable.isOver && "over",
       )}
       style={{ height: HOUR_HEIGHT_PX * 24 }}
       onPointerDown={handlePointerDown}
@@ -418,11 +406,11 @@ function DayColumn({
       {Array.from({ length: 24 }, (_, h) => (
         <div key={h}>
           <div
-            className="absolute inset-x-0 border-t border-border"
+            className="tg-hr"
             style={{ top: h * HOUR_HEIGHT_PX }}
           />
           <div
-            className="absolute inset-x-0 border-t border-dashed border-border"
+            className="tg-hr half"
             style={{ top: h * HOUR_HEIGHT_PX + HOUR_HEIGHT_PX / 2 }}
           />
         </div>
@@ -482,7 +470,7 @@ function DayColumn({
       {/* Drag-to-create slot preview */}
       {drag ? (
         <div
-          className="pointer-events-none absolute inset-x-1 rounded-pill bg-accent-pressed"
+          className="tg-sel"
           style={{
             top: (drag.startMin / 60) * HOUR_HEIGHT_PX,
             height:
@@ -495,14 +483,14 @@ function DayColumn({
           occupy if released here, snapped to the 15-minute grid. */}
       {taskDrop ? (
         <div
-          className={cn("pointer-events-none absolute inset-x-1 z-10 overflow-hidden rounded-pill border-l-2 py-1 pr-1.5 pl-2 text-left text-xs", EVENT_VISUALS.task.block)}
-          style={{
+          className="tg-ev ghost"
+          style={g8c(SOURCE_G8.task, {
             top: (taskDrop.startMin / 60) * HOUR_HEIGHT_PX,
             height: HOUR_HEIGHT_PX,
-          }}
+          })}
         >
-          <div className="truncate font-medium">{taskDrop.title}</div>
-          <div className="truncate text-xs tabular-nums opacity-75">
+          <div className="t trunc">{taskDrop.title}</div>
+          <div className="m trunc">
             {formatMinutesLabel(day, taskDrop.startMin)} –{" "}
             {formatMinutesLabel(day, taskDrop.startMin + 60)}
           </div>
@@ -544,7 +532,7 @@ function EventPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-event-block
-        className={cn(triggerClassName, open && "ring-2 ring-ring")}
+        className={cn(triggerClassName, open && "open")}
         // Open lifts the block clear of its shingled neighbours.
         style={open ? { ...triggerStyle, zIndex: 40 } : triggerStyle}
       >
@@ -554,7 +542,7 @@ function EventPopover({
         side="right"
         align="start"
         sideOffset={6}
-        className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-3.5"
+        className="g8 g8-port w-80 max-w-[calc(100vw-2rem)] gap-0 p-3.5"
       >
         <EventDetailBody
           event={event}
@@ -613,30 +601,17 @@ function PositionedEvent({
       currentUserId={currentUserId}
       onEditEvent={onEditEvent}
       onMutated={onMutated}
-      triggerClassName={cn(
-        // Fill + accent edge only. Blocks are resting surfaces, so they get
-        // no shadow and no stroke — hover is a fill shift (notion-spec §5/§6).
-        // Radius is the 4px PILL rung, not the 6px clickable one: a timed
-        // block is the same object as the all-day chip, just stretched down
-        // the time axis (notion-spec-v2 §4).
-        "absolute overflow-hidden rounded-pill border-l-2 py-1 pr-1.5 pl-2 text-left text-xs transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none",
-        eventTint(event),
-      )}
-      triggerStyle={{
+      // gr8r-token block (`.tg-ev`, gr8r-ext.css): a `--g8-c` tinted fill
+      // with a 2px accent edge — the `.wcard.event` look stretched down the
+      // time axis. `evStyle` picks the source colour, or the event's own.
+      triggerClassName="tg-ev"
+      triggerStyle={evStyle(event, {
         top,
         height,
         left: `calc(${leftPct}% + 1px)`,
         width: `calc(${widthPct}% - 2px)`,
         zIndex: column + 1,
-        // An explicit event colour overrides the source tint, including
-        // the accent edge — the tint classes only carry the fallback.
-        ...(event.color
-          ? {
-              borderLeftColor: `#${event.color}`,
-              backgroundColor: `#${event.color}1A`,
-            }
-          : undefined),
-      }}
+      })}
     >
       <EventBlock event={event} />
     </EventPopover>
@@ -677,13 +652,7 @@ function ClusterTile({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-event-block
-        className={cn(
-          // The collapsed pile sits in the same lane as the event blocks, so
-          // it takes the same 4px pill rung. It is NOT a page-like card, so
-          // it keeps the bare warm ring rather than `shadow-card`.
-          "absolute flex flex-col items-center justify-center gap-0.5 overflow-hidden rounded-pill bg-card text-center text-foreground shadow-ring transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
-          open && "ring-2 ring-ring",
-        )}
+        className={cn("tg-cluster", open && "open")}
         style={{
           top,
           height,
@@ -692,12 +661,12 @@ function ClusterTile({
           zIndex: open ? 40 : 6,
         }}
       >
-        <span className="flex items-center gap-1 text-xs leading-none font-medium">
-          <Layers className="size-3 opacity-70" />
+        <span className="row" style={{ gap: 4 }}>
+          <Gi icon={Layers} size={12} />
           {count}
         </span>
         {!compact ? (
-          <span className="text-xs leading-none font-medium text-faint-foreground">
+          <span className="faint" style={{ fontSize: 11 }}>
             events
           </span>
         ) : null}
@@ -706,7 +675,7 @@ function ClusterTile({
         side="right"
         align="start"
         sideOffset={6}
-        className="w-80 max-w-[calc(100vw-2rem)] gap-0 p-2"
+        className="g8 g8-port w-80 max-w-[calc(100vw-2rem)] gap-0 p-1"
       >
         <ClusterCard
           events={events}
@@ -774,35 +743,28 @@ function ClusterCard({
           clicked row isn't detached mid-click — detaching it makes base-ui's
           outside-press detector read the click as "outside" and dismiss the
           popover (the click then appears to fall through to the grid). */}
-      <div className={cn("flex flex-col gap-1", selected && "hidden")}>
-        <div className="flex items-baseline justify-between px-1.5 pt-1 pb-1">
-          <span className="text-sm font-medium">{events.length} events</span>
-          <span className="text-xs tabular-nums text-faint-foreground">
-            {formatTimeRange(start, end)}
-          </span>
+      <div className={cn("flex flex-col", selected && "hidden")}>
+        {/* gr8r `.mh` menu heading + `.mi` rows (the "+N more" daylist pop). */}
+        <div className="mh row" style={{ justifyContent: "space-between" }}>
+          <span>{events.length} events</span>
+          <span className="num">{formatTimeRange(start, end)}</span>
         </div>
-        <div className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+        <div className="flex max-h-80 flex-col overflow-y-auto">
           {sorted.map((ev) => (
             <button
               key={`${ev.source}:${ev.id}`}
               type="button"
               onClick={() => setSelected(ev)}
-              className="flex min-h-7 items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
+              className="mi"
+              style={{ minHeight: 40, whiteSpace: "normal" }}
             >
               <span
-                className={cn(
-                  "size-2 shrink-0 rounded-full",
-                  !ev.color && eventDotClass(ev),
-                )}
-                style={
-                  ev.color ? { backgroundColor: `#${ev.color}` } : undefined
-                }
+                className="pdot"
+                style={evStyle(ev, { borderRadius: "50%" })}
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {ev.title}
-                </span>
-                <span className="block text-xs tabular-nums text-faint-foreground">
+                <span className="block trunc">{ev.title}</span>
+                <span className="mi-sub num">
                   {formatTimeRange(new Date(ev.start), new Date(ev.end))}
                 </span>
               </span>
@@ -816,9 +778,9 @@ function ClusterCard({
           <button
             type="button"
             onClick={() => setSelected(null)}
-            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
+            className="btn btn-ghost btn-sm"
           >
-            <ChevronLeft className="size-3.5" />
+            <Gi icon={ChevronLeft} size={14} />
             All {events.length} events
           </button>
           <div className="px-1.5 pb-1">
@@ -862,7 +824,7 @@ function FreeBusyLanes({
       style={{ width: lanes.length * (laneWidthPx + laneGapPx) }}
     >
       {lanes.map((userId) => {
-        const color = userColors.get(userId) ?? "94a3b8";
+        const color = userColors.get(userId) ?? "var(--g8-gray)";
         const userSlots = slots.filter((s) => s.user_id === userId);
         return (
           <div
@@ -871,7 +833,7 @@ function FreeBusyLanes({
             style={{
               width: laneWidthPx,
               marginLeft: laneGapPx,
-              backgroundColor: `#${color}10`,
+              backgroundColor: `color-mix(in srgb, ${color} 7%, transparent)`,
             }}
           >
             {userSlots.map((slot, idx) => {
@@ -897,7 +859,7 @@ function FreeBusyLanes({
                   style={{
                     top,
                     height,
-                    backgroundColor: `#${color}`,
+                    backgroundColor: color,
                     opacity,
                   }}
                 />
@@ -920,12 +882,12 @@ function NowLine() {
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-x-0 z-10 h-0.5 -translate-y-1/2 rounded-full bg-accent-red"
+        className="tg-now"
         style={{ top }}
       />
       <div
-        className="pointer-events-none absolute z-10 size-2.5 -translate-y-1/2 rounded-full bg-accent-red ring-2 ring-background"
-        style={{ top, left: -5 }}
+        className="tg-now-dot"
+        style={{ top }}
       />
     </>
   );
@@ -953,11 +915,5 @@ function formatMinutesLabel(day: Date, minutes: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-/** Whether `d` falls on a Saturday or Sunday. */
-function isWeekend(d: Date): boolean {
-  const day = d.getDay();
-  return day === 0 || day === 6;
 }
 

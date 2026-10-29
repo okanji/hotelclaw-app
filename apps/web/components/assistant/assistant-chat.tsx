@@ -159,13 +159,11 @@ export function AssistantChat({
             }
             trailing={
               projectName ? (
-                <span className="truncate rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                  {projectName}
-                </span>
+                <span className="badge gray trunc">{projectName}</span>
               ) : null
             }
           />
-          <p className="mt-2 text-center text-xs text-faint-foreground">
+          <p className="faint" style={{ margin: "8px 0 0", textAlign: "center", fontSize: "var(--g8-fs-xs)" }}>
             The assistant can read and change your workspace. Check anything
             important.
           </p>
@@ -185,14 +183,16 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-6 pt-16 text-center">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-normal">
+      <div className="ph" style={{ justifyContent: "center", margin: 0 }}>
+        <div>
+        <h1>
           {projectName ? `What are we doing in ${projectName}?` : "What can I help with?"}
-        </h2>
-        <p className="mx-auto mt-2 max-w-md text-base text-pretty text-muted-foreground">
-          I can see your tasks, documents, calendar, bookings, conversations,
+        </h1>
+        <p style={{ maxWidth: 440, marginInline: "auto" }}>
+          I can see your tasks, documents, calendar, conversations,
           and everything this property has learned — and I can change them too.
         </p>
+        </div>
       </div>
       <ul role="list" className="flex flex-wrap justify-center gap-2">
         {STARTER_PROMPTS.map((prompt) => (
@@ -200,7 +200,7 @@ function EmptyState({
             <button
               type="button"
               onClick={() => onPick(prompt)}
-              className="rounded-md bg-muted px-3 py-1.5 text-sm text-secondary-ink transition-colors hover:bg-accent"
+              className="btn btn-secondary btn-sm"
             >
               {prompt}
             </button>

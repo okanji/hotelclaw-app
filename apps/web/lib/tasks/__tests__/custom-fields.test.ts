@@ -23,9 +23,11 @@ function fieldRow(over: Partial<CustomFieldRow>): CustomFieldRow {
   return {
     id: "f1",
     space_id: null,
+    list_id: null,
     name: "Field",
     type: "select",
     options: [],
+    config: {},
     position: 0,
     ...over,
   };

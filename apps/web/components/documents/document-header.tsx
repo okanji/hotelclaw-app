@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { Gi } from "@/components/gr8r/icon";
 
 const EmojiPicker = dynamic(
   () => import("@emoji-mart/react").then((m) => m.default),
@@ -151,18 +152,19 @@ export function DocumentHeader({
             <button
               type="button"
               onClick={pickAndUploadCover}
-              className="h-7 rounded-md bg-popover px-2 text-xs font-medium text-foreground shadow-overlay transition-colors hover:bg-accent"
+              className="btn btn-secondary btn-sm"
             >
+              <Gi icon={ImageIcon} size={13} />
               Replace
             </button>
             <button
               type="button"
               onClick={() => setCover(null)}
-              className="rounded-md bg-popover p-1.5 text-foreground shadow-overlay transition-colors hover:bg-accent"
+              className="btn btn-secondary btn-sm"
               aria-label="Remove cover"
               title="Remove cover"
             >
-              <Trash2 className="size-3.5" />
+              <Gi icon={Trash2} size={13} />
             </button>
           </div>
         </div>
@@ -193,16 +195,16 @@ export function DocumentHeader({
 
       {/* Hover hint row — "Add icon / Add cover / Add comment". Only the
           buttons whose target isn't already set are shown. */}
-      <div className="mb-2 -ml-1.5 flex h-7 items-center gap-0.5 text-sm text-faint-foreground opacity-0 transition-opacity group-hover/header:opacity-100">
+      <div className="row mb-2 opacity-0 transition-opacity group-hover/header:opacity-100" style={{ gap: 2, marginLeft: -8, height: 28 }}>
         {!icon ? (
           <IconPicker
             onSelect={(emoji) => void setIcon(emoji)}
             trigger={
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
+                className="btn btn-ghost btn-sm g8-doc-hint"
               >
-                <Smile className="size-4" />
+                <Gi icon={Smile} size={14} />
                 Add icon
               </button>
             }
@@ -212,18 +214,18 @@ export function DocumentHeader({
           <button
             type="button"
             onClick={pickAndUploadCover}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
+            className="btn btn-ghost btn-sm g8-doc-hint"
           >
-            <ImageIcon className="size-4" />
+            <Gi icon={ImageIcon} size={14} />
             Add cover
           </button>
         ) : null}
         <button
           type="button"
           onClick={onAddComment}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md px-1.5 transition-colors hover:bg-accent"
+          className="btn btn-ghost btn-sm g8-doc-hint"
         >
-          <MessageCircle className="size-4" />
+          <Gi icon={MessageCircle} size={14} />
           Add comment
         </button>
       </div>

@@ -1,9 +1,12 @@
 "use client";
 
+import { assigneeSummary } from "@/lib/tasks/assignee-label";
 import { type ReactNode } from "react";
 import {
+  Calendar,
   CalendarPlus,
   Check,
+  CircleDot,
   ExternalLink,
   FileText,
   Link2,
@@ -11,7 +14,9 @@ import {
   Paperclip,
   Plus,
   Repeat,
+  SignalHigh,
   Tag,
+  Timer,
   UserRound,
   X,
 } from "lucide-react";
@@ -23,11 +28,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { PRIORITY_META } from "./kanban";
 import { describeStatus, type ColumnDef } from "@/lib/tasks/statuses";
-import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
 import type {
   TaskDetailOpeners,
   TaskDetailRemovers,
@@ -40,21 +43,22 @@ import type {
 } from "@/lib/db/types";
 import { useQuery } from "@tanstack/react-query";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
-import { Button } from "@/components/ui/button";
 import {
   AssigneeMenuContent,
   DueDatePopoverContent,
   PriorityMenuContent,
   StatusMenuContent,
   type StatusRowFields,
-  initials,
-  PROPERTY_CHIP_CLASS as CHIP_BASE,
-  PropertyChipIcon as ChipIcon,
 } from "./task-property-menus";
 import { TaskPlanningChips } from "@/components/cycles/task-planning-chips";
-
-
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
+import {
+  G8PriorityIcon,
+  G8StatusIcon,
+  cVar,
+  g8Color,
+} from "@/components/gr8r/my-tasks-glyphs";
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
 
@@ -68,7 +72,7 @@ export const RECURRENCE_LABEL: Record<TaskRecurrence, string> = {
 };
 
 function formatTargetDate(iso: string | null) {
-  if (!iso) return "Target date";
+  if (!iso) return "Set date";
   const d = new Date(iso);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -84,9 +88,9 @@ function formatTargetDate(iso: string | null) {
 }
 
 /**
- * Linear-style inline property strip surfaced directly under the title and
- * description. Mirrors the right-hand sidebar but as compact pill chips so
- * the most common edits live in the main reading flow.
+ * The task's properties under its title, as gr8r's drawer lays them out: a
+ * `dl.kv` of icon + label / value-pill rows. The narrow-width (and embedded)
+ * home of properties; on the full page the docked rail takes over at @4xl.
  */
 export function TaskDetailInlineProperties({
   propertyId,
@@ -96,6 +100,9 @@ export function TaskDetailInlineProperties({
   priority,
   assigneeId,
   assignee,
+  assigneeIds,
+  assigneeInfos,
+  onAssigneesChange,
   dueAt,
   members,
   meta,
@@ -118,6 +125,10 @@ export function TaskDetailInlineProperties({
   priority: TaskPriority;
   assigneeId: string | null;
   assignee: { name: string; avatar?: string } | undefined;
+  /** Multi-assignee (0115): when given, the picker ticks people in and out. */
+  assigneeIds?: string[];
+  assigneeInfos?: Record<string, { name: string; avatar?: string }>;
+  onAssigneesChange?: (ids: string[]) => void;
   dueAt: string | null;
   members: Member[];
   meta: TaskDetailMeta | undefined;
@@ -142,8 +153,16 @@ export function TaskDetailInlineProperties({
 
   const links = meta?.links ?? [];
   const docs = meta?.documents ?? [];
-  const attachments = meta?.attachments ?? [];
-  const resourcesCount = links.length + docs.length + attachments.length;
+  // Slot files (0116) render in their Files field, not as loose attachments.
+  const resourcesCount = links.length + docs.length;
+  const overdue = (() => {
+    if (!dueAt) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(dueAt);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime() < today.getTime();
+  })();
   const labels = meta?.labels ?? [];
   const { data: labelCatalog = [] } = useQuery(labelsQueryOptions(propertyId));
   const labelColor = (name: string): EntityColor =>
@@ -151,21 +170,23 @@ export function TaskDetailInlineProperties({
       ?.color ?? "slate";
 
   return (
-    <div className="mt-5 space-y-2 text-sm">
-      <PropertyRow label="Properties">
+    // gr8r's drawer property grid (`dl.kv`: dt icon + label, dd value pill).
+    <dl className="kv g8-task-kv">
+      <dt>
+        <Gi icon={CircleDot} size={14} />
+        Status
+      </dt>
+      <dd>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <button type="button" className={cn(CHIP_BASE, "text-foreground")}>
-                <ChipIcon>
-                  <StatusIcon
-                    category={statusView.category}
-                    blocked={statusView.isBlocked}
-                    color={statusView.color}
-                    className="size-3.5"
-                  />
-                </ChipIcon>
-                <span className="truncate">{statusView.label}</span>
+              <button type="button" className="pillbtn">
+                <G8StatusIcon
+                  category={statusView.category}
+                  blocked={statusView.isBlocked}
+                  color={statusView.color}
+                />
+                <span className="trunc">{statusView.label}</span>
               </button>
             }
           />
@@ -176,56 +197,55 @@ export function TaskDetailInlineProperties({
             onSelect={onStatusChange}
           />
         </DropdownMenu>
+      </dd>
 
+      <dt>
+        <Gi icon={SignalHigh} size={14} />
+        Priority
+      </dt>
+      <dd>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                className={cn(
-                  CHIP_BASE,
-                  priorityMuted ? "text-muted-foreground" : "text-foreground",
-                )}
+                className={cn("pillbtn", priorityMuted && "empty")}
               >
-                <ChipIcon>
-                  {priorityMuted ? (
-                    <NoPriorityGlyph variant="inline" />
-                  ) : (
-                    <PriorityBars priority={priority} />
-                  )}
-                </ChipIcon>
-                <span className="truncate">{priorityLabel}</span>
+                <G8PriorityIcon priority={priority} />
+                {priorityLabel}
               </button>
             }
           />
           <PriorityMenuContent align="start" onSelect={onPriorityChange} />
         </DropdownMenu>
+      </dd>
 
+      <dt>
+        <Gi icon={UserRound} size={14} />
+        Assignee
+      </dt>
+      <dd>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                className={cn(
-                  CHIP_BASE,
-                  assigneeId ? "text-foreground" : "text-muted-foreground",
-                )}
+                className={cn("pillbtn", !assigneeId && "empty")}
               >
-                <ChipIcon>
-                  {assignee ? (
-                    <Avatar size="sm" className="size-3.5">
-                      {assignee.avatar ? (
-                        <AvatarImage src={assignee.avatar} alt={assignee.name} />
-                      ) : null}
-                      <AvatarFallback className="bg-muted text-xs">
-                        {initials(assignee.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <UserRound className="size-3.5" />
-                  )}
-                </ChipIcon>
-                <span className="truncate">{assignee?.name ?? "Assign"}</span>
+                <Av
+                  member={
+                    assigneeId && assignee
+                      ? {
+                          id: assigneeId,
+                          name: assignee.name,
+                          avatarUrl: assignee.avatar,
+                        }
+                      : null
+                  }
+                />
+                <span className="trunc">
+                  {assigneeSummary(assigneeIds, assigneeInfos, assignee?.name)}
+                </span>
               </button>
             }
           />
@@ -233,21 +253,30 @@ export function TaskDetailInlineProperties({
             align="start"
             members={members}
             onSelect={onAssigneeChange}
+            selectedIds={onAssigneesChange ? (assigneeIds ?? []) : undefined}
+            onChange={onAssigneesChange}
           />
         </DropdownMenu>
+      </dd>
 
+      <dt>
+        <Gi icon={Calendar} size={14} />
+        Due date
+      </dt>
+      <dd>
         <Popover>
           <PopoverTrigger
             render={
               <button
                 type="button"
                 className={cn(
-                  CHIP_BASE,
-                  dueAt ? "text-foreground" : "text-muted-foreground",
+                  "pillbtn",
+                  !dueAt && "empty",
+                  overdue && "over",
                 )}
               >
-                <ChipIcon><CalendarPlus className="size-3.5" /></ChipIcon>
-                <span className="truncate">{formatTargetDate(dueAt)}</span>
+                <Gi icon={Calendar} size={13} />
+                {formatTargetDate(dueAt)}
               </button>
             }
           />
@@ -259,62 +288,166 @@ export function TaskDetailInlineProperties({
             onChange={onDueAtChange}
           />
         </Popover>
+      </dd>
 
-        {onRecurrenceChange ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className={cn(
-                    CHIP_BASE,
-                    recurrence ? "text-foreground" : "text-muted-foreground",
-                  )}
-                />
-              }
-            >
-              <ChipIcon><Repeat className="size-3.5" /></ChipIcon>
-              <span className="truncate">
-                {recurrence ? RECURRENCE_LABEL[recurrence] : "Repeat"}
-              </span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map((r) => (
-                <DropdownMenuItem
-                  key={r}
-                  onClick={() => onRecurrenceChange(r)}
-                  className="gap-2"
-                >
-                  <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
-                  {recurrence === r ? <Check className="size-3.5" /> : null}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuItem
-                onClick={() => onRecurrenceChange(null)}
-                className="gap-2 text-muted-foreground"
+      {onRecurrenceChange ? (
+        <>
+          <dt>
+            <Gi icon={Repeat} size={14} />
+            Repeat
+          </dt>
+          <dd>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn("pillbtn", !recurrence && "empty")}
+                  />
+                }
               >
-                Does not repeat
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
+                <Gi icon={Repeat} size={13} />
+                {recurrence ? RECURRENCE_LABEL[recurrence] : "Does not repeat"}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map(
+                  (r) => (
+                    <DropdownMenuItem
+                      key={r}
+                      onClick={() => onRecurrenceChange(r)}
+                      className="gap-2"
+                    >
+                      <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
+                      {recurrence === r ? <Check className="size-3.5" /> : null}
+                    </DropdownMenuItem>
+                  ),
+                )}
+                <DropdownMenuItem
+                  onClick={() => onRecurrenceChange(null)}
+                  className="gap-2 text-muted-foreground"
+                >
+                  Does not repeat
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </dd>
+        </>
+      ) : null}
 
-        {taskId ? (
-          <TaskPlanningChips propertyId={propertyId} taskId={taskId} />
-        ) : null}
+      {taskId ? (
+        <>
+          <dt>
+            <Gi icon={Timer} size={14} />
+            Planning
+          </dt>
+          <dd>
+            <TaskPlanningChips propertyId={propertyId} taskId={taskId} />
+          </dd>
+        </>
+      ) : null}
 
+      <dt>
+        <Gi icon={Tag} size={14} />
+        Labels
+      </dt>
+      <dd>
+        {labels.map((label) => (
+          <span key={label} className="lbl g8-lbl-x">
+            <i style={cVar(g8Color(labelColor(label)))} />
+            {label}
+            <button
+              type="button"
+              aria-label={`Remove ${label}`}
+              onClick={() => removers.removeLabel(label)}
+              className="g8-lbl-rm"
+            >
+              <Gi icon={X} size={11} />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          className="pillbtn empty"
+          onClick={openers.addLabel}
+          aria-label="Add label"
+        >
+          {labels.length ? (
+            <Gi icon={Plus} size={13} />
+          ) : (
+            <>
+              <Gi icon={Tag} size={13} />
+              Add labels
+            </>
+          )}
+        </button>
+      </dd>
+
+      <dt>
+        <Gi icon={Link2} size={14} />
+        Resources
+      </dt>
+      <dd>
+        {links.map((link) => (
+          <ResourceChip
+            key={link.id}
+            href={link.url}
+            external
+            icon={<Gi icon={Link2} size={13} />}
+            label={link.title || link.url}
+            onRemove={() => removers.removeLink(link.id)}
+          />
+        ))}
+        {docs.map((doc) => (
+          <ResourceChip
+            key={doc.id}
+            href={`/p/${propertyId}/docs/${doc.documentId}`}
+            icon={<Gi icon={FileText} size={13} />}
+            label={doc.title}
+            onRemove={() => removers.unlinkDocument(doc.id)}
+          />
+        ))}
+        {/* Files sit in the task's Attachments section below. */}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
+              <button type="button" className="pillbtn empty">
+                <Gi icon={Plus} size={13} />
+                {resourcesCount === 0 ? "Add document or link" : "Add"}
+              </button>
+            }
+          />
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={openers.addLink} className="gap-2">
+              <Link2 className="size-3.5" />
+              Add link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openers.addDocument} className="gap-2">
+              <FileText className="size-3.5" />
+              Add document
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openers.attachFile} className="gap-2">
+              <Paperclip className="size-3.5" />
+              Attach file
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </dd>
+
+      <dt>
+        <Gi icon={MoreHorizontal} size={14} />
+        More
+      </dt>
+      <dd>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
                 type="button"
-                variant="outline"
-                size="icon-xs"
+                className="ibtn ibtn-sm"
                 aria-label="More properties"
-                className="text-muted-foreground"
               >
-                <MoreHorizontal className="size-3.5" />
-              </Button>
+                <Gi icon={MoreHorizontal} size={15} />
+              </button>
             }
           />
           <DropdownMenuContent align="start" className="w-48">
@@ -335,141 +468,8 @@ export function TaskDetailInlineProperties({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </PropertyRow>
-
-      <PropertyRow label="Labels">
-        {labels.map((label) => (
-          <RemovableChip
-            key={label}
-            icon={<LabelDot color={labelColor(label)} />}
-            label={label}
-            onRemove={() => removers.removeLabel(label)}
-          />
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-xs"
-          aria-label="Add label"
-          onClick={openers.addLabel}
-          className="text-muted-foreground"
-        >
-          <Plus className="size-3.5" />
-        </Button>
-      </PropertyRow>
-
-      <PropertyRow label="Resources">
-        {links.map((link) => (
-          <ResourceChip
-            key={link.id}
-            href={link.url}
-            external
-            icon={<Link2 className="size-3.5" />}
-            label={link.title || link.url}
-            onRemove={() => removers.removeLink(link.id)}
-            hoverIcon={<ExternalLink className="size-3" />}
-          />
-        ))}
-        {docs.map((doc) => (
-          <ResourceChip
-            key={doc.id}
-            href={`/p/${propertyId}/docs/${doc.documentId}`}
-            icon={<FileText className="size-3.5" />}
-            label={doc.title}
-            onRemove={() => removers.unlinkDocument(doc.id)}
-          />
-        ))}
-        {attachments.map((file) => (
-          <ResourceChip
-            key={file.id}
-            href={file.url}
-            external
-            icon={<Paperclip className="size-3.5" />}
-            label={file.fileName}
-            onRemove={() => removers.removeAttachment(file.id)}
-          />
-        ))}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-faint-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
-              >
-                <Plus className="size-3.5" />
-                {resourcesCount === 0
-                  ? "Add document or link…"
-                  : "Add resource"}
-              </button>
-            }
-          />
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={openers.addLink} className="gap-2">
-              <Link2 className="size-3.5" />
-              Add link
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={openers.addDocument} className="gap-2">
-              <FileText className="size-3.5" />
-              Add document
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={openers.attachFile} className="gap-2">
-              <Paperclip className="size-3.5" />
-              Attach file
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </PropertyRow>
-    </div>
-  );
-}
-
-function PropertyRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="w-20 shrink-0 pt-1 text-xs text-faint-foreground">
-        {label}
-      </span>
-      <div className="flex min-w-0 flex-wrap items-center gap-1">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function RemovableChip({
-  icon,
-  label,
-  onRemove,
-}: {
-  icon: ReactNode;
-  label: string;
-  onRemove: () => void;
-}) {
-  return (
-    <span
-      className={cn(
-        CHIP_BASE,
-        "group cursor-default text-foreground hover:bg-transparent",
-      )}
-    >
-      <ChipIcon>{icon}</ChipIcon>
-      <span className="truncate">{label}</span>
-      <button
-        type="button"
-        aria-label={`Remove ${label}`}
-        onClick={onRemove}
-        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
-      >
-        <X className="size-3" />
-      </button>
-    </span>
+      </dd>
+    </dl>
   );
 }
 
@@ -478,48 +478,31 @@ function ResourceChip({
   external,
   icon,
   label,
-  hoverIcon,
   onRemove,
 }: {
   href: string;
   external?: boolean;
   icon: ReactNode;
   label: string;
-  hoverIcon?: ReactNode;
   onRemove: () => void;
 }) {
-  // `<button>` cannot be a descendant of `<a>` — render the link and the
-  // remove control as siblings inside a flex chip shell.
-  const linkClass = "flex min-w-0 items-center gap-1.5 hover:underline";
+  // `<button>` cannot be a descendant of `<a>` — the link and the remove
+  // control are siblings inside one pill.
   const inner = (
     <>
-      <ChipIcon>{icon}</ChipIcon>
-      <span className="truncate">{label}</span>
-      {hoverIcon ? (
-        <span className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-          {hoverIcon}
-        </span>
-      ) : null}
+      {icon}
+      <span className="trunc">{label}</span>
     </>
   );
   return (
-    <span
-      className={cn(
-        CHIP_BASE,
-        "group max-w-[260px] cursor-default text-foreground hover:bg-transparent",
-      )}
-    >
+    <span className="pillbtn bordered g8-res-chip">
       {external ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={linkClass}
-        >
+        <a href={href} target="_blank" rel="noopener noreferrer" className="g8-res-link">
           {inner}
+          <Gi icon={ExternalLink} size={11} className="g8-res-ext" />
         </a>
       ) : (
-        <Link href={href} className={linkClass}>
+        <Link href={href} className="g8-res-link">
           {inner}
         </Link>
       )}
@@ -527,16 +510,10 @@ function ResourceChip({
         type="button"
         aria-label={`Remove ${label}`}
         onClick={onRemove}
-        className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
+        className="g8-lbl-rm"
       >
-        <X className="size-3" />
+        <Gi icon={X} size={11} />
       </button>
     </span>
-  );
-}
-
-function LabelDot({ color = "slate" }: { color?: EntityColor }) {
-  return (
-    <span className={cn("inline-block size-2 rounded-full", LABEL_DOT[color])} />
   );
 }

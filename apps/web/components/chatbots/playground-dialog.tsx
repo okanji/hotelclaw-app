@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,10 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Chip } from "@/components/ui/chip";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
-import { NativeSelect } from "@/components/ui/native-select";
 import { ChatBubble, ThinkingRow, ToolCallList } from "./chat/primitives";
 
 /**
@@ -138,7 +134,8 @@ export function PlaygroundDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-5xl">
+      {/* Portaled out of the shell — `g8 g8-port` for gr8r classes. */}
+      <DialogContent className="g8 g8-port max-h-[90dvh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Playground — compare configurations</DialogTitle>
           <DialogDescription>
@@ -160,14 +157,16 @@ export function PlaygroundDialog({
         </div>
 
         <form
-          className="flex items-end gap-2"
+          className="row"
+          style={{ alignItems: "flex-end" }}
           onSubmit={(e) => {
             e.preventDefault();
             void send();
           }}
         >
-          <Textarea
+          <textarea
             value={input}
+            aria-label="Message both panes"
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -178,11 +177,12 @@ export function PlaygroundDialog({
             placeholder="Message both panes as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none text-sm shadow-composer focus-visible:shadow-composer-focus"
+            className="textarea grow"
+            style={{ resize: "none", minHeight: 36 }}
           />
-          <Button type="submit" disabled={busy || !input.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={busy || !input.trim()}>
             {busy ? "Running…" : "Send to both"}
-          </Button>
+          </button>
         </form>
       </DialogContent>
     </Dialog>
@@ -200,12 +200,15 @@ function Pane({
 }) {
   const [showInstructions, setShowInstructions] = useState(false);
   return (
-    <div className="flex min-h-[320px] flex-col rounded-lg shadow-ring">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
-        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
-          {pane.label}
-        </span>
-        <NativeSelect
+    <div className="panel flex min-h-[320px] flex-col" style={{ overflow: "hidden" }}>
+      <div
+        className="row"
+        style={{ flexWrap: "wrap", padding: 8, borderBottom: "1px solid var(--g8-border)" }}
+      >
+        <span className="badge gray mono">{pane.label}</span>
+        <select
+          className="select"
+          style={{ width: "auto", height: "var(--g8-h-sm)" }}
           value={pane.modelTier}
           onChange={(e) =>
             onPatch({ modelTier: e.target.value as PaneState["modelTier"] })
@@ -214,29 +217,34 @@ function Pane({
         >
           <option value="standard">Standard (Haiku)</option>
           <option value="advanced">Advanced (Sonnet)</option>
-        </NativeSelect>
-        <Chip
-          size="sm"
-          selected={pane.onlyFromSources}
+        </select>
+        <button
+          type="button"
+          aria-pressed={pane.onlyFromSources}
           onClick={() => onPatch({ onlyFromSources: !pane.onlyFromSources })}
+          className={pane.onlyFromSources ? "btn btn-secondary btn-sm on" : "btn btn-ghost btn-sm"}
+          style={pane.onlyFromSources ? { color: "var(--g8-accent)" } : undefined}
         >
           strict
-        </Chip>
+        </button>
+        <span className="sp" />
         <button
           type="button"
           onClick={() => setShowInstructions((s) => !s)}
-          className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+          className="btn btn-ghost btn-sm"
         >
           {showInstructions ? "Hide instructions" : "Edit instructions"}
         </button>
       </div>
 
       {showInstructions ? (
-        <Textarea
+        <textarea
           value={pane.instructions}
+          aria-label={`Pane ${pane.label} instructions`}
           onChange={(e) => onPatch({ instructions: e.target.value })}
           rows={5}
-          className="m-2 font-mono text-xs"
+          className="textarea mono"
+          style={{ margin: 8, fontSize: 12 }}
         />
       ) : null}
 
@@ -257,7 +265,7 @@ function Pane({
                 {t.content}
               </ChatBubble>
               {t.ms ? (
-                <p className="text-xs text-muted-foreground">{t.ms}ms</p>
+                <p className="hint num" style={{ margin: 0 }}>{t.ms}ms</p>
               ) : null}
             </div>
           ),

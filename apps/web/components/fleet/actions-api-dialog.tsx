@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Gi } from "@/components/gr8r/icon";
 import {
   ACTIONS_MCP_TOOLS,
   ACTIONS_MCP_TOOL_INFO,
@@ -116,68 +115,69 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
   );
 
   return (
-    <div className="flex flex-col gap-5 rounded-lg p-4 shadow-ring">
-      <section className="flex flex-col gap-1.5">
-        <h3 className="text-xs font-medium text-faint-foreground">
-          Endpoint
-        </h3>
-        <button
-          type="button"
-          onClick={() => copy(endpoint, "Endpoint URL")}
-          className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
-          title="Copy"
-        >
-          <span className="truncate">{endpoint}</span>
-          <Copy className="size-3.5 shrink-0 text-muted-foreground" />
-        </button>
-        <p className="text-xs text-muted-foreground">
-          Streamable HTTP MCP. Send the key as{" "}
-          <code className="font-mono">Authorization: Bearer hc_…</code> — each
-          key can call only the tools granted below, and money-moving steps
-          inside workflows still park for human approval.
-        </p>
+    <div className="stack">
+      <section className="panel">
+        <div className="panel-h">
+          <h2>Endpoint</h2>
+        </div>
+        <div className="panel-b">
+          <button
+            type="button"
+            onClick={() => copy(endpoint, "Endpoint URL")}
+            className="input mono row"
+            style={{ width: "100%", justifyContent: "space-between", cursor: "pointer", fontSize: "var(--g8-fs-xs)" }}
+            title="Copy"
+          >
+            <span className="trunc">{endpoint}</span>
+            <Gi icon={Copy} size={13} />
+          </button>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: "var(--g8-fs-xs)" }}>
+            Streamable HTTP MCP. Send the key as{" "}
+            <code className="mono">Authorization: Bearer hc_…</code> — each
+            key can call only the tools granted below, and money-moving steps
+            inside workflows still park for human approval.
+          </p>
+        </div>
       </section>
 
       {freshToken ? (
-        <section className="flex flex-col gap-1.5 rounded-card bg-success/10 p-3">
-          <p className="text-xs font-medium text-foreground">
-            Key created — copy it now, it won&apos;t be shown again.
-          </p>
-          <button
-            type="button"
-            onClick={() => copy(freshToken, "Key")}
-            className="flex cursor-pointer items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
-          >
-            <span className="truncate">{freshToken}</span>
-            <Copy className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
-        </section>
+        <div className="alert ok">
+          <Gi icon={KeyRound} size={15} />
+          <div className="grow" style={{ minWidth: 0 }}>
+            <b>Key created — copy it now, it won&apos;t be shown again.</b>
+            <button
+              type="button"
+              onClick={() => copy(freshToken, "Key")}
+              className="input mono row"
+              style={{ width: "100%", marginTop: 6, justifyContent: "space-between", cursor: "pointer", fontSize: "var(--g8-fs-xs)" }}
+            >
+              <span className="trunc">{freshToken}</span>
+              <Gi icon={Copy} size={13} />
+            </button>
+          </div>
+        </div>
       ) : null}
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-faint-foreground">
-          Keys
-        </h3>
+      <section className="panel">
+        <div className="panel-h">
+          <h2>Keys</h2>
+          <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>{actionKeys.length}</span>
+        </div>
         {actionKeys.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border">
+          <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {actionKeys.map((t) => (
-              <li key={t.id} className="flex items-center gap-3 py-2">
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="truncate text-sm text-foreground">
-                    {t.name}
-                  </span>
-                  <span className="flex flex-wrap gap-1">
+              <li key={t.id} className="mini" style={{ cursor: "default", padding: "8px 14px", alignItems: "flex-start" }}>
+                <span className="grow col" style={{ minWidth: 0, gap: 4 }}>
+                  <span className="trunc" style={{ fontWeight: 500 }}>{t.name}</span>
+                  <span className="row" style={{ flexWrap: "wrap", gap: 4 }}>
                     {(t.allowed_tools ?? []).map((tool) => (
-                      <span
-                        key={tool}
-                        className="rounded-md px-1.5 py-px font-mono text-xs text-muted-foreground bg-muted"
-                      >
+                      <span key={tool} className="badge mono">
                         {tool}
                       </span>
                     ))}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="due">
                   {t.last_used_at
                     ? `used ${new Date(t.last_used_at).toLocaleDateString()}`
                     : "never used"}
@@ -186,15 +186,15 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
                   type="button"
                   aria-label={`Revoke ${t.name}`}
                   onClick={() => void revoke(t.id)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="ibtn ibtn-xs"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Gi icon={Trash2} size={13} />
                 </button>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No action keys.</p>
+          <p className="muted panel-b" style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}>No action keys.</p>
         )}
 
         <form
@@ -202,44 +202,50 @@ export function ActionsApiKeys({ propertyId }: { propertyId: string }) {
             e.preventDefault();
             void create();
           }}
-          className="flex flex-col gap-3"
+          className="panel-b flex flex-col gap-3"
+          style={{ borderTop: "1px solid var(--g8-divider)", paddingTop: 14 }}
         >
-          <div className="flex flex-wrap gap-1.5">
-            {ACTIONS_MCP_TOOLS.map((tool) => (
-              <Chip
-                key={tool}
-                size="sm"
-                selected={grants.has(tool)}
-                onClick={() => toggleGrant(tool)}
-                title={ACTIONS_MCP_TOOL_INFO[tool].description}
-              >
-                {tool}
-                {ACTIONS_MCP_TOOL_INFO[tool].write ? " ✎" : ""}
-              </Chip>
-            ))}
+          <div className="label">New key — grant tools</div>
+          <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+            {ACTIONS_MCP_TOOLS.map((tool) => {
+              const on = grants.has(tool);
+              return (
+                <button
+                  key={tool}
+                  type="button"
+                  aria-pressed={on}
+                  className={on ? "chip mono" : "btn btn-secondary btn-sm mono"}
+                  style={on ? { padding: "0 8px" } : undefined}
+                  onClick={() => toggleGrant(tool)}
+                  title={ACTIONS_MCP_TOOL_INFO[tool].description}
+                >
+                  {tool}
+                  {ACTIONS_MCP_TOOL_INFO[tool].write ? " ✎" : ""}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="row" style={{ gap: 8 }}>
             <input
               value={name}
               name="keyName"
               aria-label="Key name"
               onChange={(e) => setName(e.target.value)}
               placeholder="Key name (e.g. Zapier)"
-              className="h-8 flex-1 rounded-md bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:shadow-focus shadow-ring"
+              className="input grow"
             />
-            <Button
+            <button
               type="submit"
-              size="sm"
-              variant="outline"
+              className="btn btn-primary"
               disabled={creating || name.trim().length === 0 || grants.size === 0}
             >
               {creating ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Plus className="size-4" />
+                <Gi icon={Plus} size={14} />
               )}
               Create
-            </Button>
+            </button>
           </div>
         </form>
       </section>

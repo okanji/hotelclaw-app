@@ -1,13 +1,13 @@
 "use client";
 
 import { File, MessageSquare, Pin, Plus, StickyNote } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import { FilesPopover } from "@/components/chat/files/files-popover";
 import { useInfoPanel } from "@/components/chat/info-panel/context";
 
 /**
- * Slack-style tab strip directly under the channel header.
+ * Tab strip directly under the channel topbar, in gr8r's `.tabs` / `.tab`
+ * vocabulary (2px ink underline on the active tab), on the content gutter.
  * Messages is the active tab; Files hover-previews + opens the info panel
  * on the Files tab when clicked. Canvas/Pins/+ are still scaffolding.
  */
@@ -22,23 +22,23 @@ export function ChannelTabs() {
   return (
     <nav
       aria-label="Channel views"
-      className="flex h-[42px] shrink-0 items-center gap-0.5 border-b border-border px-3"
+      className="tabs"
+      style={{ flexShrink: 0, padding: "0 var(--g8-gutter)", background: "var(--g8-surface)" }}
     >
-      <TabButton active label="Messages" icon={<MessageSquare />} />
-      <TabButton label="Canvas" icon={<StickyNote />} />
+      <TabButton active label="Messages" icon={MessageSquare} />
+      <TabButton label="Canvas" icon={StickyNote} />
       <FilesPopover onClick={openFilesPanel}>
-        <TabButton label="Files" icon={<File />} />
+        <TabButton label="Files" icon={File} />
       </FilesPopover>
-      <TabButton label="Pins" icon={<Pin />} />
-      <Button
+      <TabButton label="Pins" icon={Pin} />
+      <button
         type="button"
-        variant="ghost"
-        size="icon-sm"
+        className="ibtn ibtn-xs"
         aria-label="Add tab"
-        className="ml-0.5 text-muted-foreground"
+        style={{ alignSelf: "center", marginLeft: 2 }}
       >
-        <Plus className="size-3.5" />
-      </Button>
+        <Gi icon={Plus} size={13} />
+      </button>
     </nav>
   );
 }
@@ -51,28 +51,17 @@ function TabButton({
 }: {
   active?: boolean;
   label: string;
-  icon: React.ReactNode;
+  icon: typeof File;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
-      className={cn(
-        "relative inline-flex h-full items-center gap-1.5 rounded-md px-2 !text-sm !leading-none font-medium transition-colors",
-        active
-          ? "text-foreground"
-          : "text-muted-foreground hover:bg-accent",
-      )}
+      className={active ? "tab on" : "tab"}
       aria-current={active ? "page" : undefined}
       {...rest}
     >
-      <span className="[&_svg]:size-[15px]">{icon}</span>
+      <Gi icon={icon} size={14} />
       <span>{label}</span>
-      {active ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-x-2 -bottom-px h-[2px] rounded-t-sm bg-brand-accent"
-        />
-      ) : null}
     </button>
   );
 }

@@ -8,14 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
  * route transition show the same shape — no layout shift when content lands.
  *
  * The message rows mirror SlackMessageUI's metrics exactly (see
- * app/stream-chat-overrides.css): a 36px / 8px-radius avatar, a 10px gap to
+ * app/stream-chat-overrides.css): a 32px round avatar (gr8r `.av`), a 10px gap to
  * the content column, and 22px of breathing room from the left edge. Rows are
  * grouped into Slack-style clusters — a lead row with an avatar + name,
  * followed by tight continuation rows that keep the avatar gutter empty.
  */
 
-// Avatar column: 36px avatar (`size-9`) + 10px gap (`gap-2.5`), 22px from the
-// left edge (`pl-5.5`). Continuation rows reuse `size-9` as an empty spacer so
+// Avatar column: 32px avatar (`size-8`) + 10px gap (`gap-2.5`), 22px from the
+// left edge (`pl-5.5`). Continuation rows reuse `size-8` as an empty spacer so
 // their text aligns under the lead row, exactly like SlackMessageUI.
 const ROW_FRAME = "flex gap-2.5 pl-5.5 pr-4";
 
@@ -63,9 +63,9 @@ function MessageRow({
   return (
     <div className={ROW_FRAME}>
       {name ? (
-        <Skeleton className="size-9 shrink-0 rounded-lg" />
+        <Skeleton className="size-8 shrink-0 rounded-full" />
       ) : (
-        <div className="size-9 shrink-0" />
+        <div className="size-8 shrink-0" />
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
         {name ? (
@@ -89,22 +89,19 @@ export function ChannelSkeleton() {
       aria-busy="true"
       aria-live="polite"
     >
-      {/* Header — mirrors channel-header (h-14, px-3). */}
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Skeleton className="size-7 shrink-0 rounded-md" />
-          <Skeleton className="size-4.5 shrink-0 rounded-sm" />
-          <Skeleton className="h-4 w-44" />
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Skeleton className="size-9 rounded-md" />
-          <Skeleton className="size-9 rounded-md" />
-          <Skeleton className="size-9 rounded-md" />
-        </div>
+      {/* Header — mirrors channel-header (the gr8r `.topbar`). */}
+      <header className="topbar">
+        <Skeleton className="h-3 w-10" />
+        <Skeleton className="size-3.5 shrink-0 rounded-sm" />
+        <Skeleton className="h-3.5 w-40" />
+        <span className="sp" />
+        <Skeleton className="size-7 rounded-md" />
+        <Skeleton className="size-7 rounded-md" />
+        <Skeleton className="size-7 rounded-md" />
       </header>
 
-      {/* Tab strip — mirrors channel-tabs (h-10.5 = 42px, border-b). */}
-      <div className="flex h-10.5 shrink-0 items-center gap-3 border-b border-border px-3">
+      {/* Tab strip — mirrors channel-tabs (gr8r `.tabs`, 36px, border-b). */}
+      <div className="flex h-9 shrink-0 items-center gap-4 border-b border-border px-(--g8-gutter)">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-14" />

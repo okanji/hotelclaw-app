@@ -82,7 +82,7 @@ export function NewAgentDialog({
           <Textarea
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            placeholder="What should it do? e.g. Help the duty manager spot risks across tasks and tonight's bookings."
+            placeholder="What should it do? e.g. Help the duty manager spot risks across tasks and tonight's meetings."
             rows={3}
             maxLength={300}
           />

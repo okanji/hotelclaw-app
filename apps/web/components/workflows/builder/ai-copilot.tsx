@@ -9,13 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Chip } from "@/components/ui/chip";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
+import { Gi } from "@/components/gr8r/icon";
 import { Kbd } from "@/components/ui/kbd";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 
@@ -244,7 +238,7 @@ export function AiCopilot({
       ) : null}
 
       {transcript.length > 0 && (
-        <div className="max-h-72 space-y-2 overflow-y-auto rounded-md bg-muted p-3">
+        <div className="panel stack" style={{ maxHeight: 288, overflowY: "auto", padding: 10, gap: 8 }}>
           {transcript.map((t, i) => (
             <TranscriptRow
               key={i}
@@ -261,58 +255,49 @@ export function AiCopilot({
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <InputGroup
-          className={cn(
-            "overflow-hidden bg-card shadow-composer has-[[data-slot=input-group-control]:focus-visible]:shadow-composer-focus",
-            busy && "opacity-80",
-          )}
-        >
-          <InputGroupTextarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (canSubmit) void send();
-              }
-            }}
-            placeholder={
-              busy
-                ? "Building your workflow…"
-                : currentSpec
-                  ? "Make a change — e.g. ‘also wait 30 minutes before posting’"
-                  : "Describe what you want — e.g. ‘when a task labeled guest-complaint is created, summarize it and assign to the manager’"
+      {/* gr8r `.composer` (the accent-ringed input card). */}
+      <form onSubmit={handleSubmit} className="composer" style={{ boxShadow: "var(--g8-shadow-pop)", opacity: busy ? 0.8 : undefined }}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (canSubmit) void send();
             }
-            rows={2}
-            disabled={busy}
-            className="field-sizing-content max-h-48 min-h-16 text-sm"
-          />
-          <InputGroupAddon align="block-end" className="gap-2">
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Sparkles className="size-3 text-primary-ink" aria-hidden />
-              Build with AI
+          }}
+          aria-label="Describe the workflow"
+          placeholder={
+            busy
+              ? "Building your workflow…"
+              : currentSpec
+                ? "Make a change — e.g. ‘also wait 30 minutes before posting’"
+                : "Describe what you want — e.g. ‘when a task labeled guest-complaint is created, summarize it and assign to the manager’"
+          }
+          rows={2}
+          disabled={busy}
+          className="field-sizing-content max-h-48 min-h-16"
+        />
+        <div className="row" style={{ gap: 8 }}>
+          <span className="row muted" style={{ gap: 5, fontSize: 12, fontWeight: 500 }}>
+            <span style={{ color: "var(--g8-accent)", display: "inline-flex" }}>
+              <Gi icon={Sparkles} size={13} />
             </span>
-            <span className="ml-auto inline-flex items-center gap-2">
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                <Kbd>⏎</Kbd> to send · <Kbd>⇧⏎</Kbd> new line
-              </span>
-              <InputGroupButton
-                type="submit"
-                disabled={!canSubmit}
-                size="icon-sm"
-                variant="default"
-                aria-label={busy ? "Working" : "Send"}
-              >
-                {busy ? (
-                  <Square className="size-3.5 opacity-50" aria-hidden />
-                ) : (
-                  <CornerDownLeft className="size-3.5" aria-hidden />
-                )}
-              </InputGroupButton>
-            </span>
-          </InputGroupAddon>
-        </InputGroup>
+            Build with AI
+          </span>
+          <span className="sp" />
+          <span className="faint hidden sm:inline" style={{ fontSize: 12 }}>
+            <Kbd>⏎</Kbd> to send · <Kbd>⇧⏎</Kbd> new line
+          </span>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="btn btn-primary btn-sm"
+            aria-label={busy ? "Working" : "Send"}
+          >
+            {busy ? <Gi icon={Square} size={14} /> : <Gi icon={CornerDownLeft} size={14} />}
+          </button>
+        </div>
       </form>
     </section>
   );
@@ -324,21 +309,18 @@ export function AiCopilotLoadingPanel({ phase }: { phase: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="rounded-md bg-muted px-4 py-3"
+      className="alert info"
     >
-      <div className="flex items-start gap-3">
-        <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
-          <Sparkles className="size-4 text-primary-ink animate-pulse" aria-hidden />
-          <span className="absolute inset-0 animate-ping rounded-full ring-1 ring-primary/30 opacity-40" />
+      <span style={{ color: "var(--g8-accent)", display: "inline-flex" }} className="animate-pulse">
+        <Gi icon={Sparkles} size={16} />
+      </span>
+      <div className="stack grow" style={{ gap: 6 }}>
+        <b>Building workflow with AI</b>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {phase}
         </span>
-        <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-sm font-medium text-foreground">Building workflow with AI</p>
-          <p className="text-xs text-muted-foreground transition-opacity duration-300">
-            {phase}
-          </p>
-          <div className="h-1 overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-2/5 animate-pulse rounded-full bg-primary/60" />
-          </div>
+        <div className="meter">
+          <i className="animate-pulse" style={{ width: "40%" }} />
         </div>
       </div>
     </div>
@@ -360,53 +342,64 @@ function TranscriptRow({
 }) {
   if (turn.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] rounded-md bg-background px-3 py-2 text-sm text-foreground">
+      <div
+        style={{
+          marginLeft: "auto",
+          maxWidth: "85%",
+          borderRadius: "var(--g8-r)",
+          background: "var(--g8-surface-3)",
+          padding: "6px 10px",
+          fontSize: 13,
+        }}
+      >
         {turn.content}
       </div>
     );
   }
   if (turn.role === "system") {
     return (
-      <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-        <MessageCircleQuestion className="size-3.5 shrink-0 mt-0.5" aria-hidden />
+      <div className="alert danger" style={{ fontSize: 12 }}>
+        <Gi icon={MessageCircleQuestion} size={14} />
         <span>{turn.content}</span>
       </div>
     );
   }
   return (
-    <div className="rounded-md bg-muted px-3 py-2 text-sm text-foreground">
-      <div className="flex items-start gap-2">
-        <Sparkles className="size-3.5 shrink-0 mt-0.5 text-primary-ink" aria-hidden />
+    <div style={{ fontSize: 13 }}>
+      <div className="row" style={{ alignItems: "flex-start", gap: 8 }}>
+        <span style={{ color: "var(--g8-accent)", display: "inline-flex", marginTop: 2 }}>
+          <Gi icon={Sparkles} size={14} />
+        </span>
         <span className="whitespace-pre-wrap">{turn.content}</span>
       </div>
       {turn.suggestions && turn.suggestions.length > 0 && onPickSuggestion ? (
-        <div className="mt-2 flex flex-wrap gap-1.5 pl-6">
+        <div className="row" style={{ marginTop: 8, flexWrap: "wrap", gap: 6, paddingLeft: 22 }}>
           {turn.suggestions.map((s) => (
-            <Chip
+            <button
               key={s}
-              size="sm"
+              type="button"
               onClick={() => onPickSuggestion(s)}
-              className="bg-background font-medium text-foreground hover:bg-accent"
+              className="btn btn-secondary btn-sm"
             >
               {s}
-            </Chip>
+            </button>
           ))}
         </div>
       ) : null}
       {turn.entityProposal && onCreateEntity ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
+        <div className="row" style={{ marginTop: 8, flexWrap: "wrap", gap: 8, paddingLeft: 22 }}>
           <button
             type="button"
             disabled={actionsDisabled || creatingEntity === turn.entityProposal.name}
             onClick={() => onCreateEntity(turn.entityProposal!)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="btn btn-primary btn-sm"
           >
-            <Sparkles className="size-3" aria-hidden />
+            <Gi icon={Sparkles} size={13} />
             {creatingEntity === turn.entityProposal.name
               ? "Creating…"
               : `Create “${turn.entityProposal.display_name}” record type`}
           </button>
-          <span className="text-xs text-muted-foreground">then I’ll finish the workflow</span>
+          <span className="faint" style={{ fontSize: 12 }}>then I’ll finish the workflow</span>
         </div>
       ) : null}
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, Sparkles } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -147,8 +148,8 @@ export function AiEditPopover({ shared }: { shared: BuilderShared }) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant="outline" size="sm" />}>
-        <Sparkles data-slot="icon" />
+      <PopoverTrigger render={<button type="button" className="btn btn-secondary btn-sm" />}>
+        <Gi icon={Sparkles} size={13} />
         Edit with AI
       </PopoverTrigger>
       <PopoverContent align="end" className={cn("space-y-2", reviewing ? "w-96" : "w-80")}>

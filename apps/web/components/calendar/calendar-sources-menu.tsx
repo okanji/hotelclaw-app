@@ -12,14 +12,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Gi } from "@/components/gr8r/icon";
+import { g8c } from "@/components/gr8r/calendar-glyphs";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { calendarSourcesQueryOptions } from "@/lib/calendar/query-options";
 import type { ConnectionRow } from "@/lib/calendar/types";
 import { useCalendarPrefs } from "./calendar-prefs-context";
@@ -32,7 +31,7 @@ const PROVIDER_LABEL = {
 
 /**
  * Toolbar "Calendars" popover — the show/hide checklist of every source
- * (meetings, tasks, bookings, each connected external calendar) plus the
+ * (meetings, tasks, each connected external calendar) plus the
  * connected accounts and Connect Google / Outlook. It used to be the
  * calendar sidebar body, which the one-tree shell hides behind the row's
  * chevron; page controls belong on the page. Toggling writes the client-side
@@ -109,128 +108,116 @@ export function CalendarSourcesMenu({ propertyId }: { propertyId: string }) {
     qc.invalidateQueries({ queryKey: ["calendar-events", propertyId] });
   }
 
+  // gr8r chrome: a `.btn-ghost` toolbar trigger and a menu of `.mh`
+  // headings, `.mi` rows (`.check` boxes, colour dots) and `.msep` rules.
+  // The popup portals out of the shell, so it carries `g8 g8-port` itself.
   return (
     <Popover>
       <PopoverTrigger
         render={
-          <Button variant="outline" size="sm" aria-label="Calendars">
-            <Layers className="size-4" />
+          <button type="button" className="btn btn-ghost" aria-label="Calendars">
+            <Gi icon={Layers} size={14} />
             Calendars
             {hiddenCount > 0 ? (
-              <span className="text-xs text-faint-foreground tabular-nums">
+              <span className="faint num">
                 {sources.length - hiddenCount}/{sources.length}
               </span>
             ) : null}
-            <ChevronDown className="size-3.5 text-faint-foreground" />
-          </Button>
+            <Gi icon={ChevronDown} size={13} />
+          </button>
         }
       />
-      <PopoverContent align="end" className="w-80 gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="px-1 text-xs leading-3 font-medium text-faint-foreground">
-            Show on calendar
-          </span>
-          {sources.length === 0 ? (
-            <span className="px-1 py-1.5 text-sm text-muted-foreground">
-              {sourcesQuery.isPending ? "Loading…" : "No calendars"}
-            </span>
-          ) : null}
-          {sources.map((s) => {
-            const shown = !hiddenSources.has(s.id);
-            return (
-              <label
-                key={s.id}
-                title={s.account_email ?? s.name}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 hover:bg-accent"
-              >
-                <Checkbox
-                  checked={shown}
-                  onCheckedChange={() => toggleSource(s.id)}
-                />
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-2.5 shrink-0 rounded-full",
-                    !shown && "opacity-30",
-                  )}
-                  // Source colours are provider/user data, not theme tokens.
-                  style={{
-                    backgroundColor: s.color ? `#${s.color}` : undefined,
-                  }}
-                />
-                <span
-                  className={cn(
-                    "truncate text-sm",
-                    !shown && "text-muted-foreground",
-                  )}
-                >
-                  {s.name}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-col gap-1 border-t border-border pt-2.5">
-          <span className="px-1 text-xs leading-3 font-medium text-faint-foreground">
-            Accounts
-          </span>
-          {connections.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-2 rounded-md px-1 py-1.5"
+      <PopoverContent align="end" className="g8 g8-port w-80 gap-0 p-1">
+        <div className="mh">Show on calendar</div>
+        {sources.length === 0 ? (
+          <div className="mi faint" style={{ cursor: "default" }}>
+            {sourcesQuery.isPending ? "Loading…" : "No calendars"}
+          </div>
+        ) : null}
+        {sources.map((s) => {
+          const shown = !hiddenSources.has(s.id);
+          return (
+            <label
+              key={s.id}
+              title={s.account_email ?? s.name}
+              className="mi"
+              style={{ cursor: "pointer" }}
             >
-              {c.last_sync_error ? (
-                <CircleAlert className="size-4 shrink-0 text-warning" />
-              ) : (
-                <CheckCircle2 className="size-4 shrink-0 text-success" />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-secondary-ink">
-                  {c.account_email}
-                </div>
-                <div className="truncate text-xs text-faint-foreground">
-                  {PROVIDER_LABEL[c.provider]}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => disconnect(c)}
-                aria-label={`Disconnect ${c.account_email}`}
-                title="Disconnect"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-          ))}
-          <ConnectButton
-            provider="google"
-            connected={hasGoogle}
-            busy={connecting === "google"}
-            onClick={() => startConnect("google")}
-          />
-          <ConnectButton
-            provider="microsoft"
-            connected={hasMicrosoft}
-            busy={connecting === "microsoft"}
-            onClick={() => startConnect("microsoft")}
-          />
-          {connections.length > 0 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={refreshAll}
-              disabled={refreshing}
-              className="justify-start"
-            >
-              <RefreshCw
-                className={cn("size-4", refreshing && "animate-spin")}
+              <input
+                type="checkbox"
+                className="check"
+                checked={shown}
+                onChange={() => toggleSource(s.id)}
               />
-              {refreshing ? "Refreshing…" : "Refresh now"}
-            </Button>
-          ) : null}
-        </div>
+              <span
+                aria-hidden
+                className="pdot"
+                // Source colours are provider/user data, not theme tokens.
+                style={g8c(s.color ? `#${s.color}` : "var(--g8-gray)", {
+                  borderRadius: "50%",
+                  opacity: shown ? 1 : 0.3,
+                })}
+              />
+              <span className={shown ? "trunc" : "trunc faint"}>{s.name}</span>
+            </label>
+          );
+        })}
+
+        <div className="msep" />
+        <div className="mh">Accounts</div>
+        {connections.map((c) => (
+          <div key={c.id} className="mi" style={{ minHeight: 40 }}>
+            {c.last_sync_error ? (
+              <span style={{ color: "var(--g8-amber)", display: "flex" }}>
+                <Gi icon={CircleAlert} size={15} />
+              </span>
+            ) : (
+              <span style={{ color: "var(--g8-green)", display: "flex" }}>
+                <Gi icon={CheckCircle2} size={15} />
+              </span>
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block trunc">{c.account_email}</span>
+              <span className="mi-sub trunc">{PROVIDER_LABEL[c.provider]}</span>
+            </span>
+            <button
+              type="button"
+              className="ibtn ibtn-xs"
+              onClick={() => disconnect(c)}
+              aria-label={`Disconnect ${c.account_email}`}
+              title="Disconnect"
+            >
+              <Gi icon={Trash2} size={13} />
+            </button>
+          </div>
+        ))}
+        <ConnectButton
+          provider="google"
+          connected={hasGoogle}
+          busy={connecting === "google"}
+          onClick={() => startConnect("google")}
+        />
+        <ConnectButton
+          provider="microsoft"
+          connected={hasMicrosoft}
+          busy={connecting === "microsoft"}
+          onClick={() => startConnect("microsoft")}
+        />
+        {connections.length > 0 ? (
+          <button
+            type="button"
+            className="mi"
+            onClick={refreshAll}
+            disabled={refreshing}
+          >
+            <Gi
+              icon={RefreshCw}
+              size={14}
+              className={refreshing ? "animate-spin" : undefined}
+            />
+            {refreshing ? "Refreshing…" : "Refresh now"}
+          </button>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
@@ -248,19 +235,13 @@ function ConnectButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="justify-start gap-2"
-      onClick={onClick}
-      disabled={busy}
-    >
-      <Plus className="size-4" />
-      <span className="truncate text-left">
+    <button type="button" className="mi" onClick={onClick} disabled={busy}>
+      <Gi icon={Plus} size={14} />
+      <span className="trunc">
         {connected
           ? `Add another ${PROVIDER_LABEL[provider]}`
           : `Connect ${PROVIDER_LABEL[provider]}`}
       </span>
-    </Button>
+    </button>
   );
 }

@@ -5,13 +5,16 @@ import Link from "next/link";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { FileText, GripVertical, Search, Table2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { EmptyState } from "@/components/ui/empty-state";
-import { PageShell } from "@/components/ui/page-shell";
+import type { CSSProperties } from "react";
+import {
+  FileText,
+  FolderOpen,
+  GripVertical,
+  SearchX,
+  Table2,
+} from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { PageHeader } from "@/components/shell/page-header";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 import {
@@ -30,6 +33,7 @@ import { useDocsHomePresence } from "./docs-home-presence";
 import {
   DEFAULT_DIRECTORY_VIEW,
   DirectoryToolbar,
+  type DirectoryLayout,
   type DirectorySort,
   type DirectoryView,
   type TeamOption,
@@ -44,6 +48,9 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 200;
 const MIN_QUERY_CHARS = 2;
 const PREVIEW_CHARS = 160;
+const LAYOUT_KEY = "hotelclaw:docs-layout";
+
+type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 
 /**
  * Documents section home — the Directory.
@@ -127,6 +134,7 @@ function Directory({
   const { data: tree = [] } = useQuery(documentsTreeQueryOptions(propertyId));
 
   const [view, setView] = useState<DirectoryView>(DEFAULT_DIRECTORY_VIEW);
+  const [layout, setLayout] = useDirectoryLayout();
   const patchView = (next: Partial<DirectoryView>) =>
     setView((v) => ({ ...v, ...next }));
 
@@ -261,29 +269,30 @@ function Directory({
       <PageHeader
         title="Docs"
         icon={<FileText />}
-        meta={
-          isPending ? undefined : (
-            <span className="tabular-nums">
-              {docsList.length} in the library · {boards.length} on boards ·{" "}
-              {editsThisWeek} edited this week
-            </span>
-          )
-        }
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="row" style={{ gap: 6 }}>
             <AutomationsButton propertyId={propertyId} feature="docs" />
             <DocsActivitySheet propertyId={propertyId} />
           </div>
         }
       />
-      {/* No top padding on this scroller: a sticky child's offset is measured
-          from the scroll container's CONTENT box, so a `pt-*` here would park
-          the sticky toolbar below the pane top and let rows scroll through
-          the gap above it (measured). The toolbar carries its own py-3.
-          ONE width for the whole Directory: `PageShell` owns it, and every
-          element from the toolbar to the last row shares its edge. */}
-      <div className="min-h-0 flex-1 overflow-y-auto pb-16">
-        <PageShell width="full" className="flex flex-col">
+      {/* gr8r's Files view (src/views/files.js) as the Directory: `.page.wide`
+          → `.ph` → a sticky control row → boards shelf → the list (`.panel` of
+          `.mini` rows) or the grid (`.fgrid` of `.fcard`s). No top padding on
+          the scroller — a sticky child's offset is measured from the scroll
+          container's CONTENT box. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph">
+            <div>
+              <h1>Docs</h1>
+              <p>
+                {isPending
+                  ? "Everything your team is writing."
+                  : `${docsList.length} in the library · ${boards.length} on boards · ${editsThisWeek} edited this week`}
+              </p>
+            </div>
+          </div>
           {isEmptyProperty ? (
             <EmptyDirectory propertyId={propertyId} onGenerate={onGenerate} />
           ) : (
@@ -296,23 +305,25 @@ function Directory({
                 generalCount={generalCount}
                 onGenerate={onGenerate}
                 resultCount={searching ? shown.length : null}
+                layout={layout}
+                onLayout={setLayout}
               />
 
               {docsError ? (
-                <p className="mb-6 text-sm text-destructive">
+                <div className="alert danger" style={{ marginBottom: 16 }}>
                   Could not load documents. Try refreshing the page.
-                </p>
+                </div>
               ) : null}
 
               {/* Boards are a curated shelf, not a search surface — while the
                   user is looking for something specific they're just noise. */}
               {searching ? null : (
-                <div className="mb-10">
+                <div style={{ marginBottom: 28 }}>
                   <DocBoardsSection propertyId={propertyId} />
                 </div>
               )}
 
-              <UnpinZone id="unpin-zone:directory" className="rounded-md">
+              <UnpinZone id="unpin-zone:directory">
                 {isPending ? (
                   <ListSkeleton />
                 ) : shown.length === 0 ? (
@@ -324,27 +335,45 @@ function Directory({
                     }
                   />
                 ) : (
-                  <div className="flex flex-col gap-8">
+                  <div className="col" style={{ gap: 20 }}>
                     {groups.map((g) => (
                       <section key={g.label ?? "_all"}>
                         {g.label ? (
-                          <div className="mb-1 flex items-baseline justify-between gap-3 px-2">
-                            <Eyebrow>{g.label}</Eyebrow>
-                            <span className="text-xs text-faint-foreground tabular-nums">
+                          <div
+                            className="row"
+                            style={{ marginBottom: 8, padding: "0 2px" }}
+                          >
+                            <h2 className="sec">{g.label}</h2>
+                            <span className="faint num" style={{ fontSize: 12 }}>
                               {g.items.length}
                             </span>
                           </div>
                         ) : null}
-                        <ul role="list" className="flex flex-col">
-                          {g.items.map((r) => (
-                            <DocumentRow
-                              key={r.id}
-                              propertyId={propertyId}
-                              row={r}
-                              tokens={queryTokens}
-                            />
-                          ))}
-                        </ul>
+                        {layout === "grid" ? (
+                          <ul role="list" className="fgrid">
+                            {g.items.map((r) => (
+                              <DocumentRow
+                                key={r.id}
+                                propertyId={propertyId}
+                                row={r}
+                                tokens={queryTokens}
+                                layout="grid"
+                              />
+                            ))}
+                          </ul>
+                        ) : (
+                          <ul role="list" className="panel">
+                            {g.items.map((r) => (
+                              <DocumentRow
+                                key={r.id}
+                                propertyId={propertyId}
+                                row={r}
+                                tokens={queryTokens}
+                                layout="list"
+                              />
+                            ))}
+                          </ul>
+                        )}
                       </section>
                     ))}
                   </div>
@@ -352,7 +381,7 @@ function Directory({
               </UnpinZone>
             </>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -366,10 +395,12 @@ function DocumentRow({
   propertyId,
   row,
   tokens,
+  layout,
 }: {
   propertyId: string;
   row: DirectoryRow;
   tokens: string[];
+  layout: DirectoryLayout;
 }) {
   const openDocument = useOpenDocument(propertyId);
   const prewarm = usePrewarmDocument(propertyId);
@@ -390,7 +421,9 @@ function DocumentRow({
       data: { type: "doc", documentId: row.id },
     });
 
-  const Icon = row.kind === "sheet" ? Table2 : FileText;
+  const sheet = row.kind === "sheet";
+  const Icon = sheet ? Table2 : FileText;
+  const tint = { "--g8-c": sheet ? "var(--g8-green)" : "var(--g8-accent)" } as CSSVars;
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -398,64 +431,114 @@ function DocumentRow({
     openDocument(row.id);
   }
 
-  return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
-      className={cn("group/row relative", isDragging && "opacity-40")}
+  const grip = (
+    <span
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      aria-label="Drag to pin to a board"
+      title="Drag to pin to a board"
+      className="ibtn ibtn-xs g8-doc-grip"
     >
+      <Gi icon={GripVertical} size={13} />
+    </span>
+  );
+
+  const liStyle = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.4 : undefined,
+    listStyle: "none",
+  };
+
+  if (layout === "grid") {
+    return (
+      <li ref={setNodeRef} style={liStyle} className="fcard g8-doc-card">
+        <Link
+          href={documentHref(propertyId, row.id)}
+          onClick={handleClick}
+          onMouseEnter={() => prewarm(row.id)}
+          draggable={false}
+          style={{ color: "inherit", textDecoration: "none", display: "block" }}
+        >
+          {/* gr8r's `filePrev`: a paper "art" sheet with grey text bars, and
+              the body's real first words where we have them. */}
+          <div className="fprev" style={tint}>
+            <div className="art">
+              <i className="h" />
+              {row.preview ? (
+                <span className="g8-doc-snip">
+                  {highlight(row.preview, tokens)}
+                </span>
+              ) : (
+                <>
+                  <i />
+                  <i style={{ width: "85%" }} />
+                  <i style={{ width: "70%" }} />
+                </>
+              )}
+            </div>
+            <span className="ext">{sheet ? "sheet" : "doc"}</span>
+          </div>
+          <div className="fi">
+            <span className="fn trunc">{row.title || "Untitled"}</span>
+            <span className="row" style={{ gap: 6 }}>
+              <span className="fm trunc grow">
+                {[editorName?.split(" ")[0], formatRelativeShort(row.updated_at)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              <DocumentViewerAvatarStack users={viewers} size={16} />
+            </span>
+          </div>
+        </Link>
+        <span className="more" style={{ boxShadow: "none", background: "transparent" }}>
+          {grip}
+        </span>
+      </li>
+    );
+  }
+
+  return (
+    <li ref={setNodeRef} style={liStyle} className="g8-doc-li">
       <Link
         href={documentHref(propertyId, row.id)}
         onClick={handleClick}
         onMouseEnter={() => prewarm(row.id)}
         draggable={false}
-        className="flex min-h-[37px] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+        className="mini g8-doc-row"
+        style={{ minHeight: 44, gap: 12, color: "inherit", textDecoration: "none" }}
       >
-        {/* The type icon IS the row's left edge — a list where every row leads
-            with an identical drag grip has no scannable edge at all, and a
-            spreadsheet becomes indistinguishable from a document. The grip
-            takes the icon's place on hover, so dragging still works without
-            costing the list its texture. */}
-        <span className="relative flex size-4 shrink-0 items-center justify-center">
-          <Icon
-            strokeWidth={1.5}
-            aria-hidden="true"
-            className="size-4 text-faint-foreground transition-opacity group-hover/row:opacity-0"
-          />
-          <span
-            {...attributes}
-            {...listeners}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            aria-label="Drag to pin to a board"
-            className="absolute -inset-1 flex cursor-grab items-center justify-center text-faint-foreground opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
-          >
-            <GripVertical aria-hidden className="size-4" />
+        {/* The type icon IS the row's left edge; the drag grip takes its
+            place on hover so dragging to a board still works. */}
+        <span className="g8-doc-ico">
+          <span className="ftype" style={{ ...tint, width: 24, height: 24 }}>
+            <Gi icon={Icon} size={13} />
           </span>
+          {grip}
         </span>
 
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground lg:w-72 lg:flex-none">
+        <span className="trunc" style={{ fontWeight: 500, flex: "0 1 auto", maxWidth: "36%" }}>
           {row.title || "Untitled"}
         </span>
 
-        {/* `body_text` is already on every row (the board cards use it) — the
-            list used to fetch it and throw it away, leaving a column of
-            identical "Untitled document" rows with nothing to tell them
+        {/* `body_text` is already on every row — without the snippet a
+            library of "Untitled document" rows has nothing to tell them
             apart. */}
-        <span className="hidden min-w-0 flex-1 truncate text-sm text-faint-foreground lg:block">
+        <span className="grow trunc faint hide-m" style={{ fontSize: 12.5 }}>
           {row.preview ? highlight(row.preview, tokens) : null}
         </span>
 
-        <span className="ml-auto flex shrink-0 items-center gap-3">
+        <span className="row" style={{ marginLeft: "auto", gap: 12, flexShrink: 0 }}>
           <DocumentViewerAvatarStack users={viewers} size={18} />
           {editorName ? (
-            <span className="hidden truncate text-xs text-faint-foreground sm:inline">
+            <span className="muted trunc hide-m" style={{ fontSize: 12, maxWidth: 140 }}>
               {editorName}
             </span>
           ) : null}
-          <span className="w-9 text-right text-xs text-faint-foreground tabular-nums">
+          <span className="num faint" style={{ fontSize: 12, width: 44, textAlign: "right" }}>
             {formatRelativeShort(row.updated_at)}
           </span>
         </span>
@@ -477,11 +560,12 @@ function EmptyDirectory({
   onGenerate: () => void;
 }) {
   return (
-    <div className="mt-6 flex flex-col gap-6">
-      <p className="max-w-[52ch] text-base leading-6 text-pretty text-muted-foreground">
-        A quiet shelf for everything your team is writing. Start one from
-        scratch, draft it with AI, or bring a file you already have.
-      </p>
+    <div className="col" style={{ gap: 20 }}>
+      <G8Empty
+        icon={FolderOpen}
+        title="No documents yet"
+        text="A quiet shelf for everything your team is writing. Start one from scratch, draft it with AI, or bring a file you already have."
+      />
       <QuickCreateRow propertyId={propertyId} onGenerate={onGenerate} />
     </div>
   );
@@ -498,39 +582,32 @@ function NoMatches({
 }) {
   if (searching && fetching) return <ListSkeleton rows={3} />;
   return (
-    <EmptyState
-      icon={searching ? Search : FileText}
-      title={
-        searching ? "No documents match that search" : "Nothing in this view"
-      }
-      action={
-        <Button variant="outline" size="sm" onClick={onReset}>
-          {searching ? "Clear search" : "Clear filters"}
-        </Button>
+    <G8Empty
+      icon={searching ? SearchX : FolderOpen}
+      title={searching ? "No results found" : "Nothing in this view"}
+      text={
+        searching
+          ? "Both titles and body text were searched."
+          : "Try a different type or team."
       }
     >
-      {searching
-        ? "Both titles and body text were searched."
-        : "Try a different type or team."}
-    </EmptyState>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={onReset}>
+        {searching ? "Clear search" : "Clear filters"}
+      </button>
+    </G8Empty>
   );
 }
 
 function ListSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div className="flex flex-col gap-8">
-      <section>
-        <Skeleton className="mb-2 ml-2 h-3 w-20" />
-        <ul className="flex flex-col">
-          {Array.from({ length: rows }).map((_, i) => (
-            <li key={i} className="flex h-[37px] items-center gap-3 px-2">
-              <Skeleton className="size-4 shrink-0 rounded-sm" />
-              <Skeleton className="h-3.5 w-56" />
-              <Skeleton className="ml-auto h-3 w-14" />
-            </li>
-          ))}
-        </ul>
-      </section>
+    <div className="panel">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="mini" style={{ minHeight: 44, cursor: "default" }}>
+          <span className="sk" style={{ width: 24, height: 24, borderRadius: 6 }} />
+          <span className="sk" style={{ width: 220, height: 12 }} />
+          <span className="sk" style={{ width: 48, height: 10, marginLeft: "auto" }} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -616,21 +693,42 @@ function groupRows(
 function UnpinZone({
   id,
   children,
-  className,
 }: {
   id: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <section
       ref={setNodeRef}
-      className={cn(className, "transition-colors", isOver && "bg-accent")}
+      className={isOver ? "g8-doc-drop over" : "g8-doc-drop"}
     >
       {children}
     </section>
   );
+}
+
+/** Grid / list choice, remembered per device (gr8r's `fileView`). */
+function useDirectoryLayout(): [DirectoryLayout, (l: DirectoryLayout) => void] {
+  const [layout, setLayoutState] = useState<DirectoryLayout>("list");
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(LAYOUT_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate a per-device pref after mount
+      if (v === "grid" || v === "list") setLayoutState(v);
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const set = (l: DirectoryLayout) => {
+    setLayoutState(l);
+    try {
+      window.localStorage.setItem(LAYOUT_KEY, l);
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [layout, set];
 }
 
 /** First line of body text, whitespace-collapsed, for the row's second column. */
@@ -669,7 +767,7 @@ function highlight(text: string, tokens: string[]): React.ReactNode {
     .split(new RegExp(`(${tokens.join("|")})`, "gi"))
     .map((part, i) =>
       i % 2 === 1 ? (
-        <mark key={i} className="bg-annotation-mark text-foreground">
+        <mark key={i} className="g8-doc-mark">
           {part}
         </mark>
       ) : (

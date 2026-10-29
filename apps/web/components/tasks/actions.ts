@@ -22,6 +22,7 @@ const CreateSchema = z.object({
   status: StatusInput.default("todo"),
   priority: z.enum(Priorities).default("none"),
   assigneeId: z.string().uuid().nullable().optional(),
+  assigneeIds: z.array(z.string().uuid()).max(20).optional(),
   parentId: z.string().uuid().nullable().optional(),
   spaceId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
@@ -36,6 +37,8 @@ const UpdateSchema = z.object({
   listId: z.string().uuid().optional(),
   priority: z.enum(Priorities).optional(),
   assigneeId: z.string().uuid().nullable().optional(),
+  /** The full set (0115), primary first. */
+  assigneeIds: z.array(z.string().uuid()).max(20).optional(),
   dueAt: z.string().nullable().optional(),
   labels: z.array(z.string().min(1).max(40)).optional(),
   projectName: z.string().max(120).nullable().optional(),

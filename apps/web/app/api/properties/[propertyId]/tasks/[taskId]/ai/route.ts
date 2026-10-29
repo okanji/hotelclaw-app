@@ -34,7 +34,8 @@ export async function POST(
     .eq("property_id", propertyId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!membership) {
+  // Guests (0118) don't get the task AI: its tools read across the property.
+  if (!membership || membership.role === "guest") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

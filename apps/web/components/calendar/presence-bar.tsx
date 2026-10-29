@@ -5,13 +5,13 @@ import {
   useOthersMapped,
   useSelf,
 } from "@liveblocks/react/suspense";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { CSSProperties } from "react";
+import { initialsOf, memberHue } from "@/components/gr8r/home-glyphs";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 
 /**
  * Stack of teammates currently viewing the calendar room — self first,
@@ -62,21 +62,33 @@ export function CalendarPresenceBar() {
   ];
 
   return (
-    <div className="flex items-center -space-x-1.5">
+    // gr8r `.avs` stack of `.av.md` discs; someone editing an event gets an
+    // amber ring.
+    <span className="avs" aria-label="Viewing the calendar">
       {people.slice(0, 5).map(([key, p]) => (
         <Tooltip key={key}>
-          <TooltipTrigger>
-            <Avatar
-              className={cn(
-                "size-6 ring-2 ring-background",
-                p.editingEventId && "ring-warning",
-              )}
-            >
-              <AvatarImage src={p.avatar} />
-              <AvatarFallback>
-                {(p.name ?? "?").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+          <TooltipTrigger
+            className="av md"
+            style={
+              {
+                "--g8-c": memberHue(p.name ?? String(key)),
+                overflow: "hidden",
+                ...(p.editingEventId
+                  ? { boxShadow: "0 0 0 2px var(--g8-amber)" }
+                  : null),
+              } as CSSProperties
+            }
+          >
+            {p.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.avatar}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              initialsOf(p.name ?? "?")
+            )}
           </TooltipTrigger>
           <TooltipContent>
             {/* The tooltip is a constant dark slab — its own ink ramp. */}
@@ -98,10 +110,13 @@ export function CalendarPresenceBar() {
         </Tooltip>
       ))}
       {people.length > 5 ? (
-        <span className="ml-2 text-xs text-faint-foreground">
+        <span
+          className="av md more"
+          style={{ "--g8-c": "var(--g8-gray)" } as CSSProperties}
+        >
           +{people.length - 5}
         </span>
       ) : null}
-    </div>
+    </span>
   );
 }

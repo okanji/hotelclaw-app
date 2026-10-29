@@ -3,19 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AtSign } from "lucide-react";
-import {
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { Gi } from "@/components/gr8r/icon";
 import {
   useUnseenMentionsCount,
   useNotificationsRealtime,
 } from "./use-unread-mentions";
 
 /**
- * Sidebar entry for the inbox. Badge counts UNSEEN mention notifications
- * from our notifications table (matching what /inbox displays). Reading
- * the inbox marks those mentions seen and the badge clears.
+ * Sidebar entry for the mentions inbox — a gr8r `.sitem` row. Badge counts
+ * UNSEEN mention notifications from our notifications table (matching what
+ * /inbox displays). Reading the inbox marks those mentions seen and the
+ * badge clears.
  */
 export function InboxSidebarLink({
   propertyId,
@@ -28,6 +26,7 @@ export function InboxSidebarLink({
   const unread = useUnseenMentionsCount(userId);
   useNotificationsRealtime(userId);
   const href = `/p/${propertyId}/inbox`;
+  const on = pathname.startsWith(href);
 
   // `inbox/page.tsx` is null and `<InboxSurface>` in the property layout
   // owns rendering, so clicking is a zero-roundtrip `pushState` like channel
@@ -40,20 +39,18 @@ export function InboxSidebarLink({
   }
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<Link href={href} onClick={handleClick} />}
-        isActive={pathname.startsWith(href)}
-        tooltip="Mentions"
-      >
-        <AtSign />
-        <span>Mentions</span>
-        {unread > 0 ? (
-          <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-xs font-medium leading-none text-sidebar-foreground/70 tabular-nums">
-            {unread > 99 ? "99+" : unread}
-          </span>
-        ) : null}
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <Link
+      href={href}
+      onClick={handleClick}
+      className={on ? "sitem on" : "sitem"}
+      title="Mentions"
+      aria-current={on ? "page" : undefined}
+    >
+      <Gi icon={AtSign} size={15} />
+      <span className="trunc">Mentions</span>
+      {unread > 0 ? (
+        <span className="ct dotc">{unread > 99 ? "99+" : unread}</span>
+      ) : null}
+    </Link>
   );
 }

@@ -5,15 +5,14 @@ import { useRouter } from "next/navigation";
 import { Ban, ChevronDown, FlaskConical, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
+import { RunBadge } from "@/components/workflows/g8-bits";
 import { runStatusLabel, triggerLabel } from "@/lib/workflows/summary";
 import { createClient } from "@/lib/supabase/client";
 import { getStep } from "@/lib/workflows/catalog";
 import { SurfaceBadge } from "@/components/workflows/builder/surface-badge";
 import { RunStatusRing } from "@/components/workflows/run-status-ring";
-import { STATUS_TONES, formatDuration } from "@/components/workflows/run-format";
+import { formatDuration } from "@/components/workflows/run-format";
 import { AiShimmerLabel } from "@/components/ui/ai-loader";
 
 // Read-only run inspector. Subscribes to workflow_runs + workflow_step_runs
@@ -166,78 +165,72 @@ export function RunInspectorClient({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <StatusBadge tone={STATUS_TONES[run.status] ?? "neutral"}>
-            {runStatusLabel(run.status)}
-          </StatusBadge>
+    <div className="stack" style={{ gap: 14 }}>
+      <header className="row" style={{ flexWrap: "wrap" }}>
+        <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+          <RunBadge status={run.status} label={runStatusLabel(run.status)} />
           {run.is_dry_run ? (
-            <Badge
-              variant="outline"
-              className="text-muted-foreground"
-              title="Test run — no side effects, excluded from stats"
-            >
-              <FlaskConical aria-hidden />
+            <span className="badge gray" title="Test run — no side effects, excluded from stats">
+              <Gi icon={FlaskConical} size={12} />
               test run
-            </Badge>
+            </span>
           ) : null}
-          <span className="text-xs text-muted-foreground">
+          <span className="muted" style={{ fontSize: 12 }}>
             Trigger: {triggerLabel(run.trigger_kind) ?? "Manual run"} ·{" "}
             {formatDuration(run.started_at, run.finished_at, "running…")}
             {run.mode === "durable" ? " · can wait between steps" : ""}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <span className="sp" />
+        <div className="row" style={{ gap: 6 }}>
           {active ? (
-            <Button
-              variant="outline"
-              size="xs"
+            <button
+              type="button"
+              className="btn btn-danger-ghost btn-sm"
               onClick={cancel}
               disabled={running}
               title="Stop this run"
-              className="hover:bg-destructive/10 hover:text-destructive"
             >
-              <Ban data-icon="inline-start" aria-hidden />
+              <Gi icon={Ban} size={14} />
               Cancel
-            </Button>
+            </button>
           ) : null}
-          <Button
-            variant="outline"
-            size="xs"
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             onClick={() => rerun(true)}
             disabled={running}
             title="Replay this run's data with no side effects"
           >
-            <FlaskConical data-icon="inline-start" aria-hidden />
+            <Gi icon={FlaskConical} size={14} />
             Test
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             onClick={() => rerun(false)}
             disabled={running}
             title="Replay this run's data for real"
           >
-            <RotateCw data-icon="inline-start" aria-hidden />
+            <Gi icon={RotateCw} size={14} />
             Re-run
-          </Button>
+          </button>
         </div>
       </header>
 
       {run.error ? (
-        <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          {run.error}
+        <div className="alert danger">
+          <span>{run.error}</span>
         </div>
       ) : null}
 
-      <ol className="flex flex-col gap-1.5">
+      <ol className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {steps.map((s, i) => (
           <StepRunRow key={s.id} step={s} ordinal={i + 1} />
         ))}
         {steps.length === 0 ? (
-          <li className="rounded-md bg-muted p-6 text-center text-sm text-muted-foreground">
-            No steps recorded yet.
+          <li className="empty-state sm">
+            <p>No steps recorded yet.</p>
           </li>
         ) : null}
       </ol>
@@ -251,73 +244,69 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
   const running = step.status === "running";
 
   return (
-    <li className="rounded-md bg-card shadow-ring">
+    <li style={{ borderTop: ordinal > 1 ? "1px solid var(--g8-divider)" : undefined }}>
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm"
+        className="nrow"
+        style={{ width: "100%", alignItems: "center", textAlign: "left", padding: "9px 14px" }}
       >
         <RunStatusRing status={step.status} size={22}>
           {ordinal}
         </RunStatusRing>
         <SurfaceBadge surface={entry?.surface ?? "system"} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {running ? (
-              <AiShimmerLabel className="truncate">
-                {entry?.label ?? step.step_type}
-              </AiShimmerLabel>
-            ) : (
-              <span className="truncate font-medium text-foreground">
-                {entry?.label ?? step.step_type}
-              </span>
-            )}
-          </div>
-          <div className="truncate text-xs text-muted-foreground">
+        <div className="col grow" style={{ gap: 2 }}>
+          {running ? (
+            <AiShimmerLabel className="truncate">
+              {entry?.label ?? step.step_type}
+            </AiShimmerLabel>
+          ) : (
+            <span className="trunc" style={{ fontWeight: 500 }}>
+              {entry?.label ?? step.step_type}
+            </span>
+          )}
+          <span className="trunc faint mono" style={{ fontSize: 11.5 }}>
             {step.step_id}
             {branchTaken(step) ? (
-              <span className="ml-2 text-foreground/70">→ took “{branchTaken(step)}” path</span>
+              <span className="muted" style={{ marginLeft: 8 }}>
+                → took “{branchTaken(step)}” path
+              </span>
             ) : null}
-          </div>
+          </span>
         </div>
         {step.attempt > 1 ? (
-          <StatusBadge
-            tone="warning"
-            dot={false}
-            title={`Succeeded or failed after ${step.attempt} attempts`}
-          >
+          <span className="badge amber" title={`Succeeded or failed after ${step.attempt} attempts`}>
             ×{step.attempt}
-          </StatusBadge>
+          </span>
         ) : null}
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="faint num" style={{ fontSize: 12 }}>
           {formatDuration(step.started_at, step.finished_at, "running…")}
         </span>
-        <StatusBadge tone={STATUS_TONES[step.status] ?? "neutral"}>
-          {runStatusLabel(step.status)}
-        </StatusBadge>
-        <ChevronDown
-          className={cn(
-            "size-3.5 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180",
-          )}
-          aria-hidden
-        />
+        <RunBadge status={step.status} label={runStatusLabel(step.status)} />
+        <span className="faint" style={{ display: "inline-flex" }}>
+          <Gi
+            icon={ChevronDown}
+            size={14}
+            className={cn("transition-transform", open && "rotate-180")}
+          />
+        </span>
       </button>
       {open ? (
-        <div className="grid grid-cols-[22px_1fr] gap-x-3 border-t border-border px-3 pt-2.5 pb-3 text-xs">
-          <span aria-hidden className="mx-auto h-full w-px bg-border" />
-          <div className="flex min-w-0 flex-col gap-3">
+        <div
+          className="grid grid-cols-[22px_1fr] gap-x-3"
+          style={{ borderTop: "1px solid var(--g8-divider)", padding: "10px 14px 12px", fontSize: 12 }}
+        >
+          <span aria-hidden className="mx-auto h-full w-px" style={{ background: "var(--g8-border)" }} />
+          <div className="stack" style={{ gap: 12, minWidth: 0 }}>
             {step.error ? (
               <Section title="What went wrong" tone="destructive">
-                <p className="text-sm text-foreground">
-                  {humanizeStepError(step.error)}
-                </p>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-faint-foreground select-none">
+                <p style={{ margin: 0, fontSize: 13 }}>{humanizeStepError(step.error)}</p>
+                <details style={{ marginTop: 8 }}>
+                  <summary className="faint" style={{ cursor: "pointer", userSelect: "none" }}>
                     Technical details
                   </summary>
-                  <pre className="mt-1.5 max-h-64 overflow-auto rounded-md bg-destructive/10 p-2 font-mono whitespace-pre-wrap text-destructive">
+                  <pre className="mono" style={PRE_DANGER}>
                     {JSON.stringify(step.error, null, 2)}
                   </pre>
                 </details>
@@ -325,14 +314,14 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
             ) : null}
             {step.output !== null ? (
               <Section title="Output">
-                <pre className="max-h-64 overflow-auto rounded-md bg-muted p-2 font-mono whitespace-pre-wrap text-foreground">
+                <pre className="mono" style={PRE}>
                   {JSON.stringify(step.output, null, 2)}
                 </pre>
               </Section>
             ) : null}
             {step.ai_trace ? (
               <Section title="AI trace">
-                <pre className="max-h-64 overflow-auto rounded-md bg-muted p-2 font-mono whitespace-pre-wrap text-foreground">
+                <pre className="mono" style={PRE}>
                   {JSON.stringify(step.ai_trace, null, 2)}
                 </pre>
               </Section>
@@ -343,6 +332,25 @@ function StepRunRow({ step, ordinal }: { step: StepRow; ordinal: number }) {
     </li>
   );
 }
+
+const PRE: React.CSSProperties = {
+  margin: 0,
+  maxHeight: 256,
+  overflow: "auto",
+  borderRadius: "var(--g8-r-sm)",
+  background: "var(--g8-surface-2)",
+  border: "1px solid var(--g8-border)",
+  padding: 8,
+  whiteSpace: "pre-wrap",
+  fontSize: 11.5,
+};
+const PRE_DANGER: React.CSSProperties = {
+  ...PRE,
+  marginTop: 6,
+  background: "var(--g8-red-soft)",
+  borderColor: "transparent",
+  color: "var(--g8-red)",
+};
 
 /**
  * Branch/filter steps record which path they routed to in output.branch.
@@ -401,12 +409,15 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0">
+    <div style={{ minWidth: 0 }}>
       <div
-        className={cn(
-          "mb-1 text-xs font-medium",
-          tone === "destructive" ? "text-destructive" : "text-faint-foreground",
-        )}
+        className="faint"
+        style={{
+          marginBottom: 4,
+          fontSize: 12,
+          fontWeight: 500,
+          color: tone === "destructive" ? "var(--g8-red)" : undefined,
+        }}
       >
         {title}
       </div>

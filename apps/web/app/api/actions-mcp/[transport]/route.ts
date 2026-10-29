@@ -61,12 +61,12 @@ const NAMED_WORKFLOWS: Record<string, { bot: string; brief: (p: Record<string, u
   extend_stay: {
     bot: "bookings",
     brief: (p) =>
-      `Workflow extend_stay: booking ${p.booking_reference}, extend by ${p.extra_nights} night(s). Check the booking exists, summarize implications (availability conflicts, notes), and create a task for the team to confirm the extension with the guest. Do not invent rates.`,
+      `Workflow extend_stay: stay ${p.booking_reference}, extend by ${p.extra_nights} night(s). Create a task for the team to confirm the extension with the guest, with every detail given. Do not invent rates or availability.`,
   },
   rebook_guest: {
     bot: "bookings",
     brief: (p) =>
-      `Workflow rebook_guest: booking ${p.booking_reference}, requested new start date ${p.new_start_date}. Look up the booking, then create a task describing the rebooking request with all details for the team to action. If a refund of the original is explicitly requested (${p.refund_original ?? false}), call refund_booking (it requires human approval and will park).`,
+      `Workflow rebook_guest: stay ${p.booking_reference}, requested new start date ${p.new_start_date}. Create a task describing the rebooking request with all details for the team to action${p.refund_original ? ", noting that a refund of the original was requested" : ""}.`,
   },
 };
 
@@ -132,51 +132,6 @@ const handler = createMcpHandler((server) => {
         .single();
       if (error) throw new Error(error.message);
       return { content: [{ type: "text", text: JSON.stringify({ created: true, task: data }) }] };
-    },
-  );
-
-  server.tool(
-    "get_bookings",
-    "List bookings in a date window (default next 7 days) for the key's property.",
-    {
-      from: z.string().optional().describe("ISO date, default today"),
-      days: z.number().int().min(1).max(60).default(7),
-      limit: z.number().int().min(1).max(50).default(25),
-    },
-    async ({ from, days, limit }, extra) => {
-      const { propertyId } = requireTool(extra as AuthExtra, "get_bookings");
-      const supabase = createServiceClient();
-      const start = from ? new Date(`${from}T00:00:00Z`) : new Date();
-      const end = new Date(start.getTime() + days * 86_400_000);
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("reference, guest_name, party_size, status, starts_at, bookable_services(name)")
-        .eq("property_id", propertyId)
-        .gte("starts_at", start.toISOString())
-        .lte("starts_at", end.toISOString())
-        .order("starts_at", { ascending: true })
-        .limit(limit);
-      if (error) throw new Error(error.message);
-      return { content: [{ type: "text", text: JSON.stringify({ count: (data ?? []).length, bookings: data ?? [] }) }] };
-    },
-  );
-
-  server.tool(
-    "get_booking",
-    "Fetch one booking by reference (BKG-XXXXXX) in the key's property.",
-    { reference: z.string().min(4).max(20) },
-    async ({ reference }, extra) => {
-      const { propertyId } = requireTool(extra as AuthExtra, "get_booking");
-      const supabase = createServiceClient();
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("reference, guest_name, party_size, status, starts_at, ends_at, notes")
-        .eq("property_id", propertyId)
-        .eq("reference", reference.toUpperCase())
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data) throw new Error("No booking with that reference in this property.");
-      return { content: [{ type: "text", text: JSON.stringify({ booking: data }) }] };
     },
   );
 

@@ -32,39 +32,6 @@ export function buildChatbotEscalationSpec(args: { spaceId: string | null }) {
   };
 }
 
-/** "Small pending booking → auto-confirm" — the catalog's own canonical
- *  booking loop (chatbot books pending, automation confirms parties ≤ 4).
- *  Seeded DISABLED: it mutates booking state, so the owner flips it on. */
-export function buildBookingAutoConfirmSpec() {
-  return {
-    workflow_spec_version: 1,
-    name: "Auto-confirm small bookings",
-    trigger: {
-      event_type: "booking.created" as const,
-      filter: {
-        expr: {
-          and: [
-            { "==": [{ var: "trigger.status" }, "pending"] },
-            { "<=": [{ var: "trigger.party_size" }, 4] },
-          ],
-        },
-      },
-    },
-    entry_step_id: "confirm",
-    steps: {
-      confirm: {
-        id: "confirm",
-        type: "action.booking.set_status" as const,
-        label: "Confirm the booking",
-        config: {
-          booking_id: "{{trigger.booking_id}}",
-          status: "confirmed" as const,
-        },
-      },
-    },
-  };
-}
-
 /** "Task moves to blocked → post to #general" — makes stuck work loud. */
 export function buildBlockedTaskAlertSpec(args: { channelId: string }) {
   return {

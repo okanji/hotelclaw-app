@@ -122,7 +122,7 @@ function Chat({ propertyId, row, prefill }: { propertyId: string; row: ChatRow; 
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>What can I help with?</Text>
             <Text style={styles.emptyBody}>
-              Ask about tasks, documents, bookings, the calendar — or tell me to change something.
+              Ask about tasks, documents, the calendar — or tell me to change something.
             </Text>
           </View>
         ) : null}

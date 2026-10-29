@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import {
   FileText,
+  Folder,
+  ListChecks,
   Pin,
   PinOff,
   Plus,
@@ -15,21 +17,36 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusIcon } from "@/components/tasks/task-icons";
 import type { EntityColor, TaskStatus } from "@/lib/db/types";
-import { cn } from "@/lib/utils";
 import { MAX_PINNED_RESOURCES } from "@/components/documents/doc-pin-card";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { useStatusCatalog } from "@/lib/query/status-queries";
+import { Gi } from "@/components/gr8r/icon";
+import { G8_COLOR, ProgBar, StIcon } from "@/components/gr8r/home-glyphs";
+import { G8StatusIcon } from "@/components/gr8r/my-tasks-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 
-export type ScopedTask = { id: string; title: string; status: TaskStatus };
+/**
+ * Scoped workspace panels (team page tabs + the initiative page's pickers),
+ * drawn in gr8r's idiom: `.panel` / `.panel-h` / `.mini` rows, `.stackbar`,
+ * `.seg` list filter, `.btn` actions. Exports + props are unchanged.
+ */
+
+type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
+
+export type ScopedTask = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  /** 0114 — present where the caller selects them; drive the list chips and
+   *  the per-list pipeline grouping. */
+  list_id?: string | null;
+  status_id?: string | null;
+};
 export type ScopedDoc = { id: string; title: string };
 type Candidate = { id: string; title: string };
-
-const PROJECT_DOT = LABEL_DOT;
 
 const STATUS_COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "todo", label: "To do" },
@@ -38,17 +55,12 @@ const STATUS_COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: "done", label: "Done" },
 ];
 
-const STATUS_BAR: Record<TaskStatus, string | null> = {
-  done: "bg-success/90",
-  in_progress: "bg-warning/90",
-  blocked: "bg-destructive/80",
+/** gr8r status tokens for the progress stackbar. */
+const STATUS_SEG: Record<TaskStatus, string | null> = {
+  done: "var(--g8-st-done)",
+  in_progress: "var(--g8-st-progress)",
+  blocked: "var(--g8-red)",
   todo: null,
-};
-
-const STATUS_TALLY: Partial<Record<TaskStatus, string>> = {
-  in_progress: "text-warning",
-  done: "text-success",
-  blocked: "text-destructive",
 };
 
 /* ── Overview: progress over the scoped tasks ─────────────────────────────── */
@@ -64,77 +76,71 @@ function taskStatusCounts(tasks: ScopedTask[]) {
   return c;
 }
 
-/** Compact Linear-style progress: segmented bar, 13px copy, inline status tallies. */
+/** gr8r progress panel: a `.stackbar` over the scoped tasks + status tallies. */
 export function ProgressOverview({ tasks }: { tasks: ScopedTask[] }) {
   const counts = useMemo(() => taskStatusCounts(tasks), [tasks]);
   const total = tasks.length;
   const pct = total ? Math.round((counts.done / total) * 100) : 0;
   const segment = (n: number) => (total ? (n / total) * 100 : 0);
-
-  if (total === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No issues yet — progress will appear here as work is added.
-      </p>
-    );
-  }
-
   const barSegments: TaskStatus[] = ["done", "in_progress", "blocked"];
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-base text-muted-foreground">
-          <span className="tabular-nums text-foreground">{counts.done}</span>
-          {" of "}
-          <span className="tabular-nums text-foreground">{total}</span>
-          {" completed"}
-          {counts.in_progress > 0 ? (
-            <>
-              {" · "}
-              <span className="tabular-nums text-warning">
-                {counts.in_progress}
-              </span>
-              {" in progress"}
-            </>
-          ) : null}
-        </p>
-        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-          {pct}%
-        </span>
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Progress</h2>
+        <span className="sp" />
+        {total > 0 ? (
+          <span className="faint" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+            {pct}%
+          </span>
+        ) : null}
       </div>
-      <div
-        className="flex h-1 overflow-hidden rounded-full bg-muted"
-        role="img"
-        aria-label={`${counts.done} done, ${counts.in_progress} in progress, ${counts.blocked} blocked, ${counts.todo} to do`}
-      >
-        {barSegments.map((status) =>
-          counts[status] > 0 ? (
+      <div className="panel-b stack" style={{ gap: 10 }}>
+        {total === 0 ? (
+          <span className="faint" style={{ fontSize: 12.5 }}>
+            No tasks yet — progress will appear here as work is added.
+          </span>
+        ) : (
+          <>
+            <span className="muted" style={{ fontSize: 12.5 }}>
+              <b style={{ fontWeight: 600 }}>{counts.done}</b> of{" "}
+              <b style={{ fontWeight: 600 }}>{total}</b> completed
+              {counts.in_progress > 0 ? <> · {counts.in_progress} in progress</> : null}
+            </span>
             <div
-              key={status}
-              className={cn("h-full shrink-0", STATUS_BAR[status])}
-              style={{ width: `${segment(counts[status])}%` }}
-            />
-          ) : null,
+              className="stackbar"
+              role="img"
+              aria-label={`${counts.done} done, ${counts.in_progress} in progress, ${counts.blocked} blocked, ${counts.todo} to do`}
+            >
+              {barSegments.map((status) =>
+                counts[status] > 0 ? (
+                  <i
+                    key={status}
+                    style={{
+                      width: `${segment(counts[status])}%`,
+                      background: STATUS_SEG[status] ?? undefined,
+                    }}
+                  />
+                ) : null,
+              )}
+            </div>
+            <dl className="row" style={{ gap: 14, flexWrap: "wrap", margin: 0, fontSize: 12 }}>
+              {STATUS_COLUMNS.map((s) =>
+                counts[s.id] > 0 ? (
+                  <div key={s.id} className="row" style={{ gap: 5 }}>
+                    <StIcon task={{ status: s.id }} size={12} />
+                    <dt className="sr">{s.label}</dt>
+                    <dd className="muted" style={{ margin: 0, fontVariantNumeric: "tabular-nums" }}>
+                      <b style={{ fontWeight: 600 }}>{counts[s.id]}</b> {s.label}
+                    </dd>
+                  </div>
+                ) : null,
+              )}
+            </dl>
+          </>
         )}
       </div>
-      <dl className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-        {STATUS_COLUMNS.map((s) =>
-          counts[s.id] > 0 ? (
-            <div key={s.id} className="flex items-center gap-1">
-              <StatusIcon status={s.id} className="size-3 text-muted-foreground" />
-              <dt className="sr-only">{s.label}</dt>
-              <dd className="text-sm tabular-nums text-muted-foreground">
-                <span className={STATUS_TALLY[s.id] ?? "text-foreground"}>
-                  {counts[s.id]}
-                </span>
-                <span className="ml-1">{s.label}</span>
-              </dd>
-            </div>
-          ) : null,
-        )}
-      </dl>
-    </div>
+    </section>
   );
 }
 
@@ -163,50 +169,36 @@ export function ProjectProgressList({
 }) {
   if (projects.length === 0) {
     return (
-      <p className="py-2 text-sm text-muted-foreground">
-        No projects yet — link one from a project&apos;s{" "}
-        <span className="text-foreground">Spaces</span> picker.
-      </p>
+      <div className="faint" style={{ padding: "8px 0", fontSize: 12.5 }}>
+        No projects yet — link one from a project&apos;s <b>Teams</b> picker.
+      </div>
     );
   }
   return (
-    <ul role="list" className="flex flex-col">
+    <div>
       {projects.map((p) => {
         const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
         return (
-          <li key={p.id} className="group/row border-t border-border first:border-0">
-            <Link
-              href={`/p/${propertyId}/projects/${p.id}`}
-              className="flex items-center gap-3 min-h-[37px] rounded-md px-0.5 transition-colors hover:bg-accent"
-            >
-              <span
-                className={cn(
-                  "size-1.5 shrink-0 rounded-full",
-                  PROJECT_DOT[p.color],
-                )}
-                aria-hidden="true"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                {p.name || "Untitled project"}
+          <Link
+            key={p.id}
+            href={`/p/${propertyId}/projects/${p.id}`}
+            className="mini"
+            title={`${p.done}/${p.total} done`}
+          >
+            <span className="picon" style={{ "--g8-c": G8_COLOR[p.color] } as CSSVars}>
+              <Gi icon={Folder} size={14} />
+            </span>
+            <span className="tt">{p.name || "Untitled project"}</span>
+            <span className="row" style={{ width: 140, gap: 8 }}>
+              <ProgBar value={pct} tone={pct === 100 ? "green" : ""} />
+              <span className="faint" style={{ fontSize: 12, width: 30, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                {pct}%
               </span>
-              <div className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                  {p.total > 0 ? (
-                    <div
-                      className="h-full rounded-full bg-success/90 transition-[width]"
-                      style={{ width: `${pct}%` }}
-                    />
-                  ) : null}
-                </div>
-                <span className="w-7 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
-                  {pct}%
-                </span>
-              </div>
-            </Link>
-          </li>
+            </span>
+          </Link>
         );
       })}
-    </ul>
+    </div>
   );
 }
 
@@ -218,73 +210,134 @@ export function TasksPanel({
   candidates,
   onAdd,
   onRemove,
+  lists,
 }: {
   propertyId: string;
   tasks: ScopedTask[];
   candidates: Candidate[];
   onAdd: (id: string) => void;
   onRemove: (id: string) => void;
+  /** The scope's lists (a team page) — renders a chip per list that narrows
+   *  the panel to it and groups by that list's own pipeline. */
+  lists?: { id: string; name: string }[];
 }) {
-  const byStatus = useMemo(() => {
-    const m: Record<TaskStatus, ScopedTask[]> = {
-      todo: [],
-      in_progress: [],
-      blocked: [],
-      done: [],
-    };
-    for (const t of tasks) m[t.status].push(t);
+  const catalog = useStatusCatalog(propertyId);
+  const [listId, setListId] = useState<string | null>(null);
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of tasks) if (t.list_id) m.set(t.list_id, (m.get(t.list_id) ?? 0) + 1);
     return m;
   }, [tasks]);
+  // Chips only earn their row when there's more than one place work lives.
+  const chipLists = (lists ?? []).filter(
+    (l) => (counts.get(l.id) ?? 0) > 0 || (lists?.length ?? 0) > 1,
+  );
+  const showChips = chipLists.length > 1;
+  const activeList = showChips ? listId : null;
+  const visible = useMemo(
+    () => (activeList ? tasks.filter((t) => t.list_id === activeList) : tasks),
+    [tasks, activeList],
+  );
+
+  // One list → its own pipeline stages; otherwise the four categories.
+  const sections = useMemo(() => {
+    if (activeList) {
+      const stages = catalog.statusesOfList(activeList);
+      if (stages.length > 0) {
+        return stages.map((st) => ({
+          key: st.id,
+          label: st.name,
+          icon: (
+            <G8StatusIcon
+              category={st.category}
+              blocked={st.is_blocked}
+              color={st.color}
+            />
+          ),
+          rows: visible.filter((t) => t.status_id === st.id),
+        }));
+      }
+    }
+    return STATUS_COLUMNS.map((col) => ({
+      key: col.id,
+      label: col.label,
+      icon: <StIcon task={{ status: col.id }} />,
+      rows: visible.filter((t) => t.status === col.id),
+    }));
+  }, [activeList, catalog, visible]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-        </span>
+    <div className="stack">
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        {showChips ? (
+          <div className="seg" role="group" aria-label="Lists" style={{ flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className={activeList === null ? "on" : ""}
+              aria-pressed={activeList === null}
+              onClick={() => setListId(null)}
+            >
+              All
+              <span className="faint" style={{ fontVariantNumeric: "tabular-nums" }}>{tasks.length}</span>
+            </button>
+            {chipLists.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className={activeList === l.id ? "on" : ""}
+                aria-pressed={activeList === l.id}
+                onClick={() => setListId(activeList === l.id ? null : l.id)}
+              >
+                {l.name}
+                <span className="faint" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {counts.get(l.id) ?? 0}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="faint" style={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
+            {visible.length} {visible.length === 1 ? "task" : "tasks"}
+          </span>
+        )}
+        <span className="sp" />
+        {activeList ? (
+          <Link href={`/p/${propertyId}/tasks?list=${activeList}`} className="btn btn-ghost btn-sm">
+            Open board
+          </Link>
+        ) : null}
         <AddPicker label="Add tasks" candidates={candidates} onAdd={onAdd} />
       </div>
-      {tasks.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">
-          No tasks yet — use <span className="font-medium">Add tasks</span> to
-          pull work in.
-        </p>
+      {visible.length === 0 ? (
+        <section className="panel">
+          <G8Empty
+            icon={ListChecks}
+            title={activeList ? "No tasks in this list yet" : "No tasks yet"}
+            text={activeList ? "Tasks filed to this list will show here." : "Use Add tasks to pull work in."}
+            sm
+          />
+        </section>
       ) : (
-        <div className="grid grid-cols-1 gap-6 @2xl:grid-cols-2">
-          {STATUS_COLUMNS.map((col) =>
-            byStatus[col.id].length > 0 ? (
-              <section key={col.id}>
-                <div className="mb-2 flex items-center gap-2">
-                  <StatusIcon status={col.id} className="size-3.5" />
-                  <h3 className="text-sm font-medium text-foreground">
-                    {col.label}
-                  </h3>
-                  <span className="text-xs text-faint-foreground tabular-nums">
-                    {byStatus[col.id].length}
-                  </span>
+        sections.map((col) =>
+          col.rows.length > 0 ? (
+            <section key={col.key} className="panel">
+              <div className="panel-h">
+                {col.icon}
+                <h2>{col.label}</h2>
+                <span className="faint">{col.rows.length}</span>
+              </div>
+              {col.rows.map((t) => (
+                <div key={t.id} className="mini g8-wsrow">
+                  <Link href={`/p/${propertyId}/tasks/${t.id}`} className="g8-wsrow-a">
+                    <StIcon task={t} />
+                    <span className="tt">{t.title || "Untitled task"}</span>
+                  </Link>
+                  <Remove onClick={() => onRemove(t.id)} />
                 </div>
-                <ul
-                  role="list"
-                  className="flex flex-col divide-y divide-border border-t border-border"
-                >
-                  {byStatus[col.id].map((t) => (
-                    <li key={t.id} className="group/row relative">
-                      <Link
-                        href={`/p/${propertyId}/tasks/${t.id}`}
-                        className="flex items-center gap-3 min-h-[37px] rounded-md px-1 pr-8 transition-colors hover:bg-accent"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                          {t.title || "Untitled task"}
-                        </span>
-                      </Link>
-                      <Remove onClick={() => onRemove(t.id)} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null,
-          )}
-        </div>
+              ))}
+            </section>
+          ) : null,
+        )
       )}
     </div>
   );
@@ -317,84 +370,62 @@ export function DocsPanel({
   const pinCount = pinnedIds?.size ?? 0;
   const canPin = pinCount < pinLimit;
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {docs.length} {docs.length === 1 ? "document" : "documents"}
-          {pinnedIds && pinCount > 0 ? (
-            <span className="text-muted-foreground">
-              {" "}
-              · {pinCount} pinned
-            </span>
-          ) : null}
-        </span>
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Documents</h2>
+        <span className="faint">{docs.length}</span>
+        {pinnedIds && pinCount > 0 ? (
+          <span className="faint" style={{ fontSize: 12 }}>· {pinCount} pinned</span>
+        ) : null}
+        <span className="sp" />
         <AddPicker label="Add docs" candidates={candidates} onAdd={onAdd} />
       </div>
       {docs.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">
-          No documents yet — use <span className="font-medium">Add docs</span> to
-          link pages here.
-        </p>
+        <G8Empty
+          icon={FileText}
+          title="No documents yet"
+          text="Use Add docs to link pages here."
+          sm
+        />
       ) : (
-        <ul
-          role="list"
-          className="flex flex-col divide-y divide-border border-t border-border"
-        >
-          {docs.map((d) => {
-            const isPinned = pinnedIds?.has(d.id) ?? false;
-            return (
-              <li key={d.id} className="group/row relative">
-                <Link
-                  href={documentHref(propertyId, d.id)}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)
-                      return;
-                    e.preventDefault();
-                    openDocument(d.id);
-                  }}
-                  className="flex items-center gap-3 min-h-[37px] rounded-md px-1 pr-16 transition-colors hover:bg-accent"
-                >
-                  <FileText
-                    strokeWidth={1.5}
-                    className="size-4 shrink-0 text-muted-foreground"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                    {d.title || "Untitled"}
-                  </span>
-                  {isPinned ? (
-                    <Pin
-                      className="size-3 shrink-0 text-muted-foreground"
-                      strokeWidth={1.5}
-                    />
-                  ) : null}
-                </Link>
-                <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 opacity-0 group-hover/row:opacity-100">
-                  {onPin && onUnpin ? (
-                    <button
-                      type="button"
-                      aria-label={isPinned ? "Unpin from overview" : "Pin to overview"}
-                      title={isPinned ? "Unpin from overview" : "Pin to overview"}
-                      disabled={!isPinned && !canPin}
-                      onClick={() =>
-                        isPinned ? onUnpin(d.id) : onPin(d.id)
-                      }
-                      className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-40"
-                    >
-                      {isPinned ? (
-                        <PinOff className="size-3.5" />
-                      ) : (
-                        <Pin className="size-3.5" />
-                      )}
-                    </button>
-                  ) : null}
-                  <Remove inline onClick={() => onRemove(d.id)} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        docs.map((d) => {
+          const isPinned = pinnedIds?.has(d.id) ?? false;
+          return (
+            <div key={d.id} className="mini g8-wsrow">
+              <Link
+                href={documentHref(propertyId, d.id)}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0)
+                    return;
+                  e.preventDefault();
+                  openDocument(d.id);
+                }}
+                className="g8-wsrow-a"
+              >
+                <Gi icon={FileText} size={14} />
+                <span className="tt">{d.title || "Untitled"}</span>
+                {isPinned ? <Gi icon={Pin} size={12} className="faint" /> : null}
+              </Link>
+              <span className="g8-wsrow-acts">
+                {onPin && onUnpin ? (
+                  <button
+                    type="button"
+                    className="ibtn ibtn-sm"
+                    aria-label={isPinned ? "Unpin from overview" : "Pin to overview"}
+                    title={isPinned ? "Unpin from overview" : "Pin to overview"}
+                    disabled={!isPinned && !canPin}
+                    onClick={() => (isPinned ? onUnpin(d.id) : onPin(d.id))}
+                  >
+                    <Gi icon={isPinned ? PinOff : Pin} size={13} />
+                  </button>
+                ) : null}
+                <Remove inline onClick={() => onRemove(d.id)} />
+              </span>
+            </div>
+          );
+        })
       )}
-    </div>
+    </section>
   );
 }
 
@@ -414,13 +445,9 @@ export function Remove({
       aria-label="Remove from space"
       title="Remove from space"
       onClick={onClick}
-      className={cn(
-        "flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive",
-        !inline &&
-          "absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 transition-opacity group-hover/row:opacity-100",
-      )}
+      className={inline ? "ibtn ibtn-sm g8-wsrow-rm" : "ibtn ibtn-sm g8-wsrow-rm g8-wsrow-hover"}
     >
-      <X className="size-3.5" />
+      <Gi icon={X} size={13} />
     </button>
   );
 }
@@ -442,8 +469,8 @@ export function AddPicker({
     .slice(0, 8);
   return (
     <Popover>
-      <PopoverTrigger render={<Button type="button" size="sm" variant="outline" />}>
-        <Plus className="size-4" />
+      <PopoverTrigger render={<button type="button" className="btn btn-secondary btn-sm" />}>
+        <Gi icon={Plus} size={14} />
         {label}
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-64 p-2">

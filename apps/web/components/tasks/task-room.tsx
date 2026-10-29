@@ -54,6 +54,7 @@ export function TaskRoom({
     },
     priority: row.priority,
     assigneeId: row.assignee_id,
+    assigneeIds: row.assignee_ids,
     dueAt: row.due_at,
     recurrence: row.recurrence ?? null,
     createdAt: row.created_at,
@@ -116,7 +117,7 @@ function TaskNotFound({
       <div className="flex h-full flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
         <p className="text-sm font-medium">This task is waiting in Triage.</p>
         <Link
-          href={`/p/${propertyId}/triage?task=${taskId}`}
+          href={`/p/${propertyId}/triage?issue=${taskId}`}
           className="text-sm text-muted-foreground underline-offset-2 hover:underline"
         >
           Open in Triage

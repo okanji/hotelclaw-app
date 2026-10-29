@@ -221,6 +221,10 @@ export const TOOL_LABELS: Record<string, string> = {
   update_task: "Updated a task",
   delete_task: "Deleted a task",
   escalate_task: "Escalated a task",
+  list_custom_fields: "Read custom fields",
+  set_task_field: "Set a custom field",
+  add_checklist_items: "Added a checklist",
+  check_checklist_item: "Ticked a checklist item",
   create_project: "Created a project",
   // Documents
   search_documents: "Searched documents",
@@ -234,14 +238,11 @@ export const TOOL_LABELS: Record<string, string> = {
   // Spreadsheets
   read_sheet: "Read a spreadsheet",
   update_sheet_cells: "Edited a spreadsheet",
-  // Calendar + bookings
+  // Calendar
   list_meetings: "Checked the calendar",
   schedule_meeting: "Scheduled a meeting",
   update_meeting: "Updated a meeting",
   cancel_meeting: "Cancelled a meeting",
-  list_bookings: "Checked bookings",
-  create_booking: "Made a booking",
-  update_booking_status: "Updated a booking",
   // Chat
   search_chat_messages: "Searched conversations",
   list_channels: "Listed channels",

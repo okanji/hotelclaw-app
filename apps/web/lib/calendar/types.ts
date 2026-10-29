@@ -10,7 +10,7 @@
  * before reaching for fields specific to one kind.
  */
 
-export type CalendarEventSource = "meeting" | "task" | "external" | "booking";
+export type CalendarEventSource = "meeting" | "task" | "external";
 
 export type AttendeeResponse = "pending" | "accepted" | "declined" | "tentative";
 
@@ -86,19 +86,7 @@ export type ExternalEvent = BaseEvent & {
   organizer_email: string | null;
 };
 
-export type BookingEvent = BaseEvent & {
-  source: "booking";
-  service_id: string;
-  service_name: string;
-  reference: string;
-  guest_name: string;
-  guest_phone: string | null;
-  party_size: number;
-  booking_status: import("@/lib/db/types").BookingStatus;
-  booking_source: import("@/lib/db/types").BookingSource;
-};
-
-export type CalendarEvent = MeetingEvent | TaskEvent | ExternalEvent | BookingEvent;
+export type CalendarEvent = MeetingEvent | TaskEvent | ExternalEvent;
 
 /** The blob the section sidebar's "calendars" list renders. */
 export type CalendarSource = {

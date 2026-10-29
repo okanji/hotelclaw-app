@@ -20,7 +20,7 @@
 //     EVERY part of the question was answered, whether the claims match
 //     ground truth pulled from Postgres, and — the one nobody tests —
 //     whether the bot INVENTS things that do not exist.
-//   • actions  — "create a task / meeting / booking / form …" verified by
+//   • actions  — "create a task / meeting / form …" verified by
 //     querying the row the tool should have written. Unfakeable: the bot
 //     can claim anything, but the row is either there or it is not.
 //
@@ -704,32 +704,6 @@ const ACTION_SCENARIOS = [
   },
 
   {
-    id: "action/create-booking",
-    tools: ["create_booking", "list_bookings"],
-    // Bookings never take a raw insert — createBookingChecked revalidates
-    // availability server-side. A row here proves the internal API path,
-    // not just a table write.
-    ask: `@hotelclaw Book the Serenity Spa 60-minute massage for tomorrow at 2pm for one person, under the guest name "${MARK} Rivera". Go ahead.`,
-    async verify({ propertyId }) {
-      const row = await pollFor(async () => {
-        const { data } = await supabase
-          .from("bookings")
-          .select("id, reference, status, source, guest_name, starts_at")
-          .eq("property_id", propertyId)
-          .ilike("guest_name", `%${MARK}%`)
-          .maybeSingle();
-        return data;
-      });
-      if (!row) return { passed: false, reason: "no booking row created" };
-      const year = new Date(row.starts_at).getUTCFullYear();
-      if (year < new Date().getUTCFullYear()) {
-        return { passed: false, reason: `booked in ${year} — now-line not landing` };
-      }
-      return { passed: true, detail: `${row.reference} ${row.status} (${row.source})` };
-    },
-  },
-
-  {
     id: "action/escalate-task",
     tools: ["escalate_task", "create_task"],
     // Two-hop: create an assigned task, then escalate it up the org chart.
@@ -980,7 +954,6 @@ async function sweep(propertyId, { quiet = false } = {}) {
   await del("meetings", "title");
   await del("forms", "title");
   await del("documents", "title");
-  await del("bookings", "guest_name");
   // Stream messages are not DB rows, so the row sweep above leaves the test
   // chatter behind and the channels slowly fill with CAPTEST noise. Clean
   // both the channel under test and any channel a scenario relays into.
@@ -1059,7 +1032,6 @@ const APPROVAL_GATED = [
   "archive_document",
   "delete_task",
   "cancel_meeting",
-  "update_booking_status",
   "send_notification",
   "post_to_channel",
 ];

@@ -52,7 +52,7 @@ const Extraction = z.object({
 const INSTRUCTIONS = [
   "You distil durable memory from one finished turn between a hotel team member and their AI assistant.",
   "Return at most 3 memories, often 0. A memory is something a colleague would still want to know next week:",
-  "- a fact about the property that is NOT already a task/document/booking record (who owns what, where things are, supplier behaviour, recurring problems and their cause, decisions and why);",
+  "- a fact about the property that is NOT already a task/document record (who owns what, where things are, supplier behaviour, recurring problems and their cause, decisions and why);",
   "- an outcome of real work done in this turn (what was changed and the result), only if it matters later;",
   "- a correction the person made, or a standing preference about how they want answers or work done (scope = person).",
   "Never store: greetings, the question itself, anything the assistant merely looked up from live records, speculation, secrets, or anything already in the 'Already known' list (or a trivial rewording of it).",

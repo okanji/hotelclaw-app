@@ -528,10 +528,13 @@ async function resolveActingPrincipal(
   const service = createServiceClient();
   const { data: membership } = await service
     .from("memberships")
-    .select("user_id")
+    .select("user_id, role")
     .eq("property_id", propertyId)
     .eq("user_id", senderId)
     .maybeSingle();
+  // A GUEST (0118) must never fall through to the owner principal below —
+  // that would hand a guest the bot's whole-property, owner-level tools.
+  if (membership?.role === "guest") return null;
   if (membership) return senderId;
   const { data: fallback } = await service
     .from("memberships")
@@ -684,10 +687,15 @@ export async function runChannelBotEveTurn(ctx: {
     let actingUserId = ctx.triggerMessage.userId;
     const { data: senderMembership } = await service
       .from("memberships")
-      .select("user_id")
+      .select("user_id, role")
       .eq("property_id", ctx.propertyId)
       .eq("user_id", actingUserId)
       .maybeSingle();
+    // Guests (0118) don't drive the bot — and must never inherit the
+    // owner principal below.
+    if (senderMembership?.role === "guest") {
+      return { ok: false, reason: "guest sender" };
+    }
     if (!senderMembership) {
       const { data: fallback } = await service
         .from("memberships")

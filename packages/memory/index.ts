@@ -479,7 +479,7 @@ export function recallQueryFromInput(input: unknown): string {
 
 export const memoryToolDescriptions = {
   remember:
-    "Save a DURABLE fact to memory so future conversations — yours, other bots', other people's — benefit: a recurring issue and its fix, a supplier's behaviour, a decision and why, a preference, who to call for what. One fact per call, specific, in plain words. SKIP chit-chat, speculation, and anything the app already holds authoritatively (tasks, bookings, documents, calendar). Never save passwords, access tokens, card numbers, or one-time codes. Set pinned=true ONLY for a standing fact worth seeing every turn (e.g. 'the backup freezer is unit B2').",
+    "Save a DURABLE fact to memory so future conversations — yours, other bots', other people's — benefit: a recurring issue and its fix, a supplier's behaviour, a decision and why, a preference, who to call for what. One fact per call, specific, in plain words. SKIP chit-chat, speculation, and anything the app already holds authoritatively (tasks, documents, calendar). Never save passwords, access tokens, card numbers, or one-time codes. Set pinned=true ONLY for a standing fact worth seeing every turn (e.g. 'the backup freezer is unit B2').",
   forget:
     "Retire a memory that is wrong or no longer true, by its id (the #id shown in recalled memory or search results). The row is kept for audit but leaves every recall and search. Prefer remembering a corrected fact alongside forgetting the stale one.",
   search:
@@ -517,7 +517,7 @@ export const memoryToolSchemas = {
 
 export const MEMORY_DISCIPLINE = [
   "## Finding what the property knows",
-  "- Three kinds of source, three jobs: **Documents** (authored SOPs, policies, runbooks, notes — the authoritative record of what's written down), **memory** (facts people and bots saved: recurring issues and fixes, supplier behaviour, decisions and why, preferences — recalled automatically at the top of each turn, searchable for more), and **live app data** (tasks, meetings, bookings, forms — transactional truth; never quote these from memory).",
+  "- Three kinds of source, three jobs: **Documents** (authored SOPs, policies, runbooks, notes — the authoritative record of what's written down), **memory** (facts people and bots saved: recurring issues and fixes, supplier behaviour, decisions and why, preferences — recalled automatically at the top of each turn, searchable for more), and **live app data** (tasks, meetings, forms — transactional truth; never quote these from memory).",
   "- Memory is recalled for you before every turn: read the recalled block first. For ANY question about knowledge, policies, procedures, or history that the block doesn't settle, check EVERY relevant surface before answering — document search/listing AND memory search (and the deployment knowledge base where mounted).",
   "- Enumeration questions (\"what SOPs do we have\", \"list our …\") want listing tools (list_documents), not keyword search.",
   "- An empty result speaks ONLY for the source that returned it. NEVER state that something doesn't exist until every mounted surface has returned empty — and if a surface you'd need isn't mounted, say you can't see it rather than guessing.",

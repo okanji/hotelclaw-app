@@ -58,7 +58,6 @@ const CHAT_ROOT = /^\/p\/[^/]+\/chat\/?$/;
 const SERVER_RENDERED = [
   /^\/p\/[^/]+\/meetings(\/.*)?$/,
   /^\/p\/[^/]+\/chatbots(\/.*)?$/,
-  /^\/p\/[^/]+\/bookings(\/.*)?$/,
   /^\/p\/[^/]+\/agents(\/.*)?$/,
   /^\/p\/[^/]+\/assistant(\/.*)?$/,
   /^\/p\/[^/]+\/forms(\/.*)?$/,

@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, Lock, Share2 } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Popover,
   PopoverContent,
@@ -90,9 +91,9 @@ export function DocumentShare({
           <button
             {...props}
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
+            className="btn btn-ghost btn-sm"
           >
-            <Share2 className="size-3.5" />
+            <Gi icon={Share2} size={13} />
             Share
           </button>
         )}

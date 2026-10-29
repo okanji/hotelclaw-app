@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
  * cover holding ONE centered glyph (an emoji or a line-art lucide icon),
  * then a quiet body (title + optional meta, description, small tag chips).
  *
- * Use on full-page galleries (workflow templates, bookable services);
+ * Use on full-page galleries (workflow templates);
  * pickers inside dialogs stay compact text cards (that's the reference
  * pattern too — the platform's template dialog has no covers).
  *

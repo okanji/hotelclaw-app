@@ -1,17 +1,7 @@
 "use client";
 
-import { ChevronDown, Search, Users, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { LayoutGrid, List, Search, X } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { NewDocumentMenu } from "./quick-create-row";
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -51,19 +41,18 @@ const SORT_LABEL: Record<DirectorySort, string> = {
 
 export type TeamOption = { id: string; name: string; icon: string | null; count: number };
 
+/** Grid of `.fcard`s or a `.panel` of `.mini` rows (gr8r's file view toggle). */
+export type DirectoryLayout = "grid" | "list";
+
+const SELECT_STYLE = { height: 26, width: "auto", fontSize: 12 } as const;
+
 /**
- * The Directory's one control bar: find, narrow, order, create — in that
- * order, because on a library of documents *finding* is the primary act and
- * creating is the occasional one.
- *
- * It replaces three separate affordances the page used to stack vertically (a
- * five-tile create row, a floating search dropdown, and a strip of team chips
- * buried below the fold), which is what pushed the actual document list a full
- * screen down the page.
- *
- * Every control is a dropdown rather than a chip strip so the bar's height is
- * constant no matter how many teams a property has — it sticks to the top of
- * the scroller, and a bar that reflows as you scroll reads as broken.
+ * The Directory's one control bar — gr8r's Files `.toolbar` row (search
+ * `.inwrap`, native `.select` filters, a grid / list `.seg`, then the primary
+ * create). Find, narrow, order, create — in that order, because on a library
+ * of documents *finding* is the primary act and creating is the occasional
+ * one. Native selects keep the bar's height constant however many teams a
+ * property has, so it can stick to the top of the scroller.
  */
 export function DirectoryToolbar({
   propertyId,
@@ -73,6 +62,8 @@ export function DirectoryToolbar({
   generalCount,
   onGenerate,
   resultCount,
+  layout,
+  onLayout,
 }: {
   propertyId: string;
   view: DirectoryView;
@@ -82,174 +73,126 @@ export function DirectoryToolbar({
   onGenerate: () => void;
   /** Rendered beside the search field while a query is active. */
   resultCount: number | null;
+  layout: DirectoryLayout;
+  onLayout: (l: DirectoryLayout) => void;
 }) {
-  const teamLabel =
-    view.team === "all"
-      ? "All teams"
-      : view.team === "general"
-        ? "General"
-        : (teams.find((t) => t.id === view.team)?.name ?? "All teams");
-
   const filtered = view.kind !== "all" || view.team !== "all";
 
   return (
-    <div
-      // Sticky against the page scroller so the controls stay reachable in a
-      // long library. `bg-card` is the PANE canvas (the `<main>` this renders
-      // in) — not `bg-background`, which is the shell plane and would paint a
-      // visibly grey band across the page. Without a fill, rows scroll through
-      // the bar. The `-mx-2 px-2` bleed keeps the fill under the leftmost
-      // control's hover/focus box without moving the column's left edge.
-      className="sticky top-0 z-20 -mx-2 flex flex-wrap items-center gap-2 bg-card px-2 py-3"
-    >
-      <div className="relative min-w-56 flex-1 sm:max-w-sm">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint-foreground"
-        />
-        <Input
+    <div className="row g8-doc-toolbar">
+      <div className="inwrap" style={{ position: "relative" }}>
+        <Gi icon={Search} size={13} />
+        <input
           type="search"
+          className="input search-sm g8-doc-search"
           value={view.query}
           onChange={(e) => onChange({ query: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onChange({ query: "" });
+          }}
           placeholder="Search title and body…"
           aria-label="Search documents"
-          // `type=search` gets us the semantics and the Escape-to-clear
-          // behaviour, but WebKit also paints its own cancel button — which
-          // sat right beside ours, giving the field two ✕ controls.
-          className="h-8 pr-8 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
         />
         {view.query ? (
           <button
             type="button"
+            className="ibtn ibtn-xs g8-doc-clear"
             onClick={() => onChange({ query: "" })}
             aria-label="Clear search"
-            className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-md p-1 text-faint-foreground transition-colors hover:bg-accent"
           >
-            <X className="size-3.5" />
+            <Gi icon={X} size={12} />
           </button>
         ) : null}
       </div>
 
       {resultCount !== null ? (
-        <span
-          aria-live="polite"
-          className="text-xs text-faint-foreground tabular-nums"
-        >
+        <span aria-live="polite" className="faint num" style={{ fontSize: 12 }}>
           {resultCount} {resultCount === 1 ? "result" : "results"}
         </span>
       ) : null}
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <FilterMenu label={KIND_LABEL[view.kind]} active={view.kind !== "all"}>
-          <DropdownMenuRadioGroup
-            value={view.kind}
-            onValueChange={(v) => onChange({ kind: v as DirectoryKind })}
-          >
-            {(Object.keys(KIND_LABEL) as DirectoryKind[]).map((k) => (
-              <DropdownMenuRadioItem key={k} value={k} closeOnClick>
-                {KIND_LABEL[k]}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </FilterMenu>
-
-        {teams.length > 0 ? (
-          <FilterMenu
-            label={teamLabel}
-            active={view.team !== "all"}
-            icon={<Users className="size-3.5 text-faint-foreground" />}
-          >
-            <DropdownMenuRadioGroup
-              value={view.team}
-              onValueChange={(v) => onChange({ team: v })}
-            >
-              <DropdownMenuRadioItem value="all" closeOnClick>All teams</DropdownMenuRadioItem>
-              <DropdownMenuSeparator />
-              {teams.map((t) => (
-                <DropdownMenuRadioItem key={t.id} value={t.id} closeOnClick>
-                  {t.icon ? <span aria-hidden>{t.icon}</span> : null}
-                  <span className="flex-1">{t.name}</span>
-                  <span className="text-xs text-faint-foreground tabular-nums">
-                    {t.count}
-                  </span>
-                </DropdownMenuRadioItem>
-              ))}
-              {generalCount > 0 ? (
-                <DropdownMenuRadioItem value="general" closeOnClick>
-                  <span className="flex-1">General</span>
-                  <span className="text-xs text-faint-foreground tabular-nums">
-                    {generalCount}
-                  </span>
-                </DropdownMenuRadioItem>
-              ) : null}
-            </DropdownMenuRadioGroup>
-          </FilterMenu>
-        ) : null}
-
-        {/* No "Sort by" heading: `DropdownMenuLabel` is base-ui's
-            `Menu.GroupLabel` and THROWS unless it is inside a `Menu.Group` —
-            a `RadioGroup` does not satisfy it (it crashed the page). The
-            trigger already reads out the active sort, so the heading was
-            redundant chrome regardless. */}
-        <FilterMenu label={SORT_LABEL[view.sort]} active={false}>
-          <DropdownMenuRadioGroup
-            value={view.sort}
-            onValueChange={(v) => onChange({ sort: v as DirectorySort })}
-          >
-            {(Object.keys(SORT_LABEL) as DirectorySort[]).map((s) => (
-              <DropdownMenuRadioItem key={s} value={s} closeOnClick>
-                {SORT_LABEL[s]}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </FilterMenu>
-
-        {filtered ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange({ kind: "all", team: "all" })}
-          >
-            Clear
-          </Button>
-        ) : null}
-
-        <NewDocumentMenu propertyId={propertyId} onGenerate={onGenerate} />
-      </div>
-    </div>
-  );
-}
-
-/** A ghost trigger that goes warm-pressed while its filter is narrowing. */
-function FilterMenu({
-  label,
-  active,
-  icon,
-  children,
-}: {
-  label: string;
-  active: boolean;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(active && "bg-accent-pressed text-foreground")}
-          />
-        }
+      <select
+        className="select"
+        style={SELECT_STYLE}
+        aria-label="Filter by type"
+        value={view.kind}
+        onChange={(e) => onChange({ kind: e.target.value as DirectoryKind })}
       >
-        {icon}
-        {label}
-        <ChevronDown className="opacity-70" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={4} className="min-w-48">
-        {children}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        {(Object.keys(KIND_LABEL) as DirectoryKind[]).map((k) => (
+          <option key={k} value={k}>
+            {KIND_LABEL[k]}
+          </option>
+        ))}
+      </select>
+
+      {teams.length > 0 ? (
+        <select
+          className="select"
+          style={SELECT_STYLE}
+          aria-label="Filter by team"
+          value={view.team}
+          onChange={(e) => onChange({ team: e.target.value })}
+        >
+          <option value="all">All teams</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.icon ? `${t.icon} ` : ""}
+              {t.name} ({t.count})
+            </option>
+          ))}
+          {generalCount > 0 ? (
+            <option value="general">General ({generalCount})</option>
+          ) : null}
+        </select>
+      ) : null}
+
+      <select
+        className="select"
+        style={SELECT_STYLE}
+        aria-label="Sort"
+        value={view.sort}
+        onChange={(e) => onChange({ sort: e.target.value as DirectorySort })}
+      >
+        {(Object.keys(SORT_LABEL) as DirectorySort[]).map((s) => (
+          <option key={s} value={s}>
+            Sort: {SORT_LABEL[s]}
+          </option>
+        ))}
+      </select>
+
+      {filtered ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => onChange({ kind: "all", team: "all" })}
+        >
+          Clear
+        </button>
+      ) : null}
+
+      <span className="sp" />
+
+      <div className="seg" role="group" aria-label="Layout">
+        {(
+          [
+            ["grid", LayoutGrid],
+            ["list", List],
+          ] as const
+        ).map(([k, icon]) => (
+          <button
+            key={k}
+            type="button"
+            className={layout === k ? "on" : ""}
+            aria-label={`${k} view`}
+            aria-pressed={layout === k}
+            onClick={() => onLayout(k)}
+          >
+            <Gi icon={icon} size={13} />
+          </button>
+        ))}
+      </div>
+
+      <NewDocumentMenu propertyId={propertyId} onGenerate={onGenerate} />
+    </div>
   );
 }

@@ -5,16 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FolderOpen, Plus } from "lucide-react";
+import { FolderOpen, MessageSquare, Plus } from "lucide-react";
 import {
   assistantProjectsKey,
   assistantProjectsQueryOptions,
 } from "@/lib/query/assistant-queries";
 import { PROJECT_TINTS, asTint, type AssistantProject } from "@/lib/assistant/types";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 import { NewIcon } from "@/components/shell/clickup-icons";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Gi } from "@/components/gr8r/icon";
+import { tintVar } from "@/components/gr8r/ai-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { TintIcon } from "@/components/ui/tint-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,58 +68,62 @@ export function ProjectsList({
           },
           { label: "Projects" },
         ]}
-        actions={
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus />
-            New project
-          </Button>
-        }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page">
+          <div className="ph">
+            <div>
+              <h1>Projects</h1>
+              <p>
+                Standing work whose conversations share instructions, memory, and
+                context.
+              </p>
+            </div>
+            <div className="acts">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+                <Gi icon={Plus} size={14} />
+                New project
+              </button>
+            </div>
+          </div>
           {projects.length === 0 ? (
-            <EmptyState
+            <G8Empty
               icon={FolderOpen}
               title="No projects yet"
-              action={
-                <Button size="sm" variant="secondary" onClick={() => setCreating(true)}>
-                  Create your first project
-                </Button>
-              }
+              text="Group related conversations under shared instructions, memory, and context. Everything you tell a project once — how you want things written, what it should remember, which documents matter — applies to every chat inside it."
             >
-              Group related conversations under shared instructions, memory, and
-              context. Everything you tell a project once
-              — how you want things written, what it should remember, which
-              documents matter — applies to every chat inside it.
-            </EmptyState>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCreating(true)}>
+                Create your first project
+              </button>
+            </G8Empty>
           ) : (
-            <ul role="list" className="grid gap-3 sm:grid-cols-2">
+            <div className="pgrid">
               {projects.map((project) => (
-                <li key={project.id}>
-                  <Link
-                    href={`/p/${propertyId}/assistant/projects/${project.id}`}
-                    className="flex h-full flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <TintIcon tone={asTint(project.tint)}>{project.emoji}</TintIcon>
-                      <span className="min-w-0 flex-1 truncate text-base font-medium">
-                        {project.name}
-                      </span>
-                    </div>
-                    {project.description ? (
-                      <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">
-                        {project.description}
-                      </p>
-                    ) : null}
-                    <p className="mt-auto pt-1 text-xs text-faint-foreground">
-                      {chatCounts[project.id]
-                        ? `${chatCounts[project.id]} conversation${chatCounts[project.id] === 1 ? "" : "s"}`
-                        : "No conversations yet"}
-                    </p>
-                  </Link>
-                </li>
+                <Link
+                  key={project.id}
+                  href={`/p/${propertyId}/assistant/projects/${project.id}`}
+                  className="pcard"
+                >
+                  <div className="row" style={{ gap: 10 }}>
+                    <span className="picon" style={{ ...tintVar(asTint(project.tint)), fontSize: 15 } as React.CSSProperties}>
+                      {project.emoji}
+                    </span>
+                    <b className="trunc" style={{ fontWeight: 600, fontSize: "var(--g8-fs-md)" }}>
+                      {project.name}
+                    </b>
+                  </div>
+                  {project.description ? (
+                    <p className="desc" style={{ margin: 0 }}>{project.description}</p>
+                  ) : null}
+                  <div className="foot">
+                    <Gi icon={MessageSquare} size={13} />
+                    {chatCounts[project.id]
+                      ? `${chatCounts[project.id]} conversation${chatCounts[project.id] === 1 ? "" : "s"}`
+                      : "No conversations yet"}
+                  </div>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
 
           <NewProjectDialog
@@ -126,7 +131,7 @@ export function ProjectsList({
             open={creating}
             onOpenChange={setCreating}
           />
-        </PageShell>
+        </div>
       </div>
     </div>
   );

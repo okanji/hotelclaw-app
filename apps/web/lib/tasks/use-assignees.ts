@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { createContext, createElement, useContext, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export type AssigneeInfo = { name: string; avatar?: string };
@@ -44,3 +44,24 @@ export function useAssigneesMap(ids: (string | null | undefined)[]) {
 }
 
 const EMPTY: Record<string, AssigneeInfo> = {};
+
+/**
+ * The board's resolved assignee map, shared down the tree so a card can draw
+ * EVERY assignee (0115) without each call site threading a second prop. The
+ * board already looks up all ids at once; this just exposes that result.
+ */
+const AssigneesMapContext = createContext<Record<string, AssigneeInfo>>(EMPTY);
+
+export function AssigneesMapProvider({
+  value,
+  children,
+}: {
+  value: Record<string, AssigneeInfo>;
+  children: React.ReactNode;
+}) {
+  return createElement(AssigneesMapContext.Provider, { value }, children);
+}
+
+export function useAssigneesMapContext(): Record<string, AssigneeInfo> {
+  return useContext(AssigneesMapContext);
+}

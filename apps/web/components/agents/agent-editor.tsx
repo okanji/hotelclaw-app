@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Chip } from "@/components/ui/chip";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   Dialog,
   DialogContent,
@@ -78,199 +77,229 @@ export function AgentEditor({
   const attachedDocs = documents.filter((d) => attachedSet.has(d.id));
   const availableDocs = documents.filter((d) => !attachedSet.has(d.id));
 
+  // gr8r settings idiom: `.sblock` sections (h2 over a hairline), `.field`
+  // / `.input` / `.textarea`, the model tier as a `.seg`, tools + skills as
+  // `.srow` rows.
+  const lead = { margin: "8px 0 10px", fontSize: "var(--g8-fs-sm)" } as const;
   return (
-    <div className="flex max-w-2xl flex-col gap-10">
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Identity</Eyebrow>
-        <div className="flex items-center gap-3">
-          <Input
-            value={config.avatarEmoji}
-            onChange={(e) => onConfigChange({ avatarEmoji: e.target.value })}
-            className="w-16 text-center"
-            maxLength={8}
-            aria-label="Avatar emoji"
-          />
-          <Input
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            maxLength={120}
-            aria-label="Agent name"
+    <div className="flex flex-col" style={{ maxWidth: 720 }}>
+      <section className="sblock" style={{ marginTop: 0 }}>
+        <h2>Identity</h2>
+        <div className="flex flex-col gap-2" style={{ marginTop: 10 }}>
+          <div className="row" style={{ gap: 8 }}>
+            <input
+              className="input"
+              value={config.avatarEmoji}
+              onChange={(e) => onConfigChange({ avatarEmoji: e.target.value })}
+              style={{ width: 56, textAlign: "center" }}
+              maxLength={8}
+              aria-label="Avatar emoji"
+            />
+            <input
+              className="input grow"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              maxLength={120}
+              aria-label="Agent name"
+            />
+          </div>
+          <input
+            className="input"
+            value={config.description}
+            onChange={(e) => onConfigChange({ description: e.target.value })}
+            placeholder="One-line description shown on the gallery card"
+            maxLength={300}
           />
         </div>
-        <Input
-          value={config.description}
-          onChange={(e) => onConfigChange({ description: e.target.value })}
-          placeholder="One-line description shown on the gallery card"
-          maxLength={300}
-        />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Instructions</Eyebrow>
-        <p className="text-sm text-pretty text-muted-foreground">
+      <section className="sblock">
+        <h2>Instructions</h2>
+        <p className="muted" style={lead}>
           The agent&apos;s system prompt, verbatim. What you write here is
           exactly what the model receives — nothing hidden.
         </p>
-        <Textarea
+        <textarea
+          className="textarea mono"
           value={config.instructions}
           onChange={(e) => onConfigChange({ instructions: e.target.value })}
           placeholder="You are the Duty Manager assistant. Be terse, flag risks, never invent numbers…"
           rows={8}
           maxLength={12_000}
-          className="font-mono text-xs leading-relaxed"
+          style={{ fontSize: "var(--g8-fs-xs)", lineHeight: 1.6 }}
         />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Model</Eyebrow>
-        <div className="flex gap-2">
-          <Chip
-            selected={config.modelTier === "standard"}
+      <section className="sblock">
+        <h2>Model</h2>
+        <div className="seg" style={{ marginTop: 10 }} role="radiogroup" aria-label="Model">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={config.modelTier === "standard"}
+            className={config.modelTier === "standard" ? "on" : undefined}
             onClick={() => onConfigChange({ modelTier: "standard" })}
           >
             Standard — fast, cheap (Haiku)
-          </Chip>
-          <Chip
-            selected={config.modelTier === "advanced"}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={config.modelTier === "advanced"}
+            className={config.modelTier === "advanced" ? "on" : undefined}
             onClick={() => onConfigChange({ modelTier: "advanced" })}
           >
             Advanced — deeper reasoning (Sonnet)
-          </Chip>
+          </button>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Tools</Eyebrow>
-        <p className="text-sm text-pretty text-muted-foreground">
+      <section className="sblock">
+        <h2>Tools</h2>
+        <p className="muted" style={lead}>
           A tool the agent isn&apos;t granted doesn&apos;t exist for it.
           Write-capable tools are marked.
         </p>
-        <ul role="list" className="flex flex-col divide-y divide-border">
+        <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {AGENT_TOOL_CATALOG.map((tool) => {
             const granted = config.tools.includes(tool.id);
             return (
-              <li key={tool.id} className="flex items-center gap-3 px-4 py-3">
-                <input
-                  type="checkbox"
-                  id={`tool-${tool.id}`}
-                  checked={granted}
-                  onChange={() => toggleTool(tool.id)}
-                  className="size-4 accent-primary"
-                />
-                <label htmlFor={`tool-${tool.id}`} className="min-w-0 flex-1 cursor-pointer">
-                  <span className="flex items-center gap-2 text-sm font-medium">
+              <li key={tool.id} className="srow" style={{ padding: "10px 0" }}>
+                <label htmlFor={`tool-${tool.id}`} className="min-w-0 cursor-pointer">
+                  <span className="t row" style={{ gap: 8 }}>
                     {tool.label}
                     {tool.category === "write" ? (
-                      <span className="rounded-pill bg-pill-warning px-1.5 text-sm font-medium text-pill-warning-ink">
-                        writes
-                      </span>
+                      <span className="badge amber">writes</span>
                     ) : null}
                   </span>
-                  <span className="block text-xs text-muted-foreground">
+                  <span className="d" style={{ display: "block" }}>
                     {tool.summary}
                   </span>
                 </label>
+                <input
+                  type="checkbox"
+                  id={`tool-${tool.id}`}
+                  className="toggle"
+                  checked={granted}
+                  onChange={() => toggleTool(tool.id)}
+                />
               </li>
             );
           })}
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Skills</Eyebrow>
-        <p className="text-sm text-pretty text-muted-foreground">
+      <section className="sblock">
+        <h2>Skills</h2>
+        <p className="muted" style={lead}>
           Markdown playbooks the agent loads only when relevant — SOPs,
           checklists, house procedures. The description tells the model when
           to reach for one.
         </p>
         {config.skills.length > 0 ? (
-          <ul role="list" className="flex flex-col divide-y divide-border">
+          <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
             {config.skills.map((skill, index) => (
-              <li key={skill.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={skill.id} className="srow" style={{ padding: "10px 0" }}>
                 <button
                   type="button"
-                  className="min-w-0 flex-1 text-left"
+                  className="min-w-0 text-left"
                   onClick={() => {
                     setSkillDraft(skill);
                     setSkillIndex(index);
                   }}
                 >
-                  <span className="block truncate text-sm font-medium">
+                  <span className="t trunc" style={{ display: "block" }}>
                     {skill.name}
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
+                  <span className="d trunc" style={{ display: "block" }}>
                     {skill.description}
                   </span>
                 </button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button
+                  type="button"
+                  className="ibtn ibtn-sm"
                   onClick={() => removeSkill(index)}
                   aria-label={`Remove skill ${skill.name}`}
                 >
-                  <Trash2 className="size-4" />
-                </Button>
+                  <Gi icon={Trash2} size={14} />
+                </button>
               </li>
             ))}
           </ul>
         ) : null}
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             disabled={config.skills.length >= AGENT_SKILL_LIMIT}
             onClick={() => {
               setSkillDraft({ id: "", name: "", description: "", markdown: "" });
               setSkillIndex(null);
             }}
           >
-            <Plus data-slot="icon" />
+            <Gi icon={Plus} size={14} />
             Add skill
-          </Button>
+          </button>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Resources</Eyebrow>
-        <p className="text-sm text-pretty text-muted-foreground">
+      <section className="sblock">
+        <h2>Resources</h2>
+        <p className="muted" style={lead}>
           Documents the agent may read in full (via its &ldquo;Read attached
           resources&rdquo; tool — grant it above).
         </p>
         {attachedDocs.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
             {attachedDocs.map((doc) => (
-              <Chip key={doc.id} selected onClick={() => toggleResource(doc.id)}>
-                {doc.title || "Untitled"} ×
-              </Chip>
+              <span key={doc.id} className="chip">
+                {doc.title || "Untitled"}
+                <button
+                  type="button"
+                  className="ibtn ibtn-xs"
+                  onClick={() => toggleResource(doc.id)}
+                  aria-label={`Detach ${doc.title || "Untitled"}`}
+                >
+                  <Gi icon={X} size={12} />
+                </button>
+              </span>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">Nothing attached.</p>
+          <p className="faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>Nothing attached.</p>
         )}
         {availableDocs.length > 0 ? (
-          <details className="text-sm">
-            <summary className="cursor-pointer text-xs text-muted-foreground">
+          <details style={{ marginTop: 10 }}>
+            <summary className="link" style={{ cursor: "pointer", fontSize: "var(--g8-fs-xs)" }}>
               Attach a document ({availableDocs.length} available)
             </summary>
-            <div className="mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+            <div className="row" style={{ marginTop: 8, flexWrap: "wrap", gap: 6, maxHeight: 192, overflowY: "auto" }}>
               {availableDocs.map((doc) => (
-                <Chip key={doc.id} onClick={() => toggleResource(doc.id)}>
+                <button
+                  key={doc.id}
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => toggleResource(doc.id)}
+                >
+                  <Gi icon={Plus} size={12} />
                   {doc.title || "Untitled"}
-                </Chip>
+                </button>
               ))}
             </div>
           </details>
         ) : null}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <Eyebrow>Starter prompts</Eyebrow>
-        <p className="text-sm text-pretty text-muted-foreground">
+      <section className="sblock">
+        <h2>Starter prompts</h2>
+        <p className="muted" style={lead}>
           Up to four suggested questions shown when a teammate opens the chat.
         </p>
+        <div className="flex flex-col gap-2">
         {[0, 1, 2, 3].map((i) => (
-          <Input
+          <input
             key={i}
+            className="input"
             value={config.starterPrompts[i] ?? ""}
             onChange={(e) => {
               const starterPrompts = [...config.starterPrompts];
@@ -285,6 +314,7 @@ export function AgentEditor({
             maxLength={200}
           />
         ))}
+        </div>
       </section>
 
       <SkillDialog

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveApiCaller } from "@/lib/auth/api-caller";
+import { callerIsFullMember, resolveApiCaller } from "@/lib/auth/api-caller";
 import { getTriagePendingCount } from "@/lib/tasks/triage-queue";
 
 /** `GET /api/properties/:propertyId/triage/count[?spaceId=]` → `{ count }`. */
@@ -11,6 +11,9 @@ export async function GET(
   const { supabase, user } = await resolveApiCaller(request);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!(await callerIsFullMember(supabase, user.id, propertyId))) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const spaceId = new URL(request.url).searchParams.get("spaceId");
   try {

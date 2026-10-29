@@ -9,8 +9,6 @@
 export const ACTIONS_MCP_TOOLS = [
   "list_tasks",
   "create_task",
-  "get_bookings",
-  "get_booking",
   "trigger_workflow",
   "get_workflow_status",
 ] as const;
@@ -30,16 +28,6 @@ export const ACTIONS_MCP_TOOL_INFO: Record<
     label: "Create task",
     description: "Create a task in the key's property.",
     write: true,
-  },
-  get_bookings: {
-    label: "List bookings",
-    description: "Read bookings in a date window.",
-    write: false,
-  },
-  get_booking: {
-    label: "Look up booking",
-    description: "Fetch one booking by reference.",
-    write: false,
   },
   trigger_workflow: {
     label: "Trigger workflow",

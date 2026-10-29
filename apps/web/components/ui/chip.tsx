@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
  *   `app`   — shell surfaces, Notion language: 6px radius, NO border,
  *             fill-only hover (`bg-accent`), selected = the pressed warm
  *             rung. Nothing changes color on hover but the fill.
- *   `guest` — the warm-cream guest world (wizard, public booking, forms
+ *   `guest` — the warm-cream guest world (wizard, forms
  *             wizard): rust accent on cream, pill shape, bordered. This
  *             branch is DELIBERATELY untouched by the Notion normalization —
  *             every class it emits is byte-identical to the pre-Notion chip.

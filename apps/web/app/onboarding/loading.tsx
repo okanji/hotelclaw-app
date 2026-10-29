@@ -1,9 +1,6 @@
+import { RouteLoading } from "@/components/shell/route-loading";
+
 export default function OnboardingLoading() {
-  // Match the wizard's cream canvas so the transition in doesn't flash
-  // the app theme.
-  return (
-    <main className="flex min-h-svh items-center justify-center bg-guest-bg">
-      <span className="inline-block size-5 animate-spin rounded-full border-2 border-guest-line border-t-guest-accent" />
-    </main>
-  );
+  // The wizard's card is gr8r's wider `.onb` (560px).
+  return <RouteLoading wide />;
 }

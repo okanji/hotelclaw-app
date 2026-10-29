@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox, Search, TriangleAlert } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
-import { Input } from "@/components/ui/input";
 import {
   FormFileValueZod,
   formatAnswer,
@@ -186,26 +187,37 @@ export function ResponsesTab({
   }, [responses, search, searchTexts, chipFields, chipFilters, sortDir]);
 
   if (isPending) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">Loading responses…</p>;
+    return (
+      <div className="panel">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="mini" style={{ cursor: "default" }}>
+            <span className="sk" style={{ width: 140, height: 12 }} />
+            <span className="sk" style={{ width: 80, height: 10, marginLeft: "auto" }} />
+          </div>
+        ))}
+      </div>
+    );
   }
   if (error) {
     return (
-      <p className="py-12 text-center text-sm text-destructive">
-        {error instanceof Error ? error.message : "Failed to load responses"}
-      </p>
+      <div className="alert danger">
+        <Gi icon={TriangleAlert} size={15} />
+        <span>{error instanceof Error ? error.message : "Failed to load responses"}</span>
+      </div>
     );
   }
 
   if (responses.length === 0) {
     return (
-      <div className="rounded-md p-12 text-center">
-        <p className="text-sm font-medium">No responses yet</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {status === "published"
+      <G8Empty
+        icon={Inbox}
+        title="No responses yet"
+        text={
+          status === "published"
             ? "Share the fill link to start collecting."
-            : "Publish the form to start collecting."}
-        </p>
-      </div>
+            : "Publish the form to start collecting."
+        }
+      />
     );
   }
 
@@ -227,17 +239,17 @@ export function ResponsesTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-baseline gap-3 text-sm">
-        <span className="font-semibold">
+      <div className="row" style={{ gap: 10, alignItems: "baseline" }}>
+        <h2 className="sec">
           {responses.length} {responses.length === 1 ? "response" : "responses"}
-        </span>
+        </h2>
         {filtering ? (
-          <span className="text-xs text-muted-foreground">
+          <span className="faint num" style={{ fontSize: 12 }}>
             {shownResponses.length} shown
           </span>
         ) : null}
         {latest ? (
-          <span className="text-xs text-muted-foreground">
+          <span className="faint" style={{ fontSize: 12 }}>
             Latest {formatDate(latest)}
           </span>
         ) : null}
@@ -248,21 +260,21 @@ export function ResponsesTab({
       {/* Filter toolbar — search across answers + respondent, and option
           chips for the leading choice fields. All client-side. */}
       <div className="flex flex-col gap-2">
-        <div className="relative w-64 max-w-full">
-          <Search className="absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-faint-foreground" />
-          <Input
+        <div className="inwrap" style={{ alignSelf: "flex-start" }}>
+          <Gi icon={Search} size={13} />
+          <input
+            className="input search-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search responses…"
             aria-label="Search responses"
-            className="h-8 pl-7"
           />
         </div>
         {chipFields.map(({ field, options, counts }) => {
           const active = chipFilters[field.id] ?? null;
           return (
             <div key={field.id} className="flex flex-wrap items-center gap-1.5">
-              <span className="max-w-40 truncate text-xs font-medium text-faint-foreground">
+              <span className="eyebrow trunc" style={{ maxWidth: 160 }}>
                 {field.label}
               </span>
               <Chip
@@ -278,7 +290,7 @@ export function ResponsesTab({
               {options.map((opt) => {
                 const count = counts.get(opt.id) ?? 0;
                 // Zero-count chips stay (disabled) so the row doesn't reflow
-                // as answers arrive — the bookings agenda pattern.
+                // as answers arrive.
                 const empty = count === 0;
                 return (
                   <Chip
@@ -307,25 +319,18 @@ export function ResponsesTab({
       {/* Notion database table (notion-spec-v2 §6): 36px header of 14px w400
           tertiary labels, 37px rows, BOTH dividers, no zebra, no outer
           frame — a data view breaks out of the document column. */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+      <div className="panel" style={{ overflowX: "auto" }}>
+        <table className="perm-t g8-resp-t">
           <thead>
-            <tr className="h-9 border-b border-border text-left font-normal text-muted-foreground">
-              {hasMore ? (
-                <th className="w-8 border-r border-border px-2 font-normal" />
-              ) : null}
-              <th className="border-r border-border px-2 font-normal">
-                Respondent
-              </th>
+            <tr>
+              {hasMore ? <th style={{ width: 32 }} /> : null}
+              <th>Respondent</th>
               {visible.map((f) => (
-                <th
-                  key={f.id}
-                  className="max-w-44 truncate border-r border-border px-2 font-normal"
-                >
+                <th key={f.id} className="trunc" style={{ maxWidth: 176 }}>
                   {f.label}
                 </th>
               ))}
-              <th className="px-2 font-normal">
+              <th>
                 <button
                   type="button"
                   onClick={() =>
@@ -334,14 +339,14 @@ export function ResponsesTab({
                   aria-label={`Sort by submitted date, ${
                     sortDir === "newest" ? "newest" : "oldest"
                   } first`}
-                  className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 hover:bg-accent"
+                  className="row"
+                  style={{ gap: 4 }}
                 >
                   Submitted
-                  <ChevronDown
-                    className={cn(
-                      "size-3.5 transition-transform",
-                      sortDir === "oldest" && "rotate-180",
-                    )}
+                  <Gi
+                    icon={ChevronDown}
+                    size={13}
+                    className={sortDir === "oldest" ? "rotate-180" : undefined}
                   />
                 </button>
               </th>
@@ -350,10 +355,7 @@ export function ResponsesTab({
           <tbody>
             {shownResponses.length === 0 ? (
               <tr>
-                <td
-                  colSpan={colSpan}
-                  className="py-8 text-center text-muted-foreground"
-                >
+                <td colSpan={colSpan} className="muted" style={{ textAlign: "center", padding: 32 }}>
                   No responses match your filters.
                 </td>
               </tr>
@@ -398,30 +400,25 @@ function ResponseRows({
   const colSpan = visible.length + 2 + (hasMore ? 1 : 0);
   return (
     <>
-      <tr className="h-[37px] border-b border-border last:border-0">
+      <tr>
         {hasMore ? (
-          <td className="border-r border-border px-2">
+          <td>
             <button
               type="button"
               onClick={onToggle}
               aria-label={expanded ? "Collapse row" : "Expand row"}
-              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+              aria-expanded={expanded}
+              className="ibtn ibtn-xs"
             >
-              <ChevronRight
-                className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
-              />
+              <Gi icon={ChevronRight} size={13} className={expanded ? "chev open" : "chev"} />
             </button>
           </td>
         ) : null}
-        {/* The name cell is the UI-row rung: 14px w500 primary. */}
-        <td className="border-r border-border px-2 font-medium whitespace-nowrap">
+        <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>
           {response.respondent?.name ?? "Anonymous"}
         </td>
         {visible.map((f) => (
-          <td
-            key={f.id}
-            className="max-w-44 truncate border-r border-border px-2"
-          >
+          <td key={f.id} className="trunc" style={{ maxWidth: 176 }}>
             <AnswerCell
               field={f}
               value={response.answers[f.id]}
@@ -429,18 +426,18 @@ function ResponseRows({
             />
           </td>
         ))}
-        <td className="px-2 whitespace-nowrap text-muted-foreground">
+        <td className="muted num" style={{ whiteSpace: "nowrap" }}>
           {formatDate(response.created_at)}
         </td>
       </tr>
       {expanded ? (
-        <tr className="border-b border-border bg-muted last:border-0">
-          <td colSpan={colSpan} className="px-2 py-3">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        <tr className="g8-resp-more">
+          <td colSpan={colSpan}>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2" style={{ margin: 0 }}>
               {allFields.map((f) => (
                 <div key={f.id}>
-                  <dt className="text-xs text-muted-foreground">{f.label}</dt>
-                  <dd className="text-sm">
+                  <dt className="faint" style={{ fontSize: 12 }}>{f.label}</dt>
+                  <dd style={{ margin: 0 }}>
                     <AnswerCell
                       field={f}
                       value={response.answers[f.id]}
@@ -575,42 +572,32 @@ function SummaryStrip({
   if (summaries.length === 0) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="row" style={{ gap: 12, overflowX: "auto", paddingBottom: 4, alignItems: "stretch" }}>
       {summaries.map((s) => (
-        <div
-          key={s.field.id}
-          className="w-56 shrink-0 rounded-card p-3 shadow-ring"
-        >
-          {/* A per-field summary tile is a WELL, not a page: bare warm ring,
-              no card shadow, and its heading is a 12px section label. */}
-          <p className="truncate text-xs font-medium text-faint-foreground">
-            {s.field.label}
-          </p>
+        // gr8r `.panel` tile per summarised question: `.eyebrow` label, then
+        // the rating average or a `.prog` meter per option.
+        <div key={s.field.id} className="panel" style={{ width: 224, flexShrink: 0, padding: 12 }}>
+          <div className="eyebrow trunc">{s.field.label}</div>
           {s.kind === "rating" ? (
-            <p className="mt-2 text-2xl font-semibold">
+            <p className="num" style={{ margin: "8px 0 0", fontSize: "var(--g8-fs-2xl)", fontWeight: 600 }}>
               {s.avg.toFixed(1)}
-              <span className="text-sm font-normal text-muted-foreground">
+              <span className="muted" style={{ fontSize: 12.5, fontWeight: 400 }}>
                 /{s.field.maxRating ?? 5} avg · {s.count}
               </span>
             </p>
           ) : (
-            <div className="mt-2 space-y-1.5">
+            <div className="col" style={{ gap: 6, marginTop: 8 }}>
               {s.labels.map((opt) => {
                 const count = s.counts.get(opt.id) ?? 0;
-                const pct = s.total > 0 ? (count / s.total) * 100 : 0;
+                const frac = s.total > 0 ? count / s.total : 0;
                 return (
-                  <div key={opt.id} className="text-xs">
-                    <div className="flex justify-between gap-2">
-                      <span className="truncate text-muted-foreground">{opt.label}</span>
-                      <span className="shrink-0 tabular-nums">{count}</span>
+                  <div key={opt.id} style={{ fontSize: 12 }}>
+                    <div className="row" style={{ gap: 8 }}>
+                      <span className="trunc muted grow">{opt.label}</span>
+                      <span className="num">{count}</span>
                     </div>
-                    <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        // Answer-distribution meter — a VALUE, so warm ink
-                        // (same call as `ui/progress`), never `--primary`.
-                        className="h-full rounded-full bg-secondary-ink"
-                        style={{ width: `${pct}%` }}
-                      />
+                    <div className="prog" style={{ marginTop: 3 }}>
+                      <i style={{ "--g8-p": frac } as React.CSSProperties} />
                     </div>
                   </div>
                 );

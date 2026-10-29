@@ -3,6 +3,7 @@ import {
   AtSign,
   ChartNoAxesColumn,
   CircleDot,
+  Filter,
   Hash,
   Inbox,
   ListChecks,
@@ -28,7 +29,8 @@ export type ActivityViewId =
   | "channels"
   | "alerts"
   | "reports"
-  | "invites";
+  | "invites"
+  | "triage";
 
 type ViewDef = {
   id: ActivityViewId;
@@ -55,6 +57,14 @@ export const WORKSPACE_VIEWS: ViewDef[] = [
   { id: "workspace", label: "All activity", icon: Activity },
 ];
 
+/**
+ * Not a notification slice either: the pending-intake queue (guest chatbot
+ * tickets, triage issues) that someone accepts onto a board or declines.
+ * Lives in the Inbox as a tab (it used to be its own sidebar row);
+ * `/triage` redirects here. Full members only — guests never see the tab.
+ */
+export const TRIAGE_VIEW: ViewDef = { id: "triage", label: "Triage", icon: Filter };
+
 /** Type filters — the "folders" of the inbox. */
 export const FILTER_VIEWS: ViewDef[] = [
   { id: "mentions", label: "Mentions", icon: AtSign },
@@ -66,7 +76,7 @@ export const FILTER_VIEWS: ViewDef[] = [
 ];
 
 const VIEW_BY_ID = new Map<ActivityViewId, ViewDef>(
-  [...PRIMARY_VIEWS, ...FILTER_VIEWS, ...WORKSPACE_VIEWS].map((v) => [v.id, v]),
+  [...PRIMARY_VIEWS, ...FILTER_VIEWS, ...WORKSPACE_VIEWS, TRIAGE_VIEW].map((v) => [v.id, v]),
 );
 
 /** Every notification view (everything but the activity_log feed). */
@@ -115,7 +125,9 @@ export function matchesView(n: NotificationRow, view: ActivityViewId): boolean {
     case "unread":
       return !n.seen_at;
     case "workspace":
-      // Rendered from activity_log, not notifications — never counts unread.
+    case "triage":
+      // Not notification views (activity_log / the triage queue) — never
+      // count unread.
       return false;
     case "mentions":
       return n.type === "mention" || n.type === "task_comment_mention";

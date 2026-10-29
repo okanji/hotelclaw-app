@@ -22,7 +22,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Kbd } from "@/components/ui/kbd";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Avatar,
@@ -56,42 +55,46 @@ import {
   type RecentEntry,
 } from "./command-palette-actions";
 
-/**
- * Palette chrome — the canonical MODAL tier (docs/notion-spec-v2.md §5/§6).
- *
- * Measured, the Notion search modal is **1006×700**: a wide, tall reading
- * surface, not a 384px dropdown. `DialogContent`'s default `sm:max-w-sm` is
- * what kept ours narrow, so the width is set explicitly here (capped to the
- * viewport). The surface itself — 20px radius, translucent fill, 40px
- * backdrop blur, the two-layer modal shadow and NO ring — is applied by
- * `CommandDialog` after `className`, so this must not try to re-state it.
+/*
+ * Palette chrome — gr8r `.palette` (overlays.css, SPEC §5.6). The panel's
+ * geometry (12vh from the top, min(640px, 100vw − 32px), max-height 70vh,
+ * radius 12, shadow-pop) is owned by `CommandDialog`; the constants below
+ * restyle the rows inside it.
  */
-const PALETTE_PANEL =
-  "top-[12vh] w-[min(1006px,calc(100vw-2rem))] max-w-[min(1006px,calc(100vw-2rem))] p-0 sm:max-w-[min(1006px,calc(100vw-2rem))]";
 
 /**
- * Group heading: 12px/12px weight 500 at TERTIARY ink. The search modal's
- * labels sit one rung darker than a sidebar section label (which is faint) —
- * notion-spec-v2 §6 measured `#7d7a75` = `--muted-foreground`.
+ * The input row — gr8r `.pal-in`: 50px tall, padding 0 14px, gap 10, a 1px
+ * border under it, a 17px glyph and a 14.5px query. Applied from the
+ * `<Command>` so the shared `CommandInput` keeps its `.pin` look in pickers.
+ */
+const PALETTE_INPUT_ROW =
+  "**:data-[slot=command-input-wrapper]:border-border **:data-[slot=command-input-row]:h-[50px] **:data-[slot=command-input-row]:gap-2.5 **:data-[slot=command-input-row]:px-3.5 [&_[data-slot=command-input-row]>svg]:size-[17px] [&_[data-slot=command-input-row]>svg]:text-ink-2 **:data-[slot=command-input]:text-[14.5px]";
+
+/**
+ * A group — gr8r `.pal-group` + `.pal-sec`: a 1px divider under every group
+ * but the last, and an 11px/600 uppercase text-3 label at 10px 10px 4px.
  */
 const PALETTE_GROUP =
-  "**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:pt-2 **:[[cmdk-group-heading]]:pb-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:leading-3 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground";
+  "mb-0.5 border-b border-divider p-0 pb-1 last:mb-0 last:border-b-0 **:[[cmdk-group-heading]]:px-2.5 **:[[cmdk-group-heading]]:pt-2.5 **:[[cmdk-group-heading]]:pb-1 **:[[cmdk-group-heading]]:text-[11px] **:[[cmdk-group-heading]]:leading-[1.2] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:tracking-[0.06em] **:[[cmdk-group-heading]]:text-ink-3 **:[[cmdk-group-heading]]:uppercase";
 
 /**
- * Result row: 32px tall, 6px radius, 14px label, warm fill on selection. The
- * only ink the row flips on selection is the trailing `↵` affordance (hidden
- * at rest) — labels never change colour (notion-spec-v2 §6).
+ * Result row — gr8r `.pi`: 38px tall, padding 0 10px, gap 10, r-sm 6,
+ * 13.5px, surface-2 on the highlighted row. The only ink that changes on
+ * selection is the trailing `↵` affordance (hidden at rest).
  */
 const PALETTE_ITEM =
-  "group/row ai-fade-up h-8 rounded-md px-2 py-0 text-sm data-selected:bg-accent";
+  "group/row ai-fade-up h-[38px] min-h-0 gap-2.5 rounded-md px-2.5 py-0 text-[13.5px] data-selected:bg-surface-2";
 
-/** Right-aligned meta on a result row — 12px weight 400 faint, tabular. */
+/** Right meta — gr8r `.pi .r`: 12px text-3, gap 4, tabular. */
 const PALETTE_META =
-  "ml-auto flex shrink-0 items-center gap-2 text-xs font-normal text-faint-foreground tabular-nums";
+  "ml-auto flex shrink-0 items-center gap-1 text-xs font-normal text-ink-3 tabular-nums";
 
-/** Glyph slot: every row leads with a 20px box so labels align across kinds. */
+/** Glyph slot: every row leads with an 18px box (15px icon in text-2). */
 const PALETTE_GLYPH =
-  "flex size-5 shrink-0 items-center justify-center text-faint-foreground";
+  "flex size-[18px] shrink-0 items-center justify-center text-ink-2";
+
+/** The secondary text after a label — gr8r `.pi .sub`: 12px text-3. */
+const PALETTE_SUB = "min-w-0 truncate text-xs text-ink-3";
 
 type Member = {
   id: string;
@@ -462,7 +465,6 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
       onOpenChange={(next) => (next ? setOpen(true) : close())}
       title="Search"
       description="Search channels, people, tasks, documents and messages, or jump to a section"
-      className={PALETTE_PANEL}
     >
       {/* This shadcn build of CommandDialog doesn't wrap children in
           <Command> itself, so cmdk's internal context isn't provided to
@@ -473,14 +475,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
         // cmdk re-selects the first row whenever the list changes; with
         // `loop` the arrow keys wrap, which matters in a list this long.
         loop
-        className="rounded-modal p-0"
+        className={cn("min-h-0 rounded-[12px] p-0", PALETTE_INPUT_ROW)}
       >
         <div className="relative">
           <CommandInput
             placeholder={placeholder}
             value={query}
             onValueChange={setQuery}
-            className={cn(scope !== "all" && "pl-20")}
+            className={cn("pr-12", scope !== "all" && "pl-[4.5rem]")}
           />
           {scope !== "all" ? (
             // Scope chip echoes the prefix: it sits over the input's own
@@ -488,36 +490,45 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
             // pushed right by `pl-24` so the two never overlap.
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-9 inline-flex h-5 -translate-y-1/2 items-center rounded-pill bg-pill-info px-1.5 text-xs font-medium text-pill-info-ink"
+              // gr8r mode `.badge`: 20px, padding 0 7, r 5, 12px/500,
+              // surface-2 fill, text-2, 1px border.
+              className="pointer-events-none absolute top-1/2 left-[41px] inline-flex h-5 -translate-y-1/2 items-center rounded-[5px] border border-border bg-surface-2 px-[7px] text-xs font-medium text-ink-2"
             >
               {SCOPE_LABEL[scope]}
             </span>
           ) : null}
+          <kbd
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2"
+          >
+            Esc
+          </kbd>
         </div>
 
-        {/* 700px panel − 44px input − 41px footer ≈ 615px of results. */}
-        <CommandList className="max-h-[min(615px,60vh)] p-1">
+        {/* gr8r `.pal-list`: padding 6, fills the 70vh panel and scrolls. */}
+        <CommandList className="max-h-none min-h-0 flex-1 p-1.5">
           {/* cmdk's own Empty never fires in the unscoped palette because the
               "Search all messages" fallback row is always present, so the
               status line is rendered explicitly whenever nothing else is. */}
           {resultCount === 0 ? (
-            <div className="py-10 text-center">
+            <div className="flex flex-col items-center gap-1.5 px-4 py-7 text-center">
               {searching ? (
-                <span className="text-sm text-faint-foreground">Searching…</span>
+                <span className="text-[12.5px] text-ink-2">Searching…</span>
               ) : hasQuery ? (
                 <>
-                  <div className="text-sm text-foreground">
+                  <Search className="mb-1 size-[18px] text-ink-4" aria-hidden />
+                  <div className="text-[14.5px] font-semibold text-foreground">
                     No results for{" "}
                     <span className="font-medium">&ldquo;{term}&rdquo;</span>
                   </div>
-                  <div className="mt-1 text-xs text-faint-foreground">
+                  <div className="max-w-[340px] text-[12.5px] text-ink-2">
                     {scope === "all"
                       ? "Try fewer or different words, or search all messages below."
                       : `Nothing in ${SCOPE_LABEL[scope].toLowerCase()} — clear the prefix to search everything.`}
                   </div>
                 </>
               ) : (
-                <span className="text-sm text-faint-foreground">
+                <span className="text-[12.5px] text-ink-2">
                   Start typing to search.
                 </span>
               )}
@@ -537,7 +548,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                     style={enterDelay(i)}
                   >
                     <span className={PALETTE_GLYPH}>
-                      <Icon className="size-4" />
+                      <Icon className="size-[15px]" />
                     </span>
                     <span className="truncate">{entry.label}</span>
                     <span className={PALETTE_META}>
@@ -607,7 +618,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                     style={enterDelay(i)}
                   >
                     <span className={PALETTE_GLYPH}>
-                      <Icon className="size-4" />
+                      <Icon className="size-[15px]" />
                     </span>
                     <span className="truncate">
                       <Highlight text={name} term={term} />
@@ -717,9 +728,9 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                     style={enterDelay(i)}
                   >
                     <span className={PALETTE_GLYPH}>
-                      <ListChecks className="size-4" />
+                      <ListChecks className="size-[15px]" />
                     </span>
-                    <span className="shrink-0 font-mono text-xs text-faint-foreground tabular-nums">
+                    <span className="shrink-0 font-mono text-[11.5px] text-ink-3 tabular-nums">
                       {taskKey(t)}
                     </span>
                     <span className="truncate">
@@ -769,14 +780,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                       {d.icon ? (
                         <span className="text-sm leading-none">{d.icon}</span>
                       ) : (
-                        <Icon className="size-4" />
+                        <Icon className="size-[15px]" />
                       )}
                     </span>
                     <span className="shrink-0 truncate">
                       <Highlight text={d.title || "Untitled"} term={term} />
                     </span>
                     {d.preview ? (
-                      <span className="min-w-0 truncate text-xs text-faint-foreground">
+                      <span className={PALETTE_SUB}>
                         <Highlight text={d.preview} term={term} />
                       </span>
                     ) : null}
@@ -835,14 +846,14 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                         <span className="truncate font-medium text-foreground">
                           {sender}
                         </span>
-                        <span className="truncate text-faint-foreground">
+                        <span className="truncate text-ink-3">
                           {channelName}
                         </span>
-                        <span className="ml-auto shrink-0 text-faint-foreground tabular-nums">
+                        <span className="ml-auto shrink-0 text-ink-3 tabular-nums">
                           {relativeTimeShort(message.created_at)}
                         </span>
                       </span>
-                      <span className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+                      <span className="mt-0.5 line-clamp-1 text-[12.5px] text-ink-2">
                         <Highlight
                           text={message.text || "(attachment)"}
                           term={term}
@@ -856,7 +867,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
           ) : null}
 
           {hasQuery && scope === "all" ? (
-            <CommandGroup className={cn(PALETTE_GROUP, "mt-1 border-t border-border pt-1")}>
+            <CommandGroup className={PALETTE_GROUP}>
               <CommandItem
                 value={`see-all-results-${term}`}
                 onSelect={() =>
@@ -865,7 +876,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
                 className={PALETTE_ITEM}
               >
                 <span className={PALETTE_GLYPH}>
-                  <Search className="size-4" />
+                  <Search className="size-[15px]" />
                 </span>
                 <span className="truncate text-muted-foreground">
                   Search all messages for{" "}
@@ -881,39 +892,39 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
           ) : null}
         </CommandList>
 
-        {/* The measured footer bar (notion-spec-v2 §6): 41px, under a single
-            warm hairline, carrying 12px faint shortcut hints. Left = how to
-            move; right = the scope grammar, which is otherwise invisible. */}
+        {/* gr8r `.pal-f`: sunken bar, 12px text-3 hints (kbd + word, 5px
+            apart) 14px apart. Left = how to move; right = the scope grammar,
+            which is otherwise invisible. */}
         <CommandFooter className="mx-0 mt-0 mb-0">
-          <span className="flex items-center gap-1">
-            <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd>
+          <span className="flex items-center gap-[5px]">
+            <kbd>↑</kbd>
+            <kbd>↓</kbd>
             navigate
           </span>
-          <span className="flex items-center gap-1">
-            <Kbd>↵</Kbd>
+          <span className="flex items-center gap-[5px]">
+            <kbd>↵</kbd>
             open
           </span>
-          <span className="flex items-center gap-1">
-            <Kbd>esc</Kbd>
+          <span className="flex items-center gap-[5px]">
+            <kbd>esc</kbd>
             close
           </span>
-          <span className="ml-auto hidden items-center gap-3 sm:flex">
+          <span className="ml-auto hidden items-center gap-3.5 sm:flex">
             {resultCount > 0 && hasQuery ? (
               <span className="tabular-nums">
                 {resultCount} {resultCount === 1 ? "result" : "results"}
               </span>
             ) : null}
-            <span className="flex items-center gap-1">
-              <Kbd>&gt;</Kbd>
+            <span className="flex items-center gap-[5px]">
+              <kbd>&gt;</kbd>
               commands
             </span>
-            <span className="flex items-center gap-1">
-              <Kbd>#</Kbd>
+            <span className="flex items-center gap-[5px]">
+              <kbd>#</kbd>
               channels
             </span>
-            <span className="flex items-center gap-1">
-              <Kbd>@</Kbd>
+            <span className="flex items-center gap-[5px]">
+              <kbd>@</kbd>
               people
             </span>
           </span>
@@ -1016,7 +1027,7 @@ function ActionRow({
       style={enterDelay(index)}
     >
       <span className={PALETTE_GLYPH}>
-        <action.icon className="size-4" />
+        <action.icon className="size-[15px]" />
       </span>
       <span className="truncate">{action.label}</span>
       <span className={PALETTE_META}>
@@ -1035,17 +1046,17 @@ function ActionRow({
  */
 function EnterHint({ label = "Open" }: { label?: string }) {
   return (
-    <span className="hidden w-20 items-center justify-end gap-1 opacity-0 transition-opacity duration-150 group-data-[selected=true]/row:opacity-100 sm:inline-flex">
+    <span className="hidden w-20 items-center justify-end gap-[5px] opacity-0 transition-opacity duration-150 group-data-[selected=true]/row:opacity-100 sm:inline-flex">
       <span>{label}</span>
-      <Kbd className="h-4 min-w-4 bg-background/70">↵</Kbd>
+      <kbd>↵</kbd>
     </span>
   );
 }
 
 /**
  * Emphasise the query inside a label. Plain text when there's no term or no
- * hit; otherwise the matched run is full ink + medium weight — no colour,
- * no background, so it survives the selected fill and the dark plane.
+ * hit; otherwise the matched run is gr8r's `.pi mark`: accent ink, weight
+ * 600, no background.
  */
 function Highlight({ text, term }: { text: string; term: string }): ReactNode {
   if (!term) return text;
@@ -1054,7 +1065,7 @@ function Highlight({ text, term }: { text: string; term: string }): ReactNode {
   return (
     <>
       {text.slice(0, idx)}
-      <span className="font-medium text-foreground">
+      <span className="font-semibold text-primary">
         {text.slice(idx, idx + term.length)}
       </span>
       {text.slice(idx + term.length)}
@@ -1126,7 +1137,7 @@ function DmIcon({
     .map((m) => m.user)
     .find((u) => u && u.id !== currentUserId);
   if (!other) {
-    return <UserIcon className="size-4" />;
+    return <UserIcon className="size-[15px]" />;
   }
   return (
     <Avatar className="size-5">

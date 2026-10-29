@@ -1,5 +1,6 @@
 "use client";
 
+import { useStatusCatalog } from "@/lib/query/status-queries";
 import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -7,13 +8,15 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  Activity,
   Archive,
+  Calendar,
   Check,
   ChevronRight,
-  Inbox,
-  IterationCcw,
+  FileText,
   Layers,
   MoreHorizontal,
+  Plus,
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,8 +27,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { EntityColor } from "@/lib/db/types";
 import {
   documentsQueryOptions,
@@ -34,7 +35,6 @@ import {
 } from "@/lib/query/section-queries";
 import { spaceMemberIdsQueryOptions } from "@/lib/query/project-queries";
 import { triageQueueQueryOptions } from "@/lib/query/triage-queries";
-import { cyclesHref } from "@/lib/query/cycle-queries";
 import {
   archiveSpace,
   pinSpaceResource,
@@ -46,35 +46,37 @@ import {
 import { unpinFormFromSpace } from "@/components/forms/share-actions";
 import { DailyOpsPanel, TeamScoreboard } from "./daily-ops-panel";
 import { SpaceAutomationsPanel } from "./space-automations-panel";
+import { useUrlTab } from "@/components/projects/workspace-shell";
+import { FavoriteStar } from "@/components/gr8r/favorite-star";
+import { Gi } from "@/components/gr8r/icon";
+import { ProgBar } from "@/components/gr8r/home-glyphs";
 import {
-  MetadataItem,
-  MetadataRow,
-  OverviewSection,
-  PropertyRow,
-  RailDate,
-  RailGroup,
-  RailProgress,
-  railValueClass,
-  WorkspaceShell,
-  useUrlTab,
-  ws,
-  type WorkspaceTab,
-} from "@/components/projects/workspace-shell";
+  TeamHeader,
+  TeamIcon,
+  TeamOverview,
+  TeamPageShell,
+  type TeamTab,
+} from "@/components/gr8r/teams-detail";
 import {
   DocsPanel,
   ProgressOverview,
-  ProjectProgressList,
   TasksPanel,
   type ScopedTask,
 } from "@/components/projects/workspace-panels";
 import { activityLogQueryOptions } from "@/lib/query/activity-log-queries";
 import {
-  ActivityLogFeed,
-  ActivityLogList,
+  groupActivityByDay,
   useActivityLogRealtime,
   useActivityLookup,
   useViewerId,
+  type ActivityLookup,
 } from "@/components/activity/activity-log";
+import {
+  matchesFamily,
+  type ActivityFamily,
+} from "@/lib/query/activity-log-queries";
+import type { PropertyMember } from "@/lib/query/section-queries";
+import { FeedItem, G8Empty } from "@/components/gr8r/members-shared";
 import { SpaceMembersPanel } from "./space-members-panel";
 import { SpaceChannelsPanel } from "./space-channels-panel";
 import { SpacePinnedResources } from "./space-pinned-resources";
@@ -124,7 +126,7 @@ function spaceDetailQuery(spaceId: string) {
         supabase.from("project_spaces").select("project_id").eq("space_id", spaceId),
         supabase
           .from("tasks")
-          .select("id, title, status")
+          .select("id, title, status, list_id, status_id")
           .eq("space_id", spaceId)
           .order("position", { ascending: true }),
         supabase
@@ -228,8 +230,9 @@ export function SpaceDetail({
   const meId = useViewerId();
   const activityLookup = useActivityLookup(propertyId, meId);
   useActivityLogRealtime(propertyId);
-  const { data: activity = [], isPending: activityPending } = useQuery(
-    activityLogQueryOptions(propertyId, { kind: "space", id: spaceId }, 60),
+  // One feed for both the Overview rail (last 6) and the Activity tab.
+  const { data: activity = [] } = useQuery(
+    activityLogQueryOptions(propertyId, { kind: "space", id: spaceId }),
   );
   const { data: allTasks = [] } = useQuery(tasksQueryOptions(propertyId));
   const { data: allDocs = [] } = useQuery(documentsQueryOptions(propertyId));
@@ -256,6 +259,15 @@ export function SpaceDetail({
   const doneCount = useMemo(
     () => tasks.filter((t) => isDone(t)).length,
     [tasks],
+  );
+
+  const statusCatalog = useStatusCatalog(propertyId);
+  const teamLists = useMemo(
+    () =>
+      statusCatalog
+        .listsOfSpace(spaceId)
+        .map((l) => ({ id: l.id, name: l.name })),
+    [statusCatalog, spaceId],
   );
 
   const [name, setName] = useState("");
@@ -359,33 +371,47 @@ export function SpaceDetail({
 
   if (isPending)
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading team…
+      <div className="page wide" aria-busy="true" aria-label="Loading team">
+        <div className="ph">
+          <span className="sk" style={{ width: 36, height: 36, borderRadius: 9 }} />
+          <div className="col" style={{ gap: 8 }}>
+            <span className="sk" style={{ width: 220, height: 20 }} />
+            <span className="sk" style={{ width: 320, height: 11 }} />
+          </div>
+        </div>
+        <span className="sk" style={{ width: "100%", height: 36, marginBottom: 16 }} />
+        <div className="grid2">
+          <span className="sk" style={{ height: 240, borderRadius: 10 }} />
+          <span className="sk" style={{ height: 240, borderRadius: 10 }} />
+        </div>
       </div>
     );
   if (!space)
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <p className="text-sm text-muted-foreground">Space not found.</p>
-        <Link
-          href={`/p/${propertyId}/home`}
-          className="text-sm text-foreground underline underline-offset-4"
+      <div className="page">
+        <G8Empty
+          icon={Layers}
+          title="Team not found"
+          text="It may have been archived, or you no longer have access."
         >
-          Back home
-        </Link>
+          <Link href={`/p/${propertyId}/home`} className="btn btn-secondary btn-sm">
+            Back home
+          </Link>
+        </G8Empty>
       </div>
     );
 
-  const breadcrumb = (
+  const base = `/p/${propertyId}`;
+  const crumbs = (
     <nav
       aria-label="Breadcrumb"
       className="flex min-w-0 items-center gap-1.5 text-sm"
     >
       <Link
-        href={`/p/${propertyId}/projects`}
+        href={`${base}/members?tab=teams`}
         className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
       >
-        Spaces
+        Teams
       </Link>
       <ChevronRight
         className="size-3.5 shrink-0 text-muted-foreground"
@@ -405,166 +431,207 @@ export function SpaceDetail({
     </nav>
   );
 
-  const header = (
-    <div className="flex flex-col gap-4">
-      <div className="flex min-w-0 items-center gap-2.5">
-        {space.icon ? (
-          <span className="shrink-0 text-2xl leading-none">{space.icon}</span>
-        ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label="Space color"
-                  className="shrink-0 rounded-md p-0.5 transition-colors hover:bg-accent"
-                />
-              }
-            >
-              <span className={cn("block size-3 rounded-md", DOT[space.color])} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={6}>
-              {COLORS.map((c) => (
-                <DropdownMenuItem
-                  key={c}
-                  onClick={() => void recolor(c)}
-                  className="gap-2 capitalize"
-                >
-                  <span className={cn("size-3 rounded-md", DOT[c])} />
-                  <span className="flex-1">{c}</span>
-                  {space.color === c ? <Check className="size-3.5" /> : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => void commitName()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setName(space.name);
-              e.currentTarget.blur();
-            }
-          }}
-          aria-label="Space name"
-          className={cn(
-            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
-            ws.title,
-          )}
-          placeholder="Untitled team"
-        />
-      </div>
-
-      <WorkspaceDescription
-        value={space.description}
-        onSave={commitDescription}
-      />
-
-      <Link
-        href={`/p/${propertyId}/tasks?space=${spaceId}`}
-        title={`${tasks.length} tasks`}
-        className="inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+  // gr8r `pageTeam` `.ph`: big `.picon` (the colour picker when the team has
+  // no emoji), the editable name as the h1, the description, then actions.
+  const teamIcon = space.icon ? (
+    <TeamIcon team={space} lg />
+  ) : (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button type="button" aria-label="Team color" title="Team color" />
+        }
       >
-        <Layers className="size-3.5" strokeWidth={1.5} />
-        <span className="tabular-nums">{tasks.length}</span>
-      </Link>
-
-      <MetadataRow>
-        <MetadataItem label="Members">
-          {roster.length > 0 ? (
-            <div className="flex items-center gap-1.5">
-              <div className="flex -space-x-1">
-                {roster.slice(0, 3).map((p) => (
-                  <Avatar
-                    key={p.id}
-                    className="size-5 ring-1 ring-background"
-                    title={p.name ?? undefined}
-                  >
-                    {p.avatarUrl ? (
-                      <AvatarImage src={p.avatarUrl} alt="" />
-                    ) : null}
-                    <AvatarFallback className="text-xs">
-                      {(p.name ?? "?").slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              {roster.length > 3 ? (
-                <span className="text-muted-foreground tabular-nums">
-                  +{roster.length - 3}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">No members</span>
-          )}
-        </MetadataItem>
-        <MetadataItem label="Documents">
-          <span className="tabular-nums">{docs.length}</span>
-        </MetadataItem>
-        {space.created_at ? (
-          <MetadataItem label="Created">
-            <RailDate value={space.created_at} />
-          </MetadataItem>
-        ) : null}
-      </MetadataRow>
-
-      <ScopeStatStrip
-        propertyId={propertyId}
-        scope={{ kind: "space", id: spaceId }}
-      />
-
-      <CatchUpBanner
-        propertyId={propertyId}
-        subjectKind="space"
-        subjectId={spaceId}
-      />
-    </div>
+        <TeamIcon team={space} lg />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={6}>
+        {COLORS.map((c) => (
+          <DropdownMenuItem
+            key={c}
+            onClick={() => void recolor(c)}
+            className="gap-2 capitalize"
+          >
+            <span className={cn("size-3 rounded-md", DOT[c])} />
+            <span className="flex-1">{c}</span>
+            {space.color === c ? <Check className="size-3.5" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 
-  const tabs: WorkspaceTab[] = [
+  const overflow = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button type="button" className="ibtn" aria-label="More" title="More" />
+        }
+      >
+        <Gi icon={MoreHorizontal} size={16} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6}>
+        <DropdownMenuItem
+          onClick={() => {
+            // Contextual workflow entry — seeds the AI builder with this
+            // team so triggers/steps come back pre-scoped (same ?prefill=
+            // channel the task menus use).
+            const prefill = encodeURIComponent(
+              btoa(
+                JSON.stringify({
+                  goal: `Build an automation for the ${space.name} team`,
+                }),
+              ),
+            );
+            router.push(`${base}/workflows/new?prefill=${prefill}`);
+          }}
+        >
+          <Workflow className="size-3.5" />
+          <span className="flex-1">Automate this team</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleArchive}>
+          <Archive className="size-3.5" />
+          <span className="flex-1">Archive team</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
+  const header = (
+    <TeamHeader
+      icon={teamIcon}
+      title={
+        <h1 style={{ margin: 0 }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void commitName()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setName(space.name);
+                e.currentTarget.blur();
+              }
+            }}
+            aria-label="Team name"
+            placeholder="Untitled team"
+            style={{
+              font: "inherit",
+              color: "inherit",
+              letterSpacing: "inherit",
+              background: "transparent",
+              border: 0,
+              outline: "none",
+              padding: 0,
+              width: "100%",
+            }}
+          />
+        </h1>
+      }
+      description={
+        <WorkspaceDescription
+          value={space.description}
+          onSave={commitDescription}
+        />
+      }
+      acts={
+        <>
+          <FavoriteStar
+            propertyId={propertyId}
+            kind="space"
+            id={spaceId}
+            label={space?.name}
+            className="ibtn"
+          />
+          <Link
+            href={`${base}/tasks/new?space=${spaceId}`}
+            className="btn btn-secondary"
+          >
+            <Gi icon={Plus} size={14} />
+            New task
+          </Link>
+          {overflow}
+        </>
+      }
+      below={
+        <>
+          <div className="row faint" style={{ gap: 14, fontSize: 12.5, flexWrap: "wrap" }}>
+            <Link href={`${base}/tasks?space=${spaceId}`} className="row" style={{ gap: 5 }}>
+              <Gi icon={Layers} size={13} />
+              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+            </Link>
+            <span className="row" style={{ gap: 6 }} title={`${doneCount} of ${tasks.length} done`}>
+              <span style={{ width: 80, display: "inline-flex" }}>
+                <ProgBar value={pct} />
+              </span>
+              {pct}% done
+            </span>
+            <button type="button" className="row" style={{ gap: 5 }} onClick={() => setActiveTab("docs")}>
+              <Gi icon={FileText} size={13} />
+              {docs.length} {docs.length === 1 ? "doc" : "docs"}
+            </button>
+            {space.created_at ? (
+              <span className="row" style={{ gap: 5 }}>
+                <Gi icon={Calendar} size={13} />
+                Created {new Date(space.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            ) : null}
+          </div>
+          <ScopeStatStrip
+            propertyId={propertyId}
+            scope={{ kind: "space", id: spaceId }}
+          />
+          <CatchUpBanner
+            propertyId={propertyId}
+            subjectKind="space"
+            subjectId={spaceId}
+          />
+        </>
+      }
+    />
+  );
+
+  const subTeams = data?.subTeams ?? [];
+  const tabs: TeamTab[] = [
     {
       id: "overview",
       label: "Overview",
       content: (
-        <div className="flex flex-col gap-10">
-          <TeamScoreboard propertyId={propertyId} spaceId={spaceId} />
-          <ProgressOverview tasks={tasks} />
-          <SpacePinnedResources
-            propertyId={propertyId}
-            spaceColor={space.color}
-            pinnedIds={pinnedDocs.map((d) => d.id)}
-            pinnedForms={data?.pinnedForms ?? []}
-            onUnpinForm={handleUnpinForm}
-            allDocs={allDocs}
-            spaceDocs={pinSpaceCandidates}
-            workspaceCandidates={pinWorkspaceCandidates}
-            onPin={handlePin}
-            onUnpin={handleUnpin}
-            totalDocs={docs.length}
-            onViewAllDocs={
-              docs.length > 0 ? () => setActiveTab("docs") : undefined
-            }
-          />
-          <OverviewSection
-            title="Projects"
-            action={
-              (data?.projects.length ?? 0) > 0 ? (
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {data?.projects.length}
-                </span>
-              ) : null
-            }
-          >
-            <ProjectProgressList
-              propertyId={propertyId}
-              projects={data?.projects ?? []}
-            />
-          </OverviewSection>
-        </div>
+        <TeamOverview
+          propertyId={propertyId}
+          spaceId={spaceId}
+          projects={data?.projects ?? []}
+          roster={roster}
+          subTeams={subTeams}
+          triageCount={triageCount}
+          taskCount={tasks.length}
+          activity={activity}
+          activityLookup={activityLookup}
+          onSeeActivity={() => setActiveTab("activity")}
+          onSeeMembers={() => setActiveTab("members")}
+          extra={
+            <div className="stack">
+              <TeamScoreboard propertyId={propertyId} spaceId={spaceId} />
+              <ProgressOverview tasks={tasks} />
+              <SpacePinnedResources
+                propertyId={propertyId}
+                spaceColor={space.color}
+                pinnedIds={pinnedDocs.map((d) => d.id)}
+                pinnedForms={data?.pinnedForms ?? []}
+                onUnpinForm={handleUnpinForm}
+                allDocs={allDocs}
+                spaceDocs={pinSpaceCandidates}
+                workspaceCandidates={pinWorkspaceCandidates}
+                onPin={handlePin}
+                onUnpin={handleUnpin}
+                totalDocs={docs.length}
+                onViewAllDocs={
+                  docs.length > 0 ? () => setActiveTab("docs") : undefined
+                }
+              />
+            </div>
+          }
+        />
       ),
     },
     {
@@ -587,11 +654,10 @@ export function SpaceDetail({
       id: "activity",
       label: "Activity",
       content: (
-        <ActivityLogFeed
-          propertyId={propertyId}
-          scope={{ kind: "space", id: spaceId }}
+        <TeamActivityFeed
+          rows={activity}
+          lookup={activityLookup}
           meId={meId}
-          showProject
         />
       ),
     },
@@ -608,6 +674,7 @@ export function SpaceDetail({
           candidates={taskCandidates}
           onAdd={add(setTaskSpace)}
           onRemove={remove(setTaskSpace)}
+          lists={teamLists}
         />
       ),
     },
@@ -631,6 +698,7 @@ export function SpaceDetail({
     {
       id: "members",
       label: "Members",
+      count: roster.length,
       content: <SpaceMembersPanel propertyId={propertyId} spaceId={spaceId} />,
     },
     {
@@ -640,213 +708,116 @@ export function SpaceDetail({
     },
   ];
 
-  const subTeams = data?.subTeams ?? [];
-  const rightRail = (
-    <div className="flex flex-col">
-      {/* Linear's team home "Go to" list — every destination scoped to
-          this team. Projects are listed below; Initiatives/Views have no
-          team scope here yet. */}
-      <RailGroup label="Go to">
-        <GoToRow
-          href={`/p/${propertyId}/triage?team=${spaceId}`}
-          icon={<Inbox className="size-3.5" />}
-          label="Triage"
-          count={triageCount}
-        />
-        <GoToRow
-          href={`/p/${propertyId}/tasks?space=${spaceId}`}
-          icon={<Layers className="size-3.5" />}
-          label="Tasks"
-          count={tasks.length}
-        />
-        <GoToRow
-          href={cyclesHref(propertyId, spaceId)}
-          icon={<IterationCcw className="size-3.5" />}
-          label="Cycles"
-        />
-      </RailGroup>
-
-      {subTeams.length > 0 ? (
-        <RailGroup label="Sub-teams">
-          {subTeams.map((t) => (
-            <GoToRow
-              key={t.id}
-              href={`/p/${propertyId}/spaces/${t.id}`}
-              icon={
-                t.icon ? (
-                  <span className="text-sm leading-none">{t.icon}</span>
-                ) : (
-                  <span className={cn("size-2 rounded-full", DOT[t.color])} />
-                )
-              }
-              label={t.name || "Untitled team"}
-            />
-          ))}
-        </RailGroup>
-      ) : null}
-
-      <RailGroup label="Properties">
-        <PropertyRow label="Members">
-          {roster.length > 0 ? (
-            <div className="flex items-center gap-1.5 px-1.5 py-0.5">
-              <div className="flex -space-x-1">
-                {roster.slice(0, 5).map((p) => (
-                  <Avatar
-                    key={p.id}
-                    className="size-5 ring-1 ring-background"
-                    title={p.name ?? undefined}
-                  >
-                    {p.avatarUrl ? (
-                      <AvatarImage src={p.avatarUrl} alt="" />
-                    ) : null}
-                    <AvatarFallback className="text-xs">
-                      {(p.name ?? "?").slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              {roster.length > 5 ? (
-                <span className="text-sm text-muted-foreground tabular-nums">
-                  +{roster.length - 5}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <span className="px-1.5 py-0.5 text-sm text-muted-foreground">
-              No members
-            </span>
-          )}
-        </PropertyRow>
-        <PropertyRow label="Documents">
-          <span className="px-1.5 py-0.5 text-sm text-foreground tabular-nums">
-            {docs.length}
-          </span>
-        </PropertyRow>
-        <PropertyRow label="Created">
-          <span className="px-1.5 py-0.5">
-            <RailDate value={space.created_at} />
-          </span>
-        </PropertyRow>
-      </RailGroup>
-
-      <RailGroup label="Progress">
-        <RailProgress done={doneCount} total={tasks.length} />
-      </RailGroup>
-
-      {data && data.projects.length > 0 ? (
-        <RailGroup label="Projects">
-          <div className="flex flex-wrap gap-1">
-            {data.projects.map((p) => (
-              <Link
-                key={p.id}
-                href={`/p/${propertyId}/projects/${p.id}`}
-                className="flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-sm text-foreground transition-colors hover:bg-accent-pressed"
-              >
-                <span className={cn("size-1.5 rounded-full", DOT[p.color])} />
-                {p.name}
-              </Link>
-            ))}
-          </div>
-        </RailGroup>
-      ) : null}
-
-      <RailGroup
-        label="Activity"
-        action={
-          activity.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setActiveTab("activity")}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              See all
-            </button>
-          ) : null
-        }
-      >
-        <ActivityLogList
-          rows={activity.slice(0, 6)}
-          lookup={activityLookup}
-          pending={activityPending}
-          showProject
-          dense
-        />
-      </RailGroup>
-    </div>
-  );
-
-  const overflow = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button type="button" size="icon-sm" variant="ghost" title="More" />
-        }
-      >
-        <MoreHorizontal className="size-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6}>
-        <DropdownMenuItem
-          onClick={() => {
-            // Contextual workflow entry — seeds the AI builder with this
-            // team so triggers/steps come back pre-scoped (same ?prefill=
-            // channel the task menus use).
-            const prefill = encodeURIComponent(
-              btoa(
-                JSON.stringify({
-                  goal: `Build an automation for the ${space.name} team`,
-                }),
-              ),
-            );
-            router.push(`/p/${propertyId}/workflows/new?prefill=${prefill}`);
-          }}
-        >
-          <Workflow className="size-3.5" />
-          <span className="flex-1">Automate this team</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleArchive}>
-          <Archive className="size-3.5" />
-          <span className="flex-1">Archive team</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
   return (
-    <WorkspaceShell
-      breadcrumb={breadcrumb}
+    <TeamPageShell
+      crumbs={crumbs}
       header={header}
-      headerActions={overflow}
       tabs={tabs}
-      activeTab={activeTab}
-      onActiveTabChange={setActiveTab}
-      rightRail={rightRail}
+      active={activeTab}
+      onTab={setActiveTab}
     />
   );
 }
 
-/** One destination in the rail's "Go to" / "Sub-teams" lists. */
-function GoToRow({
-  href,
-  icon,
-  label,
-  count,
+/* ── Activity tab — gr8r `pageActivity` scoped to the team ─────────────────── */
+
+const FAMILIES: { id: ActivityFamily; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "status", label: "Status changes" },
+  { id: "assignments", label: "Assignments" },
+  { id: "dates", label: "Dates" },
+  { id: "created", label: "Created" },
+  { id: "projects", label: "Projects" },
+];
+
+/** Kind `.seg` + person `.select`, then `.day-h` buckets of `.feed.lined`
+ *  rows — the same families + person filter `ActivityLogFeed` offered. */
+function TeamActivityFeed({
+  rows,
+  lookup,
+  meId,
 }: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  count?: number;
+  rows: Parameters<typeof groupActivityByDay>[0];
+  lookup: ActivityLookup;
+  meId: string | null | undefined;
 }) {
+  const [family, setFamily] = useState<ActivityFamily>("all");
+  const [who, setWho] = useState("all");
+  const people = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of rows) if (r.actor_id) ids.add(r.actor_id);
+    return [...ids]
+      .map((id) => lookup.members.get(id))
+      .filter((m): m is PropertyMember => Boolean(m))
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+  }, [rows, lookup.members]);
+  const visible = useMemo(
+    () => rows.filter((r) => matchesFamily(r, family) && (who === "all" || r.actor_id === who)),
+    [rows, family, who],
+  );
+  const groups = useMemo(() => groupActivityByDay(visible), [visible]);
+
   return (
-    <Link href={href} className={cn(railValueClass, "py-1")}>
-      <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count ? (
-        <span className="shrink-0 text-xs tabular-nums text-faint-foreground">
-          {count}
+    <div style={{ maxWidth: 820 }}>
+      <div className="row" style={{ gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+        <div className="seg" role="group" aria-label="Filter by kind" style={{ flexWrap: "wrap" }}>
+          {FAMILIES.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={family === f.id ? "on" : ""}
+              aria-pressed={family === f.id}
+              onClick={() => setFamily(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {people.length ? (
+          <select
+            className="select"
+            style={{ height: 26, width: "auto", fontSize: 12 }}
+            value={who}
+            onChange={(e) => setWho(e.target.value)}
+            aria-label="Filter by person"
+          >
+            <option value="all">Everyone</option>
+            {people.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.id === meId ? `${m.name ?? "You"} (you)` : (m.name ?? m.email ?? "Member")}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <span className="sp" />
+        <span className="faint" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+          {visible.length === rows.length
+            ? `${rows.length} ${rows.length === 1 ? "change" : "changes"}`
+            : `${visible.length} of ${rows.length}`}
         </span>
-      ) : null}
-    </Link>
+      </div>
+      {groups.length === 0 ? (
+        <G8Empty
+          icon={Activity}
+          title={rows.length === 0 ? "No activity yet" : "Nothing matches these filters"}
+          text={
+            rows.length === 0
+              ? "Changes to this team's tasks and projects will appear here, with who made them."
+              : "Try a different kind or person."
+          }
+        />
+      ) : (
+        groups.map((g) => (
+          <div key={g.key}>
+            <div className="day-h">{g.label}</div>
+            <div className="feed lined">
+              {g.rows.map((r) => (
+                <FeedItem key={r.id} row={r} lookup={lookup} showProject />
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
   );
 }

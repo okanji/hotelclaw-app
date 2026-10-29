@@ -1,5 +1,6 @@
 "use client";
 
+import { assigneeSummary } from "@/lib/tasks/assignee-label";
 import { useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, ChevronDown, List, ListChecks, UserRound } from "lucide-react";
@@ -92,7 +93,9 @@ export function TaskCreatePage({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<string>(defaultStatus);
   const [priority, setPriority] = useState<TaskPriority>("none");
-  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  // Everyone on the new task, primary first (0115).
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const assigneeId = assigneeIds[0] ?? null;
   const [dueAt, setDueAt] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const titleRef = useRef<HTMLTextAreaElement>(null);
@@ -114,7 +117,7 @@ export function TaskCreatePage({
   const teamId =
     teamOverride !== null ? teamOverride : (defaultSpaceId ?? myPrimaryTeamId ?? "");
 
-  const assignees = useAssigneesMap([assigneeId]);
+  const assignees = useAssigneesMap(assigneeIds);
   const assignee = assigneeId ? assignees[assigneeId] : undefined;
 
   // List: an explicit pick wins; otherwise the board's `?list=`, else the
@@ -171,7 +174,7 @@ export function TaskCreatePage({
         description: description.trim() || undefined,
         status: effectiveStatus,
         priority,
-        assigneeId: assigneeId ?? undefined,
+        assigneeIds: assigneeIds.length > 0 ? assigneeIds : undefined,
         // Explicit choice: a team id, or null for "No team".
         spaceId: teamId || null,
         projectId: defaultProjectId ?? null,
@@ -345,7 +348,7 @@ export function TaskCreatePage({
                         )}
                       </ChipIcon>
                       <span className="truncate">
-                        {assignee?.name ?? "Assign"}
+                        {assigneeSummary(assigneeIds, assignees, assignee?.name)}
                       </span>
                     </button>
                   }
@@ -353,7 +356,8 @@ export function TaskCreatePage({
                 <AssigneeMenuContent
                   align="start"
                   members={members}
-                  onSelect={setAssigneeId}
+                  selectedIds={assigneeIds}
+                  onChange={setAssigneeIds}
                 />
               </DropdownMenu>
 

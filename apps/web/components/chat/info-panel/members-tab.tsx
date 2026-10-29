@@ -30,6 +30,7 @@ import { MoreHorizontal, UserMinus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMyRole } from "./use-my-role";
+import { Av } from "@/components/gr8r/home-glyphs";
 
 type PropertyMember = {
   id: string;
@@ -128,35 +129,28 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
             const isMe = user.id === client?.user?.id;
             const online = client?.state.users[user.id]?.online ?? false;
             const name = user.name ?? user.id;
-            const initials = name
-              .split(/\s+/)
-              .map((p) => p[0])
-              .filter(Boolean)
-              .slice(0, 2)
-              .join("")
-              .toUpperCase();
             const showRemove =
               isTeamChannel && canManage && !isMe && busyMemberId !== user.id;
 
             return (
               <li
                 key={user.id}
-                className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
+                className="group flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent"
               >
-                <div className="relative">
-                  <Avatar className="size-7 outline-1 -outline-offset-1 outline-black/5">
-                    <AvatarImage src={user.image as string | undefined} />
-                    <AvatarFallback className="text-xs">
-                      {initials || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {online ? (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-success"
-                      title="Online"
-                    />
-                  ) : null}
-                </div>
+                <span
+                  className={online ? "presence" : undefined}
+                  style={{ display: "inline-flex" }}
+                  title={online ? "Online" : undefined}
+                >
+                  <Av
+                    member={{
+                      id: user.id,
+                      name,
+                      avatarUrl: (user.image as string | undefined) ?? null,
+                    }}
+                    size="md"
+                  />
+                </span>
                 <div className="flex-1 truncate text-sm">
                   {name}
                   {isMe ? (
@@ -166,9 +160,7 @@ export function MembersTab({ propertyId }: { propertyId: string }) {
                   ) : null}
                 </div>
                 {m.role && m.role !== "member" ? (
-                  <span className="text-xs font-medium text-faint-foreground">
-                    {m.role}
-                  </span>
+                  <span className="badge gray">{m.role}</span>
                 ) : null}
                 {showRemove ? (
                   <DropdownMenu>

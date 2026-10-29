@@ -15,6 +15,7 @@
 import { useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { History, Loader2 } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { useHistoryVersions } from "@liveblocks/react";
 import {
   HistoryVersionSummary,
@@ -53,10 +54,10 @@ export function DocumentHistory({
           <button
             {...props}
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:shadow-focus"
+            className="btn btn-ghost btn-sm"
             title="Version history"
           >
-            <History className="size-3.5" />
+            <Gi icon={History} size={13} />
             History
           </button>
         )}

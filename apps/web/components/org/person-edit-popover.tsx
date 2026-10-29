@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -12,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Gi } from "@/components/gr8r/icon";
 import type { OrgChart, OrgPerson } from "@/lib/org/queries";
 import { updatePersonHierarchy } from "./actions";
 
@@ -60,15 +60,14 @@ export function PersonEditPopover({
     <Popover>
       <PopoverTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <button
+            type="button"
             aria-label={`Edit ${person.name ?? "member"}`}
-            className="shrink-0 opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
+            className="ibtn ibtn-sm shrink-0 opacity-0 group-hover:opacity-100 data-[popup-open]:opacity-100"
           />
         }
       >
-        <Settings2 className="size-4" />
+        <Gi icon={Settings2} size={14} />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-3">
         <div className="flex flex-col gap-3">

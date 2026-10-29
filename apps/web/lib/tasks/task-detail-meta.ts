@@ -30,6 +30,8 @@ export type TaskDetailMeta = {
     mimeType: string | null;
     byteSize: number | null;
     url: string;
+    /** 0116 — the files custom field (named slot) it fills, if any. */
+    fieldId: string | null;
   }>;
   descriptionRevisions: Array<{
     id: string;
@@ -106,7 +108,7 @@ export async function getTaskDetailMeta(
       .order("created_at", { ascending: true }),
     supabase
       .from("task_attachments")
-      .select("id, file_name, storage_path, mime_type, byte_size")
+      .select("id, file_name, storage_path, mime_type, byte_size, field_id")
       .eq("task_id", taskId)
       .order("created_at", { ascending: true }),
     supabase
@@ -174,6 +176,7 @@ export async function getTaskDetailMeta(
         mimeType: a.mime_type,
         byteSize: a.byte_size,
         url: signed?.signedUrl ?? "",
+        fieldId: a.field_id ?? null,
       };
     }),
   );

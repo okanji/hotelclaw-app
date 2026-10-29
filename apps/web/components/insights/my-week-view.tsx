@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { Stats, WidgetEmpty } from "@/components/home/editorial-section";
+import { G8InlineStats as Stats, G8Note } from "./g8-insights";
 import type { AttentionItem, MyWeek } from "@/lib/insights/metrics";
 import { insightReportsQueryOptions } from "@/lib/query/insights-queries";
 import { ReportMarkdown } from "./report-markdown";
@@ -110,10 +110,10 @@ function TeamUpdate({ propertyId }: { propertyId: string }) {
   return (
     <InsightSection kicker="AI briefing" title="Team update" wide>
       {!latest ? (
-        <WidgetEmpty>
+        <G8Note>
           No team update yet — one is written each week from the same numbers
           shown above.
-        </WidgetEmpty>
+        </G8Note>
       ) : (
         <ReportMarkdown>{latest.summary_md}</ReportMarkdown>
       )}

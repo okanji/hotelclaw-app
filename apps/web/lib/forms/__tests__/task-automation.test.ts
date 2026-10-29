@@ -117,7 +117,7 @@ describe("buildFormTaskAutomationSpec", () => {
         priority: "low",
         labels: ["maintenance"],
       }),
-      mappings: { assignee: true, priority: true, dueDate: true, labels: true },
+      mappings: { assignee: true, priority: true, dueDate: true, labels: true, fields: [] },
     });
     const stepConfig = mapped.steps["create-task"].config;
     // Mapped slots win over the panel's static defaults.
@@ -143,7 +143,26 @@ describe("deriveTaskMappings", () => {
         { taskProperty: "assignee" },
         { taskProperty: "labels" },
       ]),
-    ).toEqual({ assignee: true, priority: false, dueDate: false, labels: true });
+    ).toEqual({ assignee: true, priority: false, dueDate: false, labels: true, fields: [] });
+  });
+
+  it("collects custom fields that questions save into (0116)", () => {
+    const F = "55555555-5555-4555-8555-555555555555";
+    const m = deriveTaskMappings([{ taskField: F }, { taskField: F }, { taskProperty: "assignee" }]);
+    expect(m.fields).toEqual([F]);
+    const spec = buildFormTaskAutomationSpec({
+      formId: FORM_ID,
+      formTitle: "Maintenance",
+      fieldLabels: ["Issue"],
+      config: config({}),
+      mappings: m,
+    });
+    expect(spec.steps["create-task"].config.fields).toEqual({
+      [F]: `{{trigger.task_properties.fields.${F}}}`,
+    });
+    expect(validateSpec(spec).ok, "fields spec must pass save validation").toBe(true);
+    // Still the panel's simple shape — not "customized".
+    expect(extractFormTaskAutomationConfig(spec)).not.toBeNull();
   });
 });
 
@@ -176,7 +195,7 @@ describe("specTargetsForm / extractFormTaskAutomationConfig", () => {
       formTitle: "Maintenance",
       fieldLabels: ["Issue"],
       config: config({ labels: ["maintenance"] }),
-      mappings: { assignee: true, priority: true, dueDate: false, labels: true },
+      mappings: { assignee: true, priority: true, dueDate: false, labels: true, fields: [] },
     });
     expect(extractFormTaskAutomationConfig(spec)).toEqual({
       spaceId: null,

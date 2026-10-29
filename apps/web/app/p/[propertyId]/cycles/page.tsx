@@ -14,7 +14,7 @@ const PAST_SHOWN = 12;
 
 /**
  * Cycles — one cadence's timeline (`?space=<team id>` or `?space=property`).
- * Server-rendered like Bookings/Meetings: loading the page IS the lazy cron
+ * Server-rendered like Meetings: loading the page IS the lazy cron
  * (`ensureCycles` materialises the next cycle and rolls ended ones over),
  * then tasks + activity_log for the shown cycles go to the client, which
  * replays the burn-up from them.

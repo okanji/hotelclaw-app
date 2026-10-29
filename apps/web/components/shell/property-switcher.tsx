@@ -12,11 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
 import { Check, ChevronsUpDown, MailCheck, Plus, Users, UserPlus } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
 import { MembersDialog } from "./members-dialog";
@@ -26,7 +21,6 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   propertyInitial,
-  propertySoftTint,
   propertyTileTint,
 } from "@/lib/shell/property-avatar";
 import type { Membership } from "@/lib/auth/session";
@@ -82,37 +76,26 @@ export function PropertySwitcher({
   }, [email, qc]);
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
+    <>
         <DropdownMenu>
+          {/* gr8r `.ws` (shell/layout.js renderSidebar): logo tile, name,
+              faint chevrons-up-down. */}
           <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton
-                className={cn(
-                  "h-[30px] w-fit max-w-full [&_svg]:text-current",
-                  // Identity, not state: the row wears the property's own hue
-                  // from the same six-tint family as the rail's org tile, at
-                  // the wide-surface strength (~9% fill + hue ink).
-                  propertySoftTint(currentPropertyId),
-                )}
-              />
-            }
+            className="ws grow"
+            aria-label="Switch workspace"
           >
-            {/* Tile + name + chevron (Linear's workspace row). Weight 500
-                primary ink at 14px: this is a UI row, not a display title
-                (notion-spec §3). */}
             <span
-              className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-md text-xs font-medium uppercase",
-                propertyTileTint(currentPropertyId),
-              )}
+              className={cn("ws-logo", propertyTileTint(currentPropertyId))}
+              style={{ width: 22, height: 22, fontSize: 10 }}
             >
               {propertyInitial(current?.property.name ?? "Property")}
             </span>
-            <span className="min-w-0 truncate text-sm font-medium">
+            <span className="ws-name trunc">
               {current?.property.name ?? "Property"}
             </span>
-            <ChevronsUpDown className="size-3.5! shrink-0 opacity-60" />
+            <span className="chev-d faint">
+              <ChevronsUpDown className="i" size={13} strokeWidth={1.8} />
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             side="bottom"
@@ -200,7 +183,6 @@ export function PropertySwitcher({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarMenuItem>
       <InviteDialog
         propertyId={currentPropertyId}
         open={inviteOpen}
@@ -219,6 +201,6 @@ export function PropertySwitcher({
         onOpenChange={setInvitesOpen}
         onInviteNew={() => setInviteOpen(true)}
       />
-    </SidebarMenu>
+    </>
   );
 }

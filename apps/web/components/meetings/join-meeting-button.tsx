@@ -1,7 +1,7 @@
 "use client";
 
 import { Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { useMeeting } from "@/lib/stream/meeting-context";
 
 /**
@@ -25,10 +25,10 @@ export function JoinMeetingButton({
   const inThis = stage !== "idle" && activeId === meetingId;
 
   return (
-    <Button
+    <button
       type="button"
-      size={size}
-      variant="outline"
+      className={size === "default" ? "btn btn-secondary" : "btn btn-secondary btn-sm"}
+      style={size === "xs" ? { height: 24, padding: "0 8px" } : undefined}
       disabled={!videoReady || inThis || stage === "preparing"}
       title={videoReady ? "Join the call" : "Video not ready yet"}
       onClick={(e) => {
@@ -37,8 +37,8 @@ export function JoinMeetingButton({
         void startScheduled({ meetingId, callId, callType });
       }}
     >
-      <Video />
+      <Gi icon={Video} size={size === "xs" ? 12 : 14} />
       {inThis ? "Joined" : "Join"}
-    </Button>
+    </button>
   );
 }

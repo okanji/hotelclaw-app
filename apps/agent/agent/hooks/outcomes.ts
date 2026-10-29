@@ -4,7 +4,7 @@ import { memoryStore } from "../lib/memory-provider";
 
 /**
  * Outcome write-back (fleet spec M4.3): when a pod-bot session completes a
- * WRITE action (task created/updated, refund, rate override, comp night),
+ * WRITE action (task created/updated, rate override, comp night),
  * bank an `outcome` row into property memory — outcomes and learnings,
  * never chatter. One row per qualifying action; queries/reads never log.
  *
@@ -15,7 +15,6 @@ import { memoryStore } from "../lib/memory-provider";
 const WRITE_TOOLS = new Set([
   "create_task",
   "update_task",
-  "refund_booking",
   "override_rate",
   "comp_night",
 ]);

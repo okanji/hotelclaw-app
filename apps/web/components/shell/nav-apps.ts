@@ -10,7 +10,6 @@ import {
   Network,
   Sparkles,
   Target,
-  Ticket,
   Video,
   Workflow,
 } from "lucide-react";
@@ -32,7 +31,6 @@ export type NavAppId =
   | "tasks"
   | "calendar"
   | "meetings"
-  | "bookings"
   | "insights"
   | "initiatives"
   | "forms"
@@ -62,7 +60,6 @@ export const NAV_APPS: NavApp[] = [
   { id: "home", label: "Home", hint: "Your property dashboard", icon: Home, path: "/home", section: "home", tone: "lavender", group: "work" },
   { id: "tasks", label: "Tasks", hint: "Board, triage and cycles", icon: ListChecks, path: "/tasks", section: "tasks", tone: "blue", group: "work" },
   { id: "calendar", label: "Planner", hint: "Calendar and scheduling", icon: CalendarDays, path: "/calendar", section: "calendar", tone: "coral", group: "work" },
-  { id: "bookings", label: "Bookings", hint: "Reservations, tables and tickets", icon: Ticket, path: "/bookings", section: "bookings", tone: "lavender", group: "work" },
   { id: "meetings", label: "Meetings", hint: "Calls, recordings and notes", icon: Video, path: "/meetings", section: "meetings", tone: "blue", group: "work" },
   { id: "insights", label: "Insights", hint: "Dashboards, reports and briefs", icon: LineChart, path: "/home/insights", section: "insights", tone: "sage", group: "work" },
   { id: "initiatives", label: "Initiatives", hint: "Goals that group projects", icon: Target, path: "/initiatives", tone: "coral", group: "work" },

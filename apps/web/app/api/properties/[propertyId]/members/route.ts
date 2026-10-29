@@ -34,6 +34,10 @@ export async function GET(
   }
 
   const userIds = members.map((m) => m.user_id);
+  // guest-safe: the directory itself is readable by guests (0118 accepted
+  // leak — names on shared tasks), but login EMAILS come from the service
+  // client and go to full members only.
+  const callerIsGuest = members.find((m) => m.user_id === user.id)?.role === "guest";
   const { data: profiles, error: profilesErr } = await supabase
     .from("profiles")
     .select("id, full_name, avatar_url")
@@ -52,6 +56,7 @@ export async function GET(
   // roster. Best-effort per member; leave null if the admin API is unavailable.
   const emailById = new Map<string, string>();
   try {
+    if (callerIsGuest) throw new Error("guests get names only");
     const service = createServiceClient();
     await Promise.all(
       userIds.map(async (id) => {

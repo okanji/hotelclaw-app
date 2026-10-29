@@ -22,7 +22,8 @@ export default function ChannelsTab() {
         accessory={
           // The assistant is the one AI surface worth a header slot: it is
           // a daily driver, not a setting (same reasoning as the web rail).
-          <Pressable
+          // Guests (0118) have no assistant — the runtime refuses them.
+          activeProperty?.role === "guest" ? undefined : <Pressable
             onPress={() => router.navigate("/assistant")}
             hitSlop={8}
             accessibilityLabel="Open the assistant"

@@ -22,7 +22,6 @@ import {
   deterministicPlan,
   sanitizePlan,
   planFormToFormSchema,
-  starterBookingServices,
   type OnboardingAnswers,
   type OnboardingAnswersInput,
   type OnboardingPlan,
@@ -407,31 +406,6 @@ export async function createWorkspace(input: {
     }
   }
 
-  // ── Bookable services (capacity-mode, from what they operate) ────────────
-  const bookingServices = starterBookingServices(answers.operations);
-  if (bookingServices.length > 0) {
-    try {
-      const { error } = await supabase.from("bookable_services").insert(
-        bookingServices.map((svc) => ({
-          property_id: propertyId,
-          name: svc.name,
-          kind: svc.kind,
-          booking_mode: svc.bookingMode,
-          emoji: svc.emoji,
-          description: svc.description,
-          schedule: svc.schedule,
-          active: true,
-          // Staff refine hours/timezone and flip this on when ready to go live.
-          public_bookable: false,
-          created_by: user.id,
-        })),
-      );
-      if (error) throw error;
-    } catch (e) {
-      warn("bookable services", e);
-    }
-  }
-
   // ── Guest chatbot (durable workflow — AI draft with template fallback) ──
   // Fire-and-forget: the workflow runs beyond this request; the draft bot
   // appears under Chatbots shortly after the user lands in the workspace.
@@ -495,7 +469,6 @@ export async function createWorkspace(input: {
         ? (spaceIdBySlug.get(frontSpace.channelSlug) ?? null)
         : null,
       generalChannelId: generalStreamId,
-      hasBookings: bookingServices.length > 0,
       wantsBlockedAlerts: answers.priorities.includes("Task tracking"),
     });
     for (const f of failures) warn(f, "seed failed");

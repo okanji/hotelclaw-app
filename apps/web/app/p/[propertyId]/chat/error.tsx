@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { TriangleAlert } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * Chat-segment error boundary. Catches errors below `chat/` so the channel
@@ -20,17 +21,29 @@ export default function ChatError({
   }, [error]);
 
   return (
-    <div className="flex h-full flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-      <h2 className="text-base font-semibold">Chat couldn’t load</h2>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        We’ll keep the rest of the workspace open — try reloading this section.
-      </p>
-      <Button type="button" size="sm" onClick={() => unstable_retry()}>
-        Reload chat
-      </Button>
-      {error.digest ? (
-        <p className="text-xs text-muted-foreground">Ref: {error.digest}</p>
-      ) : null}
+    <div className="flex h-full flex-1 flex-col items-center justify-center">
+      <div className="empty-state err">
+        <div className="glyph">
+          <Gi icon={TriangleAlert} size={20} />
+        </div>
+        <h2 className="es-h">Chat couldn’t load</h2>
+        <p>
+          We’ll keep the rest of the workspace open — try reloading this
+          section.
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => unstable_retry()}
+        >
+          Reload chat
+        </button>
+        {error.digest ? (
+          <p className="faint" style={{ marginTop: 8, fontSize: "var(--g8-fs-xs)" }}>
+            Ref: {error.digest}
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

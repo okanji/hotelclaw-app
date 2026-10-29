@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   Bot,
-  CalendarCheck,
   CalendarClock,
   ClipboardList,
   Clock,
@@ -17,7 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { primaryAction, triggerLabel } from "@/lib/workflows/summary";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 
 // The row's second line answers "what does this do?" the way Linear's loop
 // cards do: the TRIGGER (the cause) → the first real ACTION (the outcome). We
@@ -37,7 +36,6 @@ const TRIGGER_ICONS: { prefix: string; icon: typeof Clock }[] = [
   { prefix: "webhook.", icon: Webhook },
   { prefix: "form.", icon: ClipboardList },
   { prefix: "chatbot.", icon: Bot },
-  { prefix: "booking.", icon: CalendarCheck },
 ];
 
 export function FlowSummary({
@@ -51,31 +49,34 @@ export function FlowSummary({
 }) {
   if (!trigger) {
     return (
-      <p className={cn("text-xs text-faint-foreground", className)}>
+      <span className={className ? `faint ${className}` : "faint"} style={{ fontSize: 12 }}>
         Draft — no trigger set up yet
-      </p>
+      </span>
     );
   }
   const Icon = TRIGGER_ICONS.find((t) => trigger.startsWith(t.prefix))?.icon ?? Zap;
   const action = primaryAction(stepTypes);
+  // gr8r row: muted 12px line, faint arrow + "+N".
   return (
-    <p
-      className={cn(
-        "flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground",
-        className,
-      )}
+    <span
+      className={className ? `row muted ${className}` : "row muted"}
+      style={{ gap: 6, fontSize: 12, minWidth: 0 }}
     >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
-      <span className="truncate">{triggerLabel(trigger)}</span>
+      <Gi icon={Icon} size={13} />
+      <span className="trunc">{triggerLabel(trigger)}</span>
       {action ? (
         <>
-          <ArrowRight className="size-3 shrink-0 text-faint-foreground" aria-hidden />
-          <span className="truncate">{action.label}</span>
+          <span className="faint" style={{ display: "inline-flex" }}>
+            <Gi icon={ArrowRight} size={12} />
+          </span>
+          <span className="trunc">{action.label}</span>
           {action.more > 0 ? (
-            <span className="shrink-0 text-faint-foreground">+{action.more}</span>
+            <span className="faint" style={{ flexShrink: 0 }}>
+              +{action.more}
+            </span>
           ) : null}
         </>
       ) : null}
-    </p>
+    </span>
   );
 }

@@ -20,11 +20,9 @@ import {
   Pin,
   Plus,
   Trash2,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -188,33 +186,28 @@ export function DocBoardsSection({
   }
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+    <section className="col" style={{ gap: 12 }}>
+      <div className="row" style={{ gap: 8 }}>
         {/* The section heading role is 16px/w600 (notion-spec-v2 §2). This is
             the ONLY header the boards shelf gets — the Directory used to stack
             an editorial kicker and an h2 above it, so three headings ran before
             the first card. */}
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-base leading-6 font-semibold text-foreground">
-            Boards
-          </h2>
-          <span className="text-sm text-faint-foreground tabular-nums">
-            {boards.length}
-          </span>
-        </div>
-        <Button
+        <h2 className="sec">Boards</h2>
+        <span className="faint num" style={{ fontSize: 12 }}>
+          {boards.length}
+        </span>
+        <span className="sp" />
+        <button
           type="button"
-          variant="outline"
-          size="sm"
+          className="btn btn-secondary btn-sm"
           onClick={handleCreate}
           disabled={creatingBoard}
-          className="h-8"
         >
-          <Plus className="size-3.5" />
+          <Gi icon={Plus} size={13} />
           {creatingBoard ? "Creating…" : "New board"}
-        </Button>
+        </button>
       </div>
-      <div className="flex flex-col gap-5">
+      <div className="col" style={{ gap: 12 }}>
         {boards.map((board) => (
           <BoardStrip
             key={board.id}
@@ -329,7 +322,7 @@ function BoardStrip({
     // No board background (notion-spec-v2 §6, the same rule as a kanban
     // group): the cards ARE the board. The grey trough this used to paint is
     // what made a shelf of pages read as a dashboard panel.
-    <div className="group/board rounded-md px-1 pt-2 pb-3">
+    <div className="group/board panel" style={{ padding: "12px 14px 10px" }}>
       <BoardHeader board={board} />
       <div
         ref={pinMode === "drag" ? setNodeRef : undefined}
@@ -423,7 +416,7 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
   }
 
   return (
-    <div className="mb-4 flex items-center gap-2">
+    <div className="row" style={{ gap: 8, marginBottom: 6 }}>
       <input
         ref={inputRef}
         value={name}
@@ -441,32 +434,28 @@ function BoardHeader({ board }: { board: DocumentBoardRow }) {
         }}
         placeholder="Untitled board"
         aria-label="Board name"
-        className={cn(
-          "min-w-0 flex-1 truncate bg-transparent text-base leading-6 font-semibold text-foreground",
-          "outline-none placeholder:text-faint-foreground",
-        )}
+        className="grow trunc g8-board-name"
       />
-      <span className="shrink-0 rounded-md bg-accent px-2 py-0.5 text-sm text-muted-foreground tabular-nums">
-        {board.items.length}
-      </span>
+      <span className="badge gray num">{board.items.length}</span>
       {liveCount > 0 ? (
-        <Badge variant="secondary" className="tabular-nums">
+        <span className="badge green num">
+          <span className="dot" />
           {liveCount} live
-        </Badge>
+        </span>
       ) : null}
       <div className="opacity-0 transition-opacity group-hover/board:opacity-100 focus-within:opacity-100">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
+              <button
+                type="button"
+                className="ibtn ibtn-sm"
                 aria-label="Board actions"
                 title="Board actions"
               />
             }
           >
-            <MoreHorizontal />
+            <Gi icon={MoreHorizontal} size={14} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={4}>
             <DropdownMenuItem
@@ -522,10 +511,10 @@ function BoardEmptyHint({
       // `DocCard`, so it takes the 10px card rung (a 6px box beside 10px
       // cards reads as a mistake) — but it is not a page, so it keeps the
       // bare warm ring rather than `shadow-card` (notion-spec-v2 §4/§5).
-      <div className="flex min-h-48 flex-1 items-center gap-4 rounded-card bg-card px-4 py-4 shadow-ring">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground">Pin documents</p>
-          <p className="mt-1 max-w-[36ch] text-sm text-pretty text-muted-foreground">
+      <div className="row g8-board-hint" style={{ flex: 1, gap: 16, minHeight: 120, padding: 16 }}>
+        <div className="grow" style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 500 }}>Pin documents</p>
+          <p className="muted" style={{ margin: "4px 0 0", fontSize: 13, maxWidth: "36ch" }}>
             Search and pin pages your team needs quick access to — no dragging
             required.
           </p>
@@ -536,13 +525,11 @@ function BoardEmptyHint({
   }
 
   return (
-    <div className="flex h-48 min-w-48 flex-1 flex-col items-center justify-center gap-2.5 rounded-card bg-card px-4 text-center shadow-ring">
-      <Pin
-        aria-hidden="true"
-        strokeWidth={1.75}
-        className="size-5 text-faint-foreground"
-      />
-      <p className="max-w-[24ch] text-sm text-pretty text-muted-foreground">
+    <div className="empty-state sm g8-board-hint" style={{ flex: 1, minHeight: 120 }}>
+      <div className="glyph">
+        <Gi icon={Pin} size={18} />
+      </div>
+      <p style={{ maxWidth: "24ch" }}>
         Drag a document here to pin it for your team.
       </p>
     </div>
@@ -633,28 +620,26 @@ function EmptyBoardsCallout({
   pinMode: "drag" | "picker";
 }) {
   return (
-    <section className="pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-sm font-medium text-foreground">
-            Pin your most-used documents
-          </h2>
-          <p className="mt-1 max-w-[48ch] text-sm text-pretty text-muted-foreground">
+    <section className="alert info" style={{ alignItems: "center" }}>
+      <Gi icon={Pin} size={15} />
+      <div className="row grow" style={{ flexWrap: "wrap", gap: 12 }}>
+        <div className="grow" style={{ minWidth: 0 }}>
+          <b>Pin your most-used documents</b>
+          <p style={{ margin: "2px 0 0", maxWidth: "52ch" }}>
             {pinMode === "picker"
               ? "Create a board, then search and pin documents — everyone on this property sees the same layout."
               : "Create a board and drag documents from the library — everyone on this property sees the same layout."}
           </p>
         </div>
-        <Button
+        <button
           type="button"
+          className="btn btn-primary btn-sm"
           onClick={onCreate}
           disabled={pending}
-          size="sm"
-          className="shrink-0"
         >
-          <Plus className="size-4" />
+          <Gi icon={Plus} size={13} />
           {pending ? "Creating…" : "Create board"}
-        </Button>
+        </button>
       </div>
     </section>
   );

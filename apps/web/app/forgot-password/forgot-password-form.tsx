@@ -3,17 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ArrowLeft, KeyRound, MailCheck } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { AuthCardMark, AuthShell, FieldErr } from "@/components/auth/auth-shell";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -42,62 +34,84 @@ export function ForgotPasswordForm() {
     setBusy(false);
   }
 
+  const backToSignIn = (
+    <p className="auth-foot">
+      <Link
+        href="/login"
+        className="link"
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+      >
+        <Gi icon={ArrowLeft} size={14} />
+        Back to sign in
+      </Link>
+    </p>
+  );
+
   if (sent) {
+    // gr8r's "forgot-sent" card.
     return (
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Check your inbox</CardTitle>
-          <CardDescription>
+      <AuthShell>
+        <div className="auth-card fx-auth">
+          <AuthCardMark icon={MailCheck} color="var(--g8-green)" />
+          <h1>Check your inbox</h1>
+          <p className="sub">
             If an account exists for{" "}
-            <span className="font-medium text-foreground">{email}</span>, we
-            sent a password-reset link.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button variant="ghost" nativeButton={false} render={<Link href="/login" />}>
-            Back to sign in
-          </Button>
-        </CardFooter>
-      </Card>
+            <b style={{ color: "var(--g8-text)" }}>{email}</b>, we sent a
+            password-reset link.
+          </p>
+          <p className="auth-foot">
+            Didn&apos;t get it?{" "}
+            <button
+              type="button"
+              className="link"
+              onClick={() => setSent(false)}
+            >
+              Try again
+            </button>
+          </p>
+          {backToSignIn}
+        </div>
+      </AuthShell>
     );
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>
-          We'll email you a link to set a new password.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoFocus
-              autoComplete="email"
-              placeholder="you@hotel.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Sending…" : "Send reset link"}
-          </Button>
-        </form>
-      </CardContent>
-      <CardFooter>
-        <Button variant="ghost" nativeButton={false} render={<Link href="/login" />}>
-          Back to sign in
-        </Button>
-      </CardFooter>
-    </Card>
+    <AuthShell>
+      <form className="auth-card fx-auth" onSubmit={onSubmit}>
+        <AuthCardMark icon={KeyRound} />
+        <h1>Reset your password</h1>
+        <p className="sub">
+          Enter your account email and we&apos;ll send you a reset link.
+        </p>
+        <div className="field">
+          <label className="label" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoFocus
+            autoComplete="email"
+            placeholder="you@hotel.com"
+            className={`input input-lg${error ? " is-error" : ""}`}
+            aria-invalid={error ? true : undefined}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={busy}
+          />
+          {error ? <FieldErr>{error}</FieldErr> : null}
+        </div>
+        <button
+          type="submit"
+          className={`btn btn-primary btn-lg btn-block${busy ? " is-loading" : ""}`}
+          disabled={busy}
+        >
+          Send reset link
+        </button>
+        {backToSignIn}
+      </form>
+    </AuthShell>
   );
 }

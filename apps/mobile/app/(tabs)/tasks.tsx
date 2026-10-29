@@ -35,6 +35,7 @@ import {
   useApi,
   type ApiMember,
   type ApiTask,
+  taskAssigneeIds,
 } from "../../lib/api";
 import { isBlocked, isDone, isStarted, statusHexOf } from "../../lib/statuses";
 import { useCatalogues } from "../../lib/catalogues";
@@ -146,7 +147,7 @@ export default function TasksTab() {
   const tasks = useMemo(() => {
     let all = data ?? [];
     if (scope === "mine") {
-      all = all.filter((t) => t.assignee_id === userId && !isDone(t));
+      all = all.filter((t) => taskAssigneeIds(t).includes(userId ?? "") && !isDone(t));
     } else if (scope === "open") {
       all = all.filter((t) => !isDone(t));
     }
@@ -161,7 +162,7 @@ export default function TasksTab() {
     const all = data ?? [];
     const open = all.filter((t) => !isDone(t));
     return {
-      mine: open.filter((t) => t.assignee_id === userId).length,
+      mine: open.filter((t) => taskAssigneeIds(t).includes(userId ?? "")).length,
       open: open.length,
       all: all.length,
     };
@@ -316,7 +317,11 @@ export default function TasksTab() {
               index={section.startIndex + index}
               assigneeName={
                 item.assignee_id
-                  ? memberNames.get(item.assignee_id)
+                  ? (() => {
+                      const n = taskAssigneeIds(item).length;
+                      const first = memberNames.get(item.assignee_id);
+                      return first && n > 1 ? `${first} +${n - 1}` : first;
+                    })()
                   : undefined
               }
               onPress={() =>

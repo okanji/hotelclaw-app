@@ -1,3 +1,4 @@
+import { requireFullMember } from "@/lib/auth/session";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -5,7 +6,6 @@ import { getMembershipForProperty } from "@/lib/auth/session";
 import { runGuestBot } from "@/lib/ai/guest-bot/run-guest-bot";
 import { buildGuestBotTools } from "@/lib/ai/guest-bot/tools/registry";
 import { parseChatbotConfig } from "@/lib/chatbots/schema";
-import { cardsFromToolResults } from "@/lib/chatbots/cards";
 
 /**
  * POST /api/properties/:propertyId/chatbots/:chatbotId/test
@@ -42,6 +42,10 @@ export async function POST(
   { params }: { params: Promise<{ propertyId: string; chatbotId: string }> },
 ) {
   const { propertyId, chatbotId } = await params;
+  // Guests (0118) hold a membership row but this route acts through the
+  // service client, past RLS — full members only.
+  const roleGate = await requireFullMember(propertyId);
+  if (!roleGate.ok) return NextResponse.json({ error: roleGate.error }, { status: roleGate.status });
   const supabase = await createClient();
   const {
     data: { user },
@@ -160,18 +164,12 @@ export async function POST(
         output: outputByCall.get(tc.toolCallId),
       }));
     });
-    const attachments = cardsFromToolResults(
-      steps.flatMap((step) =>
-        step.toolResults.map((tr) => ({
-          toolName: tr.toolName,
-          output: tr.output,
-        })),
-      ),
-    );
     return NextResponse.json({
       reply: text.trim() || "(no reply)",
       toolCalls,
-      attachments,
+      // No tool derives render cards since the booking tools were removed
+      // (2026-10-29); kept so the console's response shape is unchanged.
+      attachments: [],
     });
   } catch (err) {
     console.error("[chatbot-test] generation failed", err);
@@ -185,6 +183,10 @@ export async function DELETE(
   { params }: { params: Promise<{ propertyId: string; chatbotId: string }> },
 ) {
   const { propertyId, chatbotId } = await params;
+  // Guests (0118) hold a membership row but this route acts through the
+  // service client, past RLS — full members only.
+  const roleGate = await requireFullMember(propertyId);
+  if (!roleGate.ok) return NextResponse.json({ error: roleGate.error }, { status: roleGate.status });
   const supabase = await createClient();
   const {
     data: { user },

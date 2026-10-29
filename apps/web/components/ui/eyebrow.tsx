@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
  *   `brand` — kept as a tone key so existing call sites compile, but Notion
  *             has no colored labels: it now resolves to the same faint ink as
  *             `app`. Prefer `app` in new code.
- *   `guest` — the warm-cream guest world (wizard, welcome, public booking).
+ *   `guest` — the warm-cream guest world (wizard, welcome).
  *             **Out of scope for the normalization** — it deliberately keeps
  *             the uppercase + tracked voice and its own 16px line-height.
  */

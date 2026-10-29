@@ -5,9 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { relativeShort, WidgetEmpty } from "@/components/home/editorial-section";
+import { relativeShort } from "@/components/home/editorial-section";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Note } from "./g8-insights";
 import {
   insightsPromptsQueryOptions,
   type InsightPromptCard,
@@ -26,14 +26,14 @@ export function PinnedPromptsBody({ propertyId }: { propertyId: string }) {
 
   if (prompts.length === 0) {
     return (
-      <WidgetEmpty>
+      <G8Note>
         Ask the numbers something below, then pin the question — it&apos;ll
         stay here and re-answer itself whenever the data moves.
-      </WidgetEmpty>
+      </G8Note>
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-x-10 gap-y-5 @3xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-2">
       {prompts.map((p) => (
         <PromptCard key={p.id} propertyId={propertyId} card={p} />
       ))}
@@ -78,55 +78,54 @@ function PromptCard({
   });
 
   return (
-    <article className="group/prompt flex flex-col gap-1.5">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="min-w-0 text-base leading-6 font-semibold text-pretty text-foreground">
-          {card.prompt}
-        </h3>
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/prompt:opacity-100">
-          <Button
+    <article
+      className="ins-card group/prompt"
+      style={{ flexDirection: "column", gap: 6 }}
+    >
+      <div className="flex w-full items-start justify-between gap-3">
+        <h3 className="min-w-0">{card.prompt}</h3>
+        <div className="row shrink-0 opacity-0 transition-opacity group-hover/prompt:opacity-100 group-focus-within/prompt:opacity-100" style={{ gap: 2 }}>
+          <button
             type="button"
-            variant="ghost"
-            size="icon-xs"
+            className="ibtn ibtn-xs"
             aria-label="Re-answer now"
             title="Re-answer now"
             disabled={refresh.isPending}
             onClick={() => refresh.mutate()}
-            className="text-muted-foreground"
           >
-            <RefreshCw
-              className={cn("size-3.5", refresh.isPending && "animate-spin")}
+            <Gi
+              icon={RefreshCw}
+              size={13}
+              className={refresh.isPending ? "animate-spin" : undefined}
             />
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="ghost"
-            size="icon-xs"
+            className="ibtn ibtn-xs"
             aria-label="Unpin"
             title="Unpin"
             disabled={remove.isPending}
             onClick={() => remove.mutate()}
-            className="text-muted-foreground"
           >
-            <Trash2 className="size-3.5" />
-          </Button>
+            <Gi icon={Trash2} size={13} />
+          </button>
         </div>
       </div>
       {card.answerMd ? (
-        <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed text-muted-foreground [&_li]:my-0.5 [&_p]:my-1">
+        <div className="max-w-none text-[length:var(--g8-fs-sm)] leading-relaxed text-(--g8-text-2) [&_li]:my-0.5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:text-(--g8-text)">
           <ReactMarkdown>{card.answerMd}</ReactMarkdown>
         </div>
       ) : (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" />
+        <p className="row">
+          <Gi icon={Loader2} size={13} className="animate-spin" />
           Answering…
         </p>
       )}
       {card.generatedAt ? (
-        <p className="text-xs text-faint-foreground tabular-nums">
+        <span className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
           updated {relativeShort(card.generatedAt)} — re-answers when the
           numbers move
-        </p>
+        </span>
       ) : null}
     </article>
   );

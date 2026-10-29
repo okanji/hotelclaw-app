@@ -1,3 +1,4 @@
+import { assigneeIdsFromEmbed, isAssignedTo, taskAssigneeIds } from "@/lib/tasks/assignees";
 import "server-only";
 /**
  * Insights metrics — the single source of truth for every aggregate the
@@ -143,6 +144,8 @@ type TaskRow = {
   status: string;
   priority: string;
   assignee_id: string | null;
+  /** 0115 — everyone on the task (fetchRaw embeds it; other loaders don't). */
+  assignee_ids?: string[];
   project_id: string | null;
   space_id: string | null;
   due_at: string | null;
@@ -374,7 +377,7 @@ async function fetchRaw(propertyId: string) {
     supabase
       .from("tasks")
       .select(
-        "id, title, status, priority, assignee_id, project_id, space_id, due_at, created_at, updated_at",
+        "id, title, status, priority, assignee_id, project_id, space_id, due_at, created_at, updated_at, task_assignees(user_id, position)",
       )
       .eq("property_id", propertyId),
     supabase
@@ -395,7 +398,13 @@ async function fetchRaw(propertyId: string) {
   if (tasksRes.error) throw new Error(`tasks query failed: ${tasksRes.error.message}`);
   if (eventsRes.error) throw new Error(`events query failed: ${eventsRes.error.message}`);
 
-  const tasks = (tasksRes.data ?? []) as TaskRow[];
+  // 0115: flatten the embedded set (primary first) onto the row.
+  const tasks = ((tasksRes.data ?? []) as unknown as (TaskRow & {
+    task_assignees?: { user_id: string; position: number }[] | null;
+  })[]).map(({ task_assignees, ...t }) => ({
+    ...t,
+    assignee_ids: assigneeIdsFromEmbed(task_assignees),
+  })) as TaskRow[];
   const events = (eventsRes.data ?? []) as unknown as EventRow[];
 
   const userIds = new Set<string>();
@@ -449,7 +458,10 @@ function filterToScope(
       };
     case "person":
       return {
-        tasks: tasks.filter((t) => t.assignee_id === scope.id),
+        // Open work = any task they're ON (0115). Completions stay keyed on
+        // the event's primary (`payload.new.assignee_id`) — the done-by-week
+        // history predates the set and has no per-person attribution.
+        tasks: tasks.filter((t) => isAssignedTo(t, scope.id)),
         events: events.filter((e) => e.event_assignee === scope.id),
       };
   }
@@ -719,12 +731,14 @@ export async function computeInsightsMetrics(
     return row;
   };
   for (const t of open) {
-    if (!t.assignee_id) continue;
-    const row = rowFor(t.assignee_id);
-    row.open += 1;
-    if (isBlocked(t)) row.blocked += 1;
-    if (isOverdue(t)) row.overdue += 1;
-    if (t.priority === "high" || t.priority === "urgent") row.urgent += 1;
+    // A shared task is open work for EACH assignee (0115).
+    for (const id of taskAssigneeIds(t)) {
+      const row = rowFor(id);
+      row.open += 1;
+      if (isBlocked(t)) row.blocked += 1;
+      if (isOverdue(t)) row.overdue += 1;
+      if (t.priority === "high" || t.priority === "urgent") row.urgent += 1;
+    }
   }
   for (const e of events) {
     if (e.event_type !== "task.status_changed" || e.to !== "done") continue;
@@ -798,7 +812,7 @@ export async function computeMyWeek(
   const { tasks, events, profileById } = await fetchRaw(propertyId);
   const now = Date.now();
 
-  const mine = tasks.filter((t) => t.assignee_id === userId);
+  const mine = tasks.filter((t) => isAssignedTo(t, userId));
   const myOpen = mine.filter((t) => !isDone(t));
   const isOverdue = (t: TaskRow) =>
     !!t.due_at && new Date(t.due_at).getTime() < now;

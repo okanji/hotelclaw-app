@@ -14,74 +14,124 @@ hardcode hex colors — a token exists. New surfaces use the primitives;
 existing ones convert when touched.
 
 <!-- BEGIN:nextjs-agent-rules -->
-# Shell navigation — one sidebar tree, no rail (2026-10-25)
+# The UI is gr8r-studio's (port started 2026-10-29) — read before building UI
 
-The Slack-style icon rail is gone. The shell is ONE Linear / ClickUp-style
-sidebar (`components/shell/section-sidebar.tsx`): property switcher + search +
-create, the personal block (`you-block.tsx`: Inbox / My tasks / Assistant, then
-Chat and Docs as FIXED rows — not pinnable apps, 2026-10-26),
-the **Workspace** group, Favorites, the Teams + Projects lists, and the
-account menu in the footer.
+The user owns gr8r-studio (`github.com/gr8rstudio/gr8r-studio`, plain-JS) and
+adopted its design wholesale: gr8r's look, OUR functionality (never drop a
+feature; where gr8r has no place for it, build it in gr8r's style). Plan +
+progress log: `~/.claude/plans/gr8r-ui-port.md`.
 
-**Pins + launcher (the Slack / ClickUp / Linear model, re-planned 2026-10-25).**
-Every app is declared once in `nav-apps.ts` (`NAV_APPS`: id, label, icon,
-path, optional shell `section`, tint, group). The Workspace group shows ONLY
-the person's pinned apps — default Home, Tasks, Planner (`DEFAULT_PINS`) — and ends in **More**
-(`app-launcher.tsx`): a popover beside the row with EVERY app as a tile,
-grouped Work / Build & automate / Admin (ClickUp's More grid — a pinned
-app's tile carries a small pin; a Linear-style dropdown of only the
-unpinned apps was tried on 2026-10-26 and reverted the same day, the grid
-is the one people recognised), then **Customize sidebar** (pin / unpin /
-reorder apps; show or hide Favorites, Teams, Projects). The "Workspace" label
-folds the group like Favorites / Teams (`hotelclaw:workspace-open`). Prefs are
-per device in localStorage via the `useNavPrefs` external store
-(`use-nav-prefs.ts`; `pins: null` = never customized, so the role-aware
-default applies). An unpinned app you're IN gets a temporary row
-(`appForPath`), so the lit row always shows where you are. Insights,
-Bookings, Meetings, Initiatives, Forms, Workflows, Chatbots, Agents, Org
-chart and Archive live in the launcher by default. Realtime-driven badges for unpinned
-section apps (bookings, approvals) refresh on refetch, not live, because
-their section bodies aren't mounted.
-
-**Nodes.** Section apps are `NavNode`s (`nav-node.tsx`): the label navigates
-(last-path resume, root on a second click), the chevron expands the old
-per-section sidebar in place, and the body stays mounted while closed.
-Nodes expand **independently** — opening one never folds the others
-(explicit user preference; landing in a section opens its node, nothing
-closes). Teams / Projects / Favorites fold from their group labels. The Projects group
-opens with an "All projects" row (ClickUp's "All Tasks" first row), and that
-page is Linear's (`linear.app/demo/projects/all`, audited 2026-10-26):
-"All projects" chip + filters, and on the right Display options + a
-Health / Teams / Leads summary panel (click a row to narrow). Display
-options (`tracking/project-display.tsx`, per-device store) = layout List /
-Board / **Timeline (default)**, grouping status / health / lead / none,
-ordering, show completed, list properties. Timeline (`timeline-view.tsx`):
-the date header + tracks run full width UNDER a sticky list column (icon ·
-name · health · status · "…" · lead), status-tinted groups with "+", name
-above each bar, next milestone + % at its end, milestone diamonds, Month /
-Quarter / Year zoom; undated rows schedule in one click (4-week ghost
-bar). List (`list-view.tsx`): Name + next milestone · Health "On track ·
-5w" (latest project update wins, else the computed pace read) · Lead ·
-Target date · Tasks · Status %. The old Table view is gone. The per-row
-"…" menu (gr8r's) opens, sets status, copies the link.
-Children carry destinations only — the Tasks node is just Triage + Cycles
-(+ the current cycle); the Tasks row itself opens the board, create is + New
-/ `N`, and filters belong in the page toolbar. Routing (pushState fast path
-vs. a real push for server-rendered sections — `SERVER_RENDERED` in
-`use-section-navigation.ts`, which includes triage/cycles/initiatives) lives
-there too. Collapse is `⌘\`, the hover-revealed « in the header, or a drag
-past the minimum. **Command palette** (`command-palette.tsx`, ⌘K):
-Slack-style prefix grammar — `>` commands, `#` channels, `@` people/DMs
-(`parseQuery`; the scope is echoed as a chip in the input). Actions carry a
-`group` (`create` | `navigate`, `command-palette-actions.ts`): the four
-create actions show on the resting palette as "Quick actions", the "Go to"
-rows only once the query matches or `>` is typed, so the empty state leads
-with recents, channels, people, open tasks and recent documents. Documents
-search the keyword RPC (`/documents/search`, body text + preview) once the
-term is ≥2 chars; the `↵` affordance on the selected row keeps a fixed
-width so the meta column aligns. **Adding an app** = a `NAV_APPS` entry (+ a `body()` case in
-`workspace-nav.tsx` if it has a section sidebar, a `sectionFromPath` case,
-and a `SECTION_PREFIX` entry in `lib/shell/last-path.ts` if it should resume).
+- **CSS = gr8r's own files, verbatim.** `styles/gr8r/*.css` is copied from
+  gr8r's `src/styles`; `node scripts/build-gr8r-css.mjs` compiles them to
+  `app/gr8r.css` (GENERATED — never edit): every selector scoped under `.g8`,
+  every custom property renamed `--x` → `--g8-x` (so gr8r's `--accent` /
+  `--border` don't collide with our shadcn tokens), `:root[data-theme=dark]` →
+  `.dark .g8` (next-themes), all in `@layer components` so Tailwind utilities
+  still win. Hand-written additions (where our markup differs — a Link where
+  gr8r has a <button>) go in `app/gr8r-ext.css`. The property shell root
+  (`app/p/[propertyId]/layout.tsx`) carries `g8`; anything portaled out of it
+  that should look gr8r (the mobile drawer) adds `g8` itself.
+- **Write gr8r's class names in JSX** (`page`, `ph`, `panel`, `sitem`, `btn
+  btn-secondary btn-sm`, `ibtn`, `av`, `prog`…) — check they exist in
+  `styles/gr8r`. Per-element parameters use the renamed names:
+  `style={{"--g8-c": …}}`, `--g8-p`, `--g8-sz`, `--g8-cols` (bare `--c` etc. is
+  aliased in gr8r-ext.css as a safety net). Icons: `Gi`
+  (`components/gr8r/icon.tsx`) = the Lucide glyph gr8r's `ic('name')` names,
+  stroke 1.8, class `i`. Shared glyph helpers: `components/gr8r/*-glyphs.tsx`
+  (StIcon, PrIcon, Av, AvStack, ProgBar, PStatus, G8_COLOR).
+- **Shell.** Sidebar = gr8r's `renderSidebar` (`components/shell/gr8r-sidebar.tsx`):
+  `.ws` property switcher › Home, Inbox (`/activity`, accent count), My Tasks
+  (due today/overdue count), Favorites (Notifications folded into Inbox — `/notifications`
+  redirects to `/activity`, the topbar bell opens `?view=unread`), then our Chat, Docs,
+  Forms (right under Docs) › WORKSPACE (Overview, Projects, Tasks, Calendar,
+  Timeline, Members, Cycles, then **More** — the workspace Activity feed is
+  an Inbox tab, `/activity?view=workspace`; Triage is part of Tasks,
+  Linear-style: a Triage row under each team, `/triage?team=`, + a "N in
+  triage" chip on the Tasks board). **No BUILD group** (2026-10-29): More is
+  the restored app-launcher grid (`components/shell/more-launcher.tsx`, every
+  `NAV_APPS` tile grouped Work / Build & automate / Admin, a pin on apps with
+  their own row) and is the ONLY way to Meetings, Workflows, Chatbots,
+  Agents, Insights, Initiatives, Org chart ›
+  PROJECTS (`.sproj`: tile, status dot, hover … menu + chevron, Board / List /
+  Timeline / Docs → `?tab=` aliases in project-detail; completed hidden;
+  Archive) › TEAMS (each expands to its lists → `/tasks?list=`) › `.side-bot`
+  Help, Settings, account. Chat, Docs, Assistant and Forms are gr8r `.sproj`
+  tree nodes: a hover chevron, and the section's OWN navigation (the old
+  `components/shell/sections/*` bodies — channels + DMs, the docs tree,
+  assistant projects, form list…) in a `.sub` beneath,
+  open while you're in that section (`SItem` `body` in gr8r-sidebar.tsx;
+  mounted only while open). Collapse keeps the ORIGINAL behaviour (user preference over gr8r's 52px
+  rail, 2026-10-29): a ClickUp-style « in the sidebar header, invisible until
+  the pointer is over the sidebar, hides the sidebar fully; a fixed » "Open
+  sidebar" at the content's top-left brings it back (topbars pad for it via
+  `md:[body:not(:has([data-sidebar-open]))_&]:pl-11`); ⌘\ or `[` toggle. Topbar = `PageHeader` rendered as gr8r's
+  `.topbar` (crumbs, `.topsearch` → ⌘K palette, bell, `New ▾`). ≤640px: gr8r's
+  `.bottomnav` (in `mobile-top-bar.tsx`). Appearance prefs (accent / density
+  / motion, Settings → Appearance) are `data-*` on the `.g8` root via
+  `<AppearancePrefs />`.
+- **Pages ported** (`components/gr8r/*`): Home (`home-overview`), Inbox
+  (`inbox-view`, two-pane; task rows embed TaskRoom ≥1280),
+  My Tasks (`my-tasks-view`: Blocked / Overdue / Today / Upcoming / Completed,
+  drag-to-reschedule, Replies owed + Waiting on others), `/favorites` (gr8r's
+  page: Projects as `.pgrid` cards + Tasks as `.mini` rows, then ours —
+  Docs, Teams, Forms, Channels; tasks = `task_favorites` (0119), the rest =
+  `favorites` (0120, per user, realtime; `lib/favorites/use-favorites.ts`,
+  `FavoriteStar` on each header + project menus + an amber `FavMark` on
+  starred project cards / sidebar rows; doc "pins" are document favorites,
+  v1 localStorage pins import once)), `/overview`, `/timeline`
+  (workspace Gantt over our reschedule actions), Projects (Grid default /
+  List / Table / Board / Timeline), Archive, Search, `/members` (+
+  `/members/<id>` profile, Teams tab), team page (`teams-detail`), workspace
+  Activity (`ws-activity-view`), `/settings?sec=` (`settings-*`). New pages
+  Phase 5: Tasks board (`board.tsx` + `board-toolbar.tsx`: gr8r `.ph` /
+  `.toolbar` / `.chipsbar`, view `.seg`, columns + cards + list on gr8r
+  classes), the project page (`components/gr8r/project-*.tsx`: Overview ·
+  Board · List · Timeline · Calendar · Docs · Activity — Docs is docs AND
+  files in one tab (`project-files.tsx`, `?tab=files` aliases it): the
+  project's linked docs (New doc creates one linked, Add docs, × unlinks),
+  files uploaded onto the project (gr8r's Upload + `.dropzone` + `.upl`
+  progress over `project_files` + the private `project-files` bucket, 0121,
+  50 MB/file, XHR to Storage REST for real progress; uploader or
+  owner/manager removes) and the project's task attachments), Calendar
+  (gr8r month grid; our hourly time grid kept for Week/Day, `.tg-*` in
+  gr8r-ext.css), the overlay primitives (`components/ui/*` restyled to
+  gr8r's overlays.css numbers — they portal outside `.g8`, so they use
+  Tailwind over our remapped tokens; a portal that wants gr8r classes adds
+  `g8 g8-port`), and the **task drawer**: `useOpenTask` opens tasks in
+  `components/gr8r/task-drawer.tsx` via `?task=<id>` on the current URL
+  (mounted in the property layout; Esc / X close, expand → centred full,
+  "Open as page" → `/tasks/<id>`; not on `/triage`, where `?task=` is the
+  selection, nor on a task page, where navigation stays a page hop).
+  TaskDetail itself is gr8r's drawer markup on all three hosts (page,
+  embedded, artifact panel).
+  Phase 6 (our surfaces, built in gr8r's idiom): Chat (channel header = the
+  gr8r topbar; Stream DOM skinned in `stream-chat-overrides.css` ".g8 gr8r
+  skin" block; bot cards `.g8-chat-card`), Docs (Files-view home with grid /
+  list, `.topbar` doc chrome, `g8-doc` typography) + Forms, Assistant /
+  Agents / Fleet / Memory (`components/gr8r/ai-glyphs.tsx`), Meetings
+  staff side (`badge-glyphs.tsx`), Workflows + Chatbots staff
+  side, Insights / Org / Triage / Cycles / Initiatives
+  (`components/insights/g8-insights.tsx`, `ins-*` in gr8r-ext.css), auth /
+  onboarding / errors (`components/auth/auth-shell.tsx` carries its own
+  `.g8` root — those routes sit outside the property shell; `FullState`
+  takes a rendered icon element from server pages). Phase 7: team page tab
+  bodies, calendar event details, search excerpts (`.g8-snip`), route
+  skeletons (`components/gr8r/route-skeleton.tsx`), channel header ≤900px
+  folds into a "…" menu; gr8r's ≤900px off-canvas `.side` rule is
+  neutralised inside our sidebar slot (our shell owns the mobile drawer).
+  Guest-world pages
+  (`/g/<slug>`, widget) keep the warm-cream palette. New pages
+  are normal routes that render only while the URL is theirs — wrap the
+  view in `<RouteGate segment="…">` (`components/gr8r/route-gate.tsx`, or
+  `useSurfacePathname()` as favorites / members / overview / settings do).
+  Persistent surfaces navigate by `pushState`, which never unmounts the
+  current route page, so an ungated page keeps painting above them (the
+  "split screen" bug on /notifications, /search, /archive, 2026-10-29) (they sit beside
+  the persistent section surfaces). Guests may open `/activity`,
+  `/notifications`, `/favorites` (`GUEST_SECTIONS`).
+- Nav data that still applies: `NAV_APPS` / `useNavPrefs` (Settings → Sidebar
+  shows/hides Teams / Projects), `use-section-navigation.ts` (last-path
+  resume for Inbox / Chat / Docs / Assistant), `SERVER_RENDERED`.
 
 # This is NOT the Next.js you know
 
@@ -163,9 +213,8 @@ node ... scripts/bot-capability-test.mjs --sweep      # delete leftover CAPTEST 
      Always grade `gradeableText(message)`, never `message.text`.
   3. *The bot writes Unicode.* "−18 °C" uses U+2212, not an ASCII hyphen, so
      `/-18/` misses it. `gradeableText` normalises dashes; keep regexes loose.
-  4. *Six tools are APPROVAL-GATED* (`archive_document`, `delete_task`,
-     `cancel_meeting`, `update_booking_status`, `send_notification`,
-     `post_to_channel`). They park for sign-off instead of executing, so
+  4. *Five tools are APPROVAL-GATED* (`archive_document`, `delete_task`,
+     `cancel_meeting`, `send_notification`, `post_to_channel`). They park for sign-off instead of executing, so
      asserting an immediate row fails a correct bot. Set `approvalGated: true`
      — the runner then asserts the park FIRED, replies "approve", and only
      then checks the row. A startup drift guard warns on the mismatch.
@@ -258,29 +307,24 @@ Property members build **agentic chatbots for hotel guests** (front desk, room s
 - **Auto-retrain**: `/api/chatbots/auto-retrain` cron (04:30, vercel.json) — retrains bots whose document sources are older than the doc's `body_updated_at` or whose url sources are >24h stale.
 - **Gotchas**: `/chatbots` must match before `/chat` in `sectionFromPath`; chatbots pages are server-rendered (rail pushState exception, like meetings); extension functions/types/operators need `extensions.` qualification in migrations (`extensions.gen_random_bytes`, `extensions.vector`, `operator(extensions.<=>)`).
 
-## Bookings — bookable services + chatbot reservations
+## Bookings — REMOVED (2026-10-29)
 
-Property members define **bookable services** (tables, spa appointments, tours) under Home → Bookings; chatbots take reservations against real availability via the `book_service` action. Industry-converged model (OpenTable/Calendly/FareHarbor research): weekly hours + slot interval + duration + capacity-per-slot, party size consuming capacity for tables/tours (covers/seats) and not for appointments.
-
-- **Data** (migration 0065): `bookable_services` (versioned `schedule` JSON per `lib/bookings/schema.ts`, per-service IANA `timezone`), `bookings` (human `reference` BKG-XXXXXX, statuses `pending|confirmed|completed|cancelled|no_show`, source `chatbot|staff`, links to chatbot/conversation). `chatbot_conversations.outcome` gained `booking_made`. Realtime publication on `bookings` drives the live agenda.
-- **Availability** — `lib/bookings/availability.ts`, 100% deterministic (NO model in the slot path): `computeDaySlots` (range end = last-seating boundary; occupancy may overrun it — turn-time semantics), `createBookingChecked` (server-side revalidation + post-insert oversell rollback, newest yields; emits `booking.created`). **Timestamps without an offset are interpreted as wall time in the SERVICE timezone** — never the server's (a bot once booked 12:00Z for "14:00" because `new Date("…T14:00")` parsed server-local).
-- **Chatbot action** `book_service` (config: serviceIds allowlist, autoConfirm vs pending-for-staff, notify channel) → two registry tools: `check_availability` (lists services / returns ≤8 slots + `today_at_property`, never invents) and `create_booking` (confirm-before-book flow; flips outcome `booking_made`, posts Stream card, returns reference). The guest system prompt includes a now-line (UTC) so "tomorrow at 7" resolves.
-- **Staff UI** — `/p/[propertyId]/bookings` (Home rail, `components/bookings/*`): service cards + editor (weekly-hours per-day toggles, slot rules, timezone), day agenda with Fresha-style status actions (pending→confirm/cancel; confirmed→complete/no-show/cancel), manual walk-in dialog whose slot grid uses the same engine with the notice rule relaxed. Workflow triggers `booking.created`/`booking.cancelled` in `lib/workflows/catalog/bookings.ts` (source `'booking'`).
-- **Smoke coverage**: chatbot-smoke seeds a capacity-1 service, books via two-turn confirm flow, asserts the row + event, then a second guest's double-book attempt must leave exactly 1 active booking in the slot.
-- **App integrations** (Bookings is a first-class rail section, not a Home quick-link):
-  - **Shell** — own `ShellSection` with sidebar views (Agenda / Pending / Services via `?view=`), amber pending-count rail badge fed by `lib/query/booking-queries.ts` and invalidated by the Realtime subscription in `components/shell/sections/bookings-section.tsx`. Server-rendered → rail pushState exception (`BOOKINGS_ROUTE`).
-  - **Workflows** — surface `'bookings'` (badge violet/Ticket): triggers `booking.created`/`booking.cancelled` + actions `action.booking.create` / `action.booking.set_status` (`lib/workflows/runners/bookings.ts`, same `createBookingChecked` engine, notice rule bypassed like staff; field-defs in `lib/workflows/field-defs.ts`). Canonical loop: chatbot books pending → `booking.created` trigger → `action.booking.set_status` auto-confirms small parties.
-  - **Calendar** — `BookingEvent` source variant (violet tint, cancelled/no-show excluded), toggleable `internal:bookings` source, read-only `BookingDetails` in the event dialog deep-linking to Bookings. Calendar-AI knowledge and the "Your day" widget pick bookings up automatically via the shared feed.
-  - **Home** — "Today's bookings" widget (`components/home/widgets/bookings-widget.tsx`): next-24h rows + pending count.
-- **Table mode** (migration 0066 — the restaurant layer, generic to any discrete-unit service): `bookable_services.booking_mode` `capacity|tables`; `service_resources` = tables (name/seats/min_party/shape + 100×100-grid floor position/zone); `bookings.resource_id`; status lifecycle gained **`seated`** (occupies capacity like pending/confirmed; confirmed→Seat→Finish). Availability in table mode = a free table FITS the party (`freeFittingTables` — min_party keeps deuces off 6-tops, smallest-fit assignment per OpenTable's documented order; unassigned overlapping bookings conservatively consume free tables); `createBookingChecked` auto-assigns best-fit with per-table conflict rollback→reassign. Combos/reflow/sections = deferred upgrade path (research: not baseline).
-- **Service-scoped workspaces** (`components/bookings/service-workspace.tsx`): the sidebar lists **one item per service** (emoji icon, `?service=<id>`), each opening a kind-specific workspace — the service KIND decides the UI vocabulary: `tables` → Reservations | Floor plan | Timetable tab strip; `event` → **TicketingView** (event-date chips, sold/capacity meter + checked-in count, searchable alphabetical door list with one-tap Confirm/Check-in `DoorRow`s); `rental` → units Timetable (Timetable's resource-rows mode now covers `booking_mode 'rental'` too; covers footer + seats sub hidden for rentals) + "N out now" badge + day sheet; capacity (spa/tour) → scoped day agenda. Cross-service screens stay: All bookings (agenda + stats), Pending; "Manage services" replaces the old Services item; Floor plan/Timetable left the sidebar (they live inside the table service's workspace; `?view=floor|timetable` URLs still work). Sidebar services come from `bookingServicesQueryOptions` with Realtime invalidation on `bookable_services`. `BookingStatusBadge` takes `eventKind` (seated → "Checked in").
-- **Views** (Bookings sidebar): Agenda · Pending · **Floor plan** (`components/bookings/floor-plan.tsx` — one canvas, two modes: Live host board with status-colored tables — clicking a table opens a sidebar `TableDetailPanel` (current party + status actions, "Later today" upcoming, and a **seat-a-walk-in form on free tables** → `seatWalkIn` action: deliberately a direct service-client insert at "now" with a same-table overlap guard, NOT `createBookingChecked`, because the engine only accepts slot boundaries and walk-ins arrive at 19:43; emits `booking.created`), click-booking-then-table still moves parties, time scrubber; explicit Edit layout mode with drag/snap, inspector, and a Haiku "describe your room" layout draft via `.../generate-floor` — model names tables, positions assigned deterministically. Creation path: empty canvas has Add-a-table / Draft-with-AI CTAs; the Floor view without any table-mode service shows a New-table-service CTA) · **Timetable** (`timetable.tsx` — rows = tables + Unassigned lane, x = time, blocks span turn time, now-line, click for status/move actions; capacity services get packed lanes; desktop-only, mobile uses Agenda) · Services (booking-mode picker in the dialog).
-- **Events + rentals** (migration 0067 — the engine is now use-case-generic): kinds gained `event` (GA party ticketing: capacity = tickets, party = ticket count, **`schedule.dates`** date-specific hours override weekly so one-off galas exist; `seated` doubles as door check-in; `priceLabel` = display-only "reserve now, pay at the door" per research — no payments) and `rental` (booking_mode `'rental'`: named units via `service_resources`, guest-chosen duration from **`schedule.rentalDurations`** discrete options — Boatsetter convention, shortest = default via `resolveDuration` — plus **`turnaroundMinutes`** cleaning/refuel gap padding every conflict window). `closedDates` block any date. Bot tools accept `duration_minutes`; `describeService` advertises price/duration options/event dates. Tiers/occurrence-series/deposits = deferred. **Ticketing is first-class across every surface** (kind `event` flips the language + artifacts everywhere): public wizard says "Get your tickets"/"Reserve tickets"/"N tickets" with a step indicator; confirmation email says "Your tickets are reserved" + QR hint; the manage page becomes the ticket — `components/public-booking/ticket-qr.tsx` renders a door QR (react-qr-code, QR of the manage URL itself) + mono reference + "Show this at the door", and `seated` reads "Checked in"; staff agenda rows show "N tickets" and the Seat action relabels "Check in"; the Services grid shows a next-date sold/capacity meter per event (computed client-side in `BookingsView.eventStatsByService`, green→amber ≥80%→red ≥100%).
-- **Event ticket pages** (Luma-pattern research, no migration): each event gets a customizable public landing page at `/book/<property-slug>/event/<serviceId>` (`app/book/[propertySlug]/event/[serviceId]/page.tsx` + `components/public-booking/event-page.tsx`) — square cover art with a big emoji (**~25 `EVENT_COVER_PRESETS`** ordered basic flats → soft washes → vibrant gradients → layered "cosmic" radial/conic backgrounds; keys are stored in configs — never rename), sticky cover column with a Hosted-by block (accent initial avatar; repeats below About on mobile), serif title, calendar-tile date chip with start–end time range, two-line location row (place + property), registration card with a muted Luma-style header strip (live tickets-remaining from the slots API incl. "Almost gone" ≤20% and Sold-out states, date/time/qty chips, name+email → same POST as the wizard), whitespace-pre-line About section, backlink to the property wizard. Customization lives in **`schedule.page`** (versioned JSON in `ServiceScheduleZod`: coverStyle preset from `EVENT_COVER_PRESETS`, coverEmoji, accent hex, tagline, location, host, about) — staff edit via the "Customize page" Palette button in the event workspace (`event-page-dialog.tsx`, gradient/accent swatches + preview link); the workspace's "Ticket page" copy button hands out the event URL (other kinds still copy the wizard URL). 404s unless kind=event + active + public_bookable + property-slug match.
-- **Public booking page** (migration 0068): `/book/<property-slug>` — middleware-allowlisted wizard (warm guest palette, one decision per screen like the forms wizard): service → date/party/duration → live slots → details → done. Web bookings land **pending** (`source:'web'`), are rate-limited per IP (`publicRateLimit`), and trigger a confirmation email (`lib/bookings/email.ts`, Resend fail-soft) carrying a **signed manage link** — `/book/manage/<token>` (HMAC per `lib/bookings/manage-token.ts`; guests get signed deep links, NOT Supabase magic links — those are staff-only) where they view status and self-cancel (emits `booking.cancelled`). Per-service `public_bookable` toggle in the service dialog; "Public page" copy button in the Bookings header. Public API: `/api/guest/book/[propertySlug]` (GET availability / POST create) + `/api/guest/book/manage/[token]` (POST cancel).
-- **Booking questions — Forms × Bookings** (migration 0069): a published form attaches to a service via **`schedule.formId`** (picker in the service dialog); guests answer while booking on both public surfaces (wizard details step + event-page registration card) via the warm-palette `components/public-booking/guest-form-fields.tsx` renderer (guest-safe subset: sourced selects + file fields are filtered server-side by `lib/bookings/booking-form.ts:loadBookingForm`). The guest POST validates answers BEFORE creating the booking (422 + per-field `fieldErrors`, no slot burned), then writes a `form_responses` row (source **`'booking'`** — 0069 widened the CHECK; `respondent_id` null, `_booking_reference` inside answers) and appends a `summarizeAnswers` one-liner to the booking notes so staff see answers on every agenda/door surface. **The guest chatbot collects them conversationally too**: `check_availability` surfaces `booking_questions` (field ids + options) so the bot knows to ask; `create_booking` takes a `form_answers` map, runs `coerceBookingAnswers` (forgiving: option labels→ids, "yes"/"no"→bool, numeric strings) then the same validate → on missing-required it returns `needs_answers` + the questions so the model re-asks (the web 422 loop, conversationally), and on success writes the same response row + notes via the shared `recordBookingFormResponse`. All in `lib/bookings/booking-form.ts`; smoke-covered.
-- **Demo data**: `node --env-file=.env.local --no-network-family-autoselection scripts/seed-bookings-demo.mjs` — re-runnable; 14-table restaurant (4 zones) + spa + kayak tour + a one-off beach party (17/120 tickets) + a 3-unit car rental (incl. a 24h van hire), ~40 bookings across yesterday→+5d covering every status/source. Agenda view opens with a 4-stat engine-pulse strip.
-- Deferred: table combinations + reflow, server sections, meal-stage statuses, drag-on-timetable (menu-move shipped instead), reminders/no-show automation, waitlists, deposits/payments, per-party-size turn times, multiple ranges per day in the hours editor, bookings lens in Insights metrics, reserved-seat event ticketing (GA-capacity covers small venues per research).
+The Bookings feature (bookable services, table/event/rental modes, the
+staff agenda / floor plan / timetable, the public `/book/*` wizard + event
+ticket pages + signed manage links, the chatbot `book_service` action, the
+`booking.*` workflow triggers + `action.booking.*` steps, the calendar
+booking source, the Home "Today's bookings" widget, the agent's
+`list_bookings` / `create_booking` / `update_booking_status` tools and the
+pod bots' `get_bookings` / `get_booking` / `refund_booking`) was deleted on
+2026-10-29. **Code deleted, data kept, no migration**: `bookable_services`,
+`service_resources`, `bookings` and the 0065–0069 columns stay in the
+database, but nothing in the repo reads or writes them. Tolerant reads stay
+for history — a saved chatbot config that still lists `book_service` parses
+(unknown action types are dropped before validation, `lib/chatbots/schema.ts`),
+old `booking_made` conversation outcomes and persisted booking chat cards
+still render, and `form_responses` rows with source `'booking'` read like
+any other response. Saved workflows that used a `booking.*` trigger or an
+`action.booking.*` step no longer validate against the spec.
 
 ## Who did what — activity log, milestones, Gantt, deadlines (built 2026-10-23)
 
@@ -315,7 +359,7 @@ Everything here lives behind **migration 0106** (`activity_log`,
     `ActivityLogFeed` (day buckets + kind chips + person select, realtime),
     `ActivityLogList` (compact rails), `useViewerId` (pages that don't carry
     the user id).
-  - Surfaces: **Activity → Workspace** (`?view=workspace`, property-wide,
+  - Surfaces: **Inbox → Activity** tab (`/activity?view=workspace`, property-wide,
     "in <project>" suffix), **project + space pages** (rail = last 6, a real
     *Activity* tab with filters — the trigger-based `activityQuery` feed is
     no longer used there), and the **task page** (`TaskHistory` — field
@@ -385,9 +429,12 @@ Everything here lives behind **migration 0106** (`activity_log`,
 
 A walk through Linear's public demo (`linear.app/demo`) surfaced five gaps;
 all ship behind **migrations 0111 + 0112** (applied). Every new task column is
-nullable, so mobile and older builds are untouched. Sidebar: **Triage** (pending
-count) + **Cycles** (+ one "current cycle" row per cadence) under the Tasks node
-(`sections/tasks-section.tsx`); **Initiatives** heads the Projects group footer.
+nullable, so mobile and older builds are untouched. Sidebar (gr8r port,
+2026-10-29): **Cycles** is a WORKSPACE row in `gr8r-sidebar.tsx`; **Triage**
+is part of Tasks as in Linear — `/triage` (selection `?issue=`, filter
+`?team=`), a Triage row + count under each team in the sidebar, a "N in
+triage" chip on the Tasks board toolbar; the old `/activity?view=triage`
+redirects there; **Initiatives** lives in BUILD › More.
 All three routes are server-rendered → listed in `SERVER_RENDERED`
 (`use-section-navigation.ts`); `sectionFromPath` maps triage/cycles → tasks,
 initiatives → home.
@@ -403,8 +450,8 @@ initiatives → home.
   assignee / priority / project overrides in the same update, tops the column,
   sends `task_assigned` via `emitTaskAssignmentNotifications` (nobody is told
   about a task still pending), and resolves pending `task_suggestions`. Pure
-  half `lib/tasks/triage-logic.ts` (tested). UI `/p/<pid>/triage`
-  (`components/triage/*`): list + the real `TaskDetail` (embedded) with Accept
+  half `lib/tasks/triage-logic.ts` (tested). UI = `/triage`
+  (`components/triage/*`, header Tasks › Team › Triage; full members only): list + the real `TaskDetail` (embedded) with Accept
   (popover pre-filled from task + AI suggestion) / Decline (optional reason);
   keys `1`/`2`/`j`/`k`. NOT `TaskRoom` — it reads the `["tasks"]` cache, which
   excludes pending tasks; for the same reason `TaskRoom`'s not-found state asks
@@ -517,8 +564,9 @@ the `lib/security/__tests__/guest-gates.test.ts` drift guard) is Phase 0.
   contract: backfill invariants, both write directions, list ↔ space sync,
   a 7-status custom pipeline remap, activity / workflow payloads, the
   delete guard; hard-cleans) + `lib/tasks/__tests__/statuses.test.ts`.
-- **Lists in the shell + the list board (PR 2).** The Tasks node's sidebar
-  (`sections/tasks-section.tsx`) ends in a **Lists** group: property-level
+- **Lists in the shell + the list board (PR 2).** (Since the gr8r port the
+  sidebar shows lists as each TEAM's `.sub` children in `gr8r-sidebar.tsx`;
+  the old Tasks-node Lists group is gone.) Originally: property-level
   lists, then each top-level team (sub-teams nested by `parent_space_id`,
   now on `spacesQueryOptions`) folding open to its lists + a "New list" row
   (`lists/create-list-dialog.tsx`); the Teams group appends the same list
@@ -616,9 +664,354 @@ the `lib/security/__tests__/guest-gates.test.ts` drift guard) is Phase 0.
   uuid) and falls back to the four legacy chips until the catalog loads;
   the Tasks tab glyph is shaped by category and tinted by the status
   colour; the activity feed reads `to_name`.
-- **Still to come**: the status facet in the board filter grouped by list,
-  list chips on the team page's Tasks tab, the agent-runtime drift test for
+- **Leftovers closed (2026-10-29).** The board's Status facet
+  (`board-filters.tsx`) offers the four categories under "Any list" (legacy
+  literals) THEN one group per status SET in use, headed by the list that
+  runs it ("Default · 4 lists" when shared); a set stage's value is the
+  status uuid, matched against `task.status_id` (`isUuid` picks). `Option`
+  grew `group`, which `ValuePicker` renders as headings. The team page's
+  Tasks tab (`TasksPanel` in `projects/workspace-panels.tsx`, `lists` prop)
+  shows a chip per list of the team ("All · N", "Maintenance requests · 4");
+  one list selected groups by THAT list's pipeline and offers "Open board"
+  (`/tasks?list=`). Still open: the agent-runtime drift test for
   `status_category` in the catalog.
+
+## Multiple assignees — ClickUp parity, Phase 2 (migration 0115, applied 2026-10-29)
+
+- **Model.** `task_assignees(task_id, user_id, property_id, position,
+  created_by, created_at)`, PK (task, user); member RLS with an insert check
+  that the task is in the row's property and the person is a member;
+  realtime-published. **`tasks.assignee_id` stays as the derived PRIMARY**
+  (lowest position, then oldest) so every legacy reader — escalation ladder,
+  REST/mobile contract, insights' event lens, the AI tools — keeps working.
+- **Two-way sync, write ONE table per statement.** A write to
+  `tasks.assignee_id` (createTaskFor's primary, recurrence, workflow runners,
+  AI `assignee_name`, triage accept, mobile PATCH `assigneeId`) is mirrored
+  into the set by `tasks_sync_assignee_set`: INSERT seeds the row, NULL
+  clears the set, X replaces the old primary (X goes first, others stay).
+  A write to `task_assignees` recomputes the primary
+  (`task_assignees_sync_primary`). The hop back is silenced by the
+  transaction-local GUC `hotelclaw.assignee_sync` — NOT `pg_trigger_depth()`,
+  so a task inserted by an RPC/trigger still mirrors.
+- **One activity row + one workflow event per PERSON**, from
+  `task_assignees_log_and_emit`: `assigned {from:null,to,user_id}` /
+  `unassigned {from,to:null,user_id}`; `task.assigned` (per person added) and
+  the NEW **`task.unassigned`** (per person removed), both carrying
+  `assignee_ids` (everyone on it now). The seed row for a task INSERT is
+  silent (GUC `hotelclaw.assignee_seed`) — creation is the `created` row +
+  `task.created`, as before. A task delete cascades without logging. 0115
+  restates the full bodies of `tasks_emit_workflow_events` +
+  `tasks_log_activity` (0114 minus their assignee branches) — a later
+  migration touching them restates again. Renderers: unassigned reads
+  "removed <person> from <task>" (web + mobile `lib/activity.ts`).
+- **Write path** (`lib/tasks/mutations.ts`): `assigneeIds` (max 20, primary
+  first) on create / update / triage accept — wins over `assigneeId`, which
+  keeps "set the primary" semantics. `writeAssigneeSet` upserts the set
+  (positions = order) then deletes the removed; it writes ONLY the set table.
+  A set-only update reads the row instead of sending an empty PATCH
+  (PostgREST rejects it — "Cannot coerce the result to a single JSON
+  object", caught in the browser). Notifications: `emitTaskAssignmentNotifications`
+  takes `{previousAssigneeIds, nextAssigneeIds}` and sends one
+  `task_assigned` / `task_unassigned` per person who joined / left, never the
+  actor. Recurrence copies the whole set.
+- **Read path.** `getTasks` + the single-task GET embed
+  `task_assignees(user_id, position, created_at)` → `assignee_ids` (primary
+  first). Readers go through `lib/tasks/assignees.ts` — **`taskAssigneeIds(t)`**
+  (falls back to `[assignee_id]` for old caches) and **`isAssignedTo(t, id)`**;
+  never `t.assignee_id === me` in new code. Converted: My tasks lens, the
+  board's Mine cut + assignee facet (Unassigned = empty set), workload
+  (a shared task's hours land on EACH assignee's row; the day total counts
+  it once), insights person lens + per-person open counts in `metrics.ts` (done-by-week
+  stays keyed on the event's primary — history has no per-person split),
+  catch-up "assigned to you" (`payload.to`). Group-by-assignee surfaces
+  (timeline, grouped kanban) still group by the primary.
+- **UI.** `components/tasks/assignee-stack.tsx` (`AssigneeStack`: overlapping
+  avatars, "+N" past `max`, dashed unassigned glyph) on cards and list cells;
+  cards resolve the non-primary people through `AssigneesMapProvider`
+  (`lib/tasks/use-assignees.ts`; the board provides its one batched lookup).
+  `AssigneeMenuContent` has a multi mode (`selectedIds` + `onChange`):
+  checkbox rows that keep the menu open, ticked people first, "Primary" tag,
+  "Unassigned" clears. Used by the task rail + inline strip (label
+  "Ana +2" via `lib/tasks/assignee-label.ts`; the rail's icon slot is one
+  avatar wide, so it shows the primary only — a stack there clipped the
+  name), the list cell, and the create page. The board subscribes to
+  `task_assignees` realtime and invalidates `["tasks", pid]`.
+- **Workflows.** `action.task.assign` gained `mode: replace | add` (add =
+  membership-fenced insert alongside the others). `task.unassigned` is
+  registered in `spec.ts` / `catalog/tasks.ts` / `refs.ts`.
+- **Agent.** `update_task` gained `assignees_add` / `assignees_remove`
+  (names; one roster load per call, resolved by a closure local to the
+  executor); `assignee_name` still sets the primary. `list_open_tasks`
+  returns `assignees` (everyone) beside `assignee` (primary).
+  `escalate_task` follows the primary.
+- **Mobile.** `ApiTask.assignee_ids?` + `taskAssigneeIds` in `lib/api.ts`;
+  the assignee facet and the Mine scope match any assignee; task detail's
+  Assignees section toggles people (PATCH `assigneeIds`), the first is
+  tagged "primary"; list rows read "Ana +1".
+- **Verify**: `node --env-file=.env.local --no-network-family-autoselection
+  scripts/clickup-parity-smoke.mjs assignees` (15 DB-contract assertions:
+  silent seed, per-person log/emit, legacy replace keeps the rest, primary
+  promotion, clear, cascade; hard-cleans) + `lib/tasks/__tests__/assignees.test.ts`.
+
+## Custom field types + forms → fields — ClickUp parity, Phase 3 (migration 0116, applied 2026-10-29)
+
+- **Types.** `custom_fields.type` adds `long_text, currency, url, email,
+  phone, people, files, relation, progress` to the six (0080/0099), and
+  `custom_fields.config` (jsonb): currency `{code, precision}`, people
+  `{multiple}`, relation `{target_list_id}`. Value shapes: currency → number,
+  people → member-id[], relation → task-id[], url/email/phone/long_text →
+  string. **files is DERIVED**: `task_attachments.field_id` marks an upload as
+  filling a named slot (Quote, LPO, GRN) and `task_attachments_sync_files_field`
+  writes the attachment-id list into `task_field_values` (row dropped when
+  empty). **progress is never stored** (computed from sub-issues + checklist
+  counters at read time). `task_field_values_reject_computed` refuses direct
+  writes to both (files only from inside the sync trigger, depth ≥ 2).
+  The `task.field_changed` emitter (full 0101 body restated) labels people
+  (names), relation (task titles), files (file names) and currency
+  ("KES 1,251") in `to_label` / `to_labels`.
+- **ONE write path.** `lib/tasks/field-coerce.ts` (pure, tested in
+  `field-coerce.test.ts`) turns whatever a caller has — a typed UI value or
+  free text from a workflow / the model / a form — into the stored value or
+  a human error: loose amounts ("KES 12 000", "1,250.6") rounded to the
+  field's precision, `https://` prefixed onto bare links (non-web schemes
+  rejected), people by id / name / partial name, relation by key (GHV-12) or
+  exact title (+ the target list), options by label, ISO timestamps → their
+  day. `lib/tasks/field-write.ts:setTaskFieldValueFor(db, actorId, {propertyId,
+  taskId, field: id|name, value})` loads only the lookups a type needs and
+  fences property + team + LIST scope (the workflow runner used to skip the
+  scope check). Callers: `setTaskFieldValue` (UI), `setTaskFieldRunner`
+  (workflow set_field; a dry run coerces without writing), the internal route
+  `POST /api/internal/tasks/[taskId]/fields` (service bearer — the AI tool),
+  and the create-task runner's `fields`.
+- **UI.** `components/tasks/field-type-icon.ts` is the one icon map
+  (`TYPE_ICON` in the create form is an alias); `FIELD_TYPE_LABEL` /
+  `FIELD_TYPE_ORDER` / `FIELD_TYPE_HINT` / `formatCurrency` /
+  `formatFieldValue(field, value, ctx)` live in `lib/tasks/custom-field-options.ts`.
+  The create form shows every type with a hint and per-type settings
+  (currency code + decimals, "Allow several people", relation target list);
+  suggestions now include Cost (KES money), Requester (one person), Quote and
+  LPO (file slots). The manager row edits the currency code.
+  `CustomFieldValueEditor` takes `context {propertyId, taskId}` and routes to
+  `custom-field-rich-editors.tsx`: People (multi `AssigneeMenuContent` +
+  `AssigneeStack`), Relation (task search, "Linked" group), Files (chips that
+  open signed URLs, remove, Upload → `POST …/attachments?field=<id>` — the
+  route checks the field is `files` and in the task's team / list), Progress
+  (bar + "3/7"), and `ValidatedTextEditor` for money / url / email / phone /
+  long text (validated with the SAME `coerceFieldValue`, links clickable,
+  money formatted). Slot files are filtered OUT of the loose attachments list
+  (they render in their field). The sidebar Fields section honours list-scoped
+  fields. List columns: currency sums/averages format in the field's currency;
+  the board filter gained a people facet for people fields.
+- **AI.** `list_custom_fields` (definitions + one task's values as labels)
+  and `set_task_field {task_id, field, value}` (→ the internal route, so the
+  model's text goes through the shared coercion). Registered in all four
+  places (`packages/agent-config`, channel bot + assistant grants,
+  `ai-capability-map.ts` + blurb, `TOOL_LABELS` in `@hotelclaw/chat-ui/turn`).
+  Verified live: "set Cost to 15,000 and add Smoke Tester" → `set_task_field`
+  + `update_task {assignees_add}`.
+- **Forms → fields.** `FormFieldZod.taskField` (a custom-field id);
+  `lib/forms/field-mapping.ts` `FORM_TO_FIELD_COMPATIBLE` decides what the
+  builder offers ("Save to a task field" in `form-field-panel.tsx`: short
+  text → text/url/email/phone, number → number/money, select → dropdown by
+  LABEL, yes/no → checkbox, people → people, file → files…).
+  `computeTaskProperties` adds `fields: {fieldId: answer}` (choice answers as
+  labels, yes/no as booleans, file answers as the upload list) and the
+  `form.submitted` output schema lists it. `buildFormTaskAutomationSpec`
+  emits `fields: {id: "{{trigger.task_properties.fields.<id>}}"}` (whole-value
+  refs keep arrays intact; `extractFormTaskAutomationConfig` still treats it
+  as the panel's simple shape). `action.task.create` gained
+  `config.fields` (id or name → value); the runner writes each through
+  `setTaskFieldValueFor` and COPIES a file answer from `form-uploads` into
+  `task-attachments/{property}/{task}/…` with `field_id` (download +
+  re-upload fallback). Per-field failures come back as `field_errors` on the
+  step output — never thrown, the task survives. The task-automation card
+  lists "question → Field (Type)" chips and warns when a team-scoped field
+  won't apply to the automation's team.
+- **Verify**: `scripts/clickup-parity-smoke.mjs fields` (needs `pnpm dev`):
+  computed types refuse writes, slot upload derives the value + event label,
+  the internal route coerces money / people / relation keys / urls and
+  refuses bad values, and a "Run now" workflow with `fields` writes money and
+  copies a form upload into a slot (23 checks). Unit:
+  `field-coerce.test.ts`, `lib/forms/__tests__/{schema-logic,task-automation}.test.ts`.
+- **Not done yet**: mobile has no custom-field editor (filters fall back to
+  set / empty for the new types); there is no built-in Progress LIST column
+  (a `progress` custom field shows it per task — sub-issues + checklists).
+
+## Per-task checklists — ClickUp parity, Phase 4 (migration 0117, applied 2026-10-29)
+
+- **Model.** `task_checklists(task_id, property_id, name, position)` and
+  `task_checklist_items(checklist_id, task_id, property_id, parent_item_id,
+  text ≤500, done, done_at, done_by, assignee_id, position, …)` — items nest
+  ONE level inside the same checklist (`task_checklist_items_touch`, which
+  also stamps `done_at` / `done_by` on a flip). Member RLS with the
+  task/checklist/property consistency in `with check`; both realtime-published.
+  `tasks.checklist_total / checklist_done` are trigger-maintained counters
+  (`task_checklist_items_recount`) so cards, the Progress field and mobile
+  read "3/7" off the row; `getTasks` + the single-task GET return them.
+- **Quiet activity.** `checklist_added` / `checklist_removed` (one row per
+  checklist) and `checklist_completed` when a tick closes the LAST open item
+  of a checklist — plus the workflow event **`task.checklist_completed`**
+  `{checklist_id, name, new}`. No per-tick rows. Verbs render on web
+  (`activity-log.tsx`) and mobile (`lib/activity.ts`) and sit in the Status
+  filter family.
+- **Write paths.** `lib/tasks/checklist-write.ts:addChecklistItemsFor`
+  (find-or-create a checklist BY NAME, append; two inserts total — top
+  level, then sub-items) is shared by the panel's create, the workflow step
+  and the AI. Pure helpers in `lib/tasks/checklist-progress.ts` (`nestItems`,
+  `checklistCounts`, `progressFor`, `positionBetween`, `parseChecklistText`:
+  one item per line, `- [x]` = done, an indented line nests — tested).
+  Server actions in `components/tasks/checklist-actions.ts` (create / rename /
+  delete checklist; add / update / delete item; the assignee is membership-
+  checked).
+- **UI.** `components/tasks/checklists-panel.tsx` under the sub-issues on the
+  task page: per checklist a header (click to rename, "3/7", progress bar,
+  "…" → Rename / Check all / Delete), dnd-kit reorder of top-level items,
+  rows with checkbox + click-to-edit text + optional assignee avatar + "…"
+  (Assign, Make a sub-item / Move out a level, Delete). Keyboard: Enter
+  saves and opens a "New item" row right below (an untouched one removes
+  itself on blur), Tab / Shift-Tab nest / un-nest, Backspace on empty
+  deletes, Escape SAVES and leaves (it used to discard what you typed). Data:
+  `lib/query/checklist-queries.ts` (`["task-checklists", taskId]`, kept out of
+  task-detail-meta so a tick doesn't re-sign attachment URLs) +
+  `useTaskChecklistsRealtime` (also refreshes `["tasks", pid]` for card
+  counters). **Optimistic ticks carry a pending-write counter**: a patch
+  cancels in-flight fetches and the refetch waits for the last write — rapid
+  ticking once let a stale refetch untick an item on screen while the DB was
+  right. Board cards show a `ListChecks 3/7` chip (green when complete).
+- **Workflows.** Trigger `task.checklist_completed`; action
+  `action.task.add_checklist {task_id, name, items}` (items = text, parsed
+  like a paste; appends to a same-named checklist) — spec, catalog,
+  field-defs, refs, author hint, runner (`addChecklistRunner`).
+- **AI.** `add_checklist_items {task_id, checklist_name, items[]}` and
+  `check_checklist_item {task_id, item_text, done}` (direct service writes —
+  the triggers do the rest). Registered in all four places. Verified live;
+  the model ran add + tick IN PARALLEL and reported a stale "1 of 5", so the
+  tick tool's description now says to add first and wait.
+- **Mobile.** `apps/mobile/components/TaskChecklists.tsx` on task detail:
+  each checklist with its count, tap to tick, nested rows indented, "Add an
+  item" — RLS reads/writes + realtime (no API route: no app-side effects).
+- **Verify**: `scripts/clickup-parity-smoke.mjs checklists` (counters,
+  nesting guard, completion logs + emits once and again on a real
+  re-completion, delete zeroes counters, and a "Run now" add-checklist
+  workflow that parses ticks + nesting and appends on a second run — 16
+  checks) + `lib/tasks/__tests__/checklist-progress.test.ts`.
+- **Deferred**: checklist templates per list ("Task Prep" auto-attached to
+  every new task in a list) — today that is a workflow:
+  `task.created` (filtered to the list) → `action.task.add_checklist`.
+
+## Roles + guest access — ClickUp parity, Phase 5 (migration 0118, applied 2026-10-29)
+
+Guests are outside collaborators (contractors, agencies, wedding couples)
+who see ONLY what was shared with them. Role ladder: `lib/auth/roles.ts`
+(`owner | manager | staff | guest`; `isFullMember`, `canManage`, `isGuest`).
+
+- **The inversion (G3) — read this before writing a policy or a gate.**
+  `is_member(prop)` now means FULL member (owner / manager / staff).
+  `has_property_access(prop)` is the old "any membership row" meaning.
+  Every policy that says `is_member` denies guests automatically, so **a new
+  table that copies the usual `is_member(property_id)` policy is guest-safe
+  by default** — only opt a table INTO guest access on purpose. Helpers
+  (security definer, stable): `member_role`, `is_management`,
+  `has_scope(prop, kind, id, need_edit)`, `can_access_space / _list / _task
+  / _document / _channel`, `task_in_scope(prop, id, parent, list, space,
+  need_edit)` (the row form the tasks policies call). Inheritance =
+  ClickUp: a team covers its sub-teams, lists, tasks, docs and channels; a
+  list its tasks; a task itself + its sub-issues; a doc its child docs.
+- **Grants**: `member_scopes(property_id, user_id, scope_kind
+  space|list|task|document|channel, scope_id, can_edit, granted_by)` — FK to
+  the membership (removing the person drops their grants); RLS = read own or
+  management, write management AND only onto `role = 'guest'` rows;
+  realtime-published. `invites.scopes` carries a guest invite's grants
+  until accept.
+- **Opted-in tables** (0118 rewrote these with `ALTER POLICY` + extra
+  SELECT policies — no drops): read for any role: `properties`,
+  `memberships` (the member DIRECTORY is visible to guests — accepted
+  leak: names on shared tasks), `labels`, `statuses`, `status_sets`, own
+  prefs / views / columns (guests can't publish shared views). Scoped:
+  `spaces` / `space_members` / `space_labels` / `lists` (select via
+  `can_access_*`; writes stay `is_member`), `chat_channels` select, scoped
+  `custom_fields` select, `tasks` (select = in scope; insert = created_by
+  self + EDIT grant; update USING + WITH CHECK in scope with edit, so a
+  guest can't move a task out of what they were given; delete = full
+  members only), every per-task child table (`task_links`,
+  `task_relations` (both ends), `task_document_links`, `task_attachments`,
+  `task_description_revisions`, `task_field_values`, `task_assignees`,
+  `task_checklists`, `task_checklist_items`: read with access, write with
+  EDIT access), `documents` select / update (insert stays full-member),
+  `document_labels` select, `activity_log` (task rows the guest can see),
+  and the `task-attachments` storage bucket (folder `{property}/{task}/…`).
+  Everything else (projects, cycles, initiatives, insights, workflows,
+  agents, assistant, chatbots, forms, meetings, routines,
+  entities…) denies guests with no edit.
+- **Server gates.** `/api/*` bypasses the middleware, so routes gate
+  themselves:
+  - `getMembershipForProperty` now FAILS CLOSED for guests (≈65 callers use
+    it before service-client work); `getPropertyAccess` is the explicit
+    any-role read for the few guest-friendly paths (task attachments upload
+    checks `can_access_task(…, need_edit)` for guests). `requireFullMember`
+    / `requireManagement` sit on every service-client property route;
+    `lib/security/__tests__/guest-gates.test.ts` has an EMPTY baseline now —
+    a new ungated service-client route under `/api/properties/[id]` fails
+    the test. Bearer (mobile) routes use `callerIsFullMember` from
+    `lib/auth/api-caller.ts` (task AI, triage); the members route still
+    lists the directory for guests but never returns emails to them.
+  - Middleware: a guest's `/p/<pid>/<section>` must be in `GUEST_SECTIONS`
+    (tasks, my-tasks, documents, chat, dms, threads, inbox, spaces) — any
+    other section redirects to `/my-tasks`. Fail-closed: a NEW section is
+    hidden from guests until added on purpose.
+  - eve: `verifyMembership` in `apps/agent/agent/channels/eve.ts` returns
+    null for guests, so every authenticator refuses them (drift-guarded).
+    In DEV the chain ends in `localDev()`, which admits any call WITHOUT
+    property scope — not a leak, but don't read a 202 as "guest allowed".
+  - Channel bot: the webhook skips guest senders, and both acting-principal
+    lookups in `channel-bot-eve.ts` refuse a guest instead of falling
+    through to the OWNER principal (that fallback would have handed a guest
+    owner-level tools).
+  - Liveblocks auth: guests never get the `property:<pid>:*` wildcard —
+    only granted task / doc rooms (FULL with an edit grant, READ without);
+    boards / calendar / workflow rooms 403; a private
+    `property:<pid>:guest:<uid>` room covers the no-room call.
+- **Guest lifecycle.** `createInvite` takes `role: "guest"` + `scopes`
+  (validated to the property by `lib/guests/scopes.ts:validateScopes`;
+  `GUEST_ROLE_ENABLED=false` turns guest invites off). `acceptInvite` gives
+  a guest no home team / manager / org position, writes the grants, and
+  `syncGuestChannels` puts them in ONLY the Stream channels of what was
+  shared (upserting the Stream user first). Management actions in
+  `lib/guests/actions.ts` (`listGuestGrants`, `grantGuestScope`,
+  `revokeGuestScope`, `setGuestScopeEdit`, `listShareTargets`) re-sync
+  channels on every change.
+- **UI.** Invite dialog: a Guest role card + `GuestScopePicker`
+  (`components/members/guest-scope-picker.tsx`: teams / lists / documents as
+  chips, one Can edit switch). Members dialog: guests carry a Guest badge
+  and an **Access** button → `GuestAccessDialog` (grants with per-grant Can
+  edit + remove, and "Share more"). Shell for a guest: no create menu, no
+  Assistant, a "Shared with you → Tasks" row instead of the app launcher,
+  no Projects group (Teams shows only granted teams via RLS). Mobile:
+  `PropertyMembership.role` includes guest; the Assistant entry points hide.
+- **Verify**: `node --env-file=.env.local --no-network-family-autoselection
+  scripts/guest-smoke.mjs` — signs in a real STAFF user and a real GUEST
+  (the service client would bypass RLS) and asserts: staff regression;
+  a grant-less guest sees the property + directory and nothing else;
+  read / edit / task grants show exactly the right tasks, lists, checklists
+  and activity; read-only can't write; edit can't move a task out of scope;
+  guests never delete; the helper RPCs agree; and over HTTP (needs `pnpm
+  dev`): middleware redirect, every guest page renders without leaking the
+  unshared team's task, the tasks API returns only shared work, Liveblocks
+  room grants, the workflows API returns nothing (49 checks). If guest
+  pages 500 with "No QueryClient set" alongside "Yjs was already imported",
+  the dev bundler has duplicated modules after many hot reloads — restart
+  `pnpm dev` (and clear `.next/dev`); it is not an app bug.
+- **Not done / needs a decision**: Stream's `team` channel type still lets
+  any signed-in user QUERY a property's public channels directly (the
+  app scopes the list client-side) — restricting reads to channel members
+  is a Stream dashboard permission change; until then a technically minded
+  guest could read public channels outside their grants. No "Share with
+  guests" button on team / list / task / doc pages yet (grants are managed
+  from People → Access); task and channel grants are created only through
+  the API / invite scopes; a channel created later inside a shared team
+  reaches the guest at their next grant change (no create-time sync);
+  `/api/stream/ai/start` still lets a channel member (incl. a guest) add
+  the bot to a shared channel (the bot then ignores guest messages).
 
 ## Page audit vs Linear (2026-10-25) — controls on the page, detail-page parity
 
@@ -673,9 +1066,9 @@ Every feature page that a workflow can read from or act on carries a **⚡ Autom
 
 - **The lens** — `lib/workflows/features.ts` (client-safe, pure catalog metadata). An `AutomationFeature` is NOT a catalog `Surface`: surfaces include plumbing buckets (`ai`/`control`/`system`/`external`), and `chatbot.*` triggers are filed under `external` next to webhooks. So each feature declares the surfaces it claims **plus** optional id prefixes, and `workflowTouchesFeature()` matches a workflow's trigger + step ids against both. `featureRole()` splits "starts here" (trigger) from "ends up here" (action) — the modal labels the difference. Deliberately generous: one extra row beats hiding the one the user opened the modal to find. Drift-guarded in `lib/workflows/__tests__/features.test.ts` (every feature matches ≥1 real catalog entry; no two features claim the same surface).
 - **The data** — `GET /api/properties/:propertyId/workflows` returns `step_types` alongside `trigger_event_type`, so the lens runs client-side off the SHARED workflows list query with no new endpoint and no spec fetch. The modal's on/off switches write through that same cache, so toggling here and in the Workflows section stay consistent.
-- **The UI** — `components/workflows/automations-button.tsx` (`<AutomationsButton propertyId feature="docs" />`; `variant="toolbar"` (default) for the compact `PageHeader` and dense toolbars, `variant="outline"` for in-page section headers; count badge = enabled workflows touching the feature) mounts `automations-dialog.tsx` ONLY once clicked, so an unclicked button costs nothing and never triggers a model call. Wired into tasks board toolbar, chat channel header, documents home, meetings, calendar, forms, bookings, chatbots.
+- **The UI** — `components/workflows/automations-button.tsx` (`<AutomationsButton propertyId feature="docs" />`; `variant="toolbar"` (default) for the compact `PageHeader` and dense toolbars, `variant="outline"` for in-page section headers; count badge = enabled workflows touching the feature) mounts `automations-dialog.tsx` ONLY once clicked, so an unclicked button costs nothing and never triggers a model call. Wired into tasks board toolbar, chat channel header, documents home, meetings, calendar, forms, chatbots.
 - **Suggestions** — `POST /api/properties/:propertyId/workflows/suggestions` (Haiku + `Output.object`). The model proposes plain-English GOALS, **never specs**: the goal is handed to the existing author copilot at `/workflows/new?prefill=`, which owns catalog discovery and validation, so a bad suggestion can at worst waste one copilot turn — it can never smuggle an invented trigger id into a saved workflow. **Four grounding layers**, in order of how much they constrain the answer:
-  1. **Deterministic signals** — `lib/workflows/suggestion-signals.ts`, one gather per feature, returning `{id, signal, evidence}` lines describing the property's REAL state ("3 tasks are blocked — 50% of open work", "8 documents haven't been edited in 90+ days", "31% of bookings cancelled"). **No model in the number path**: Tasks reuses `computeInsightsMetrics` / `computeTrendSignals` / `detectAnomalies` (the same functions the dashboards chart) rather than a second, quietly-diverging definition of "overdue"; the rest are bounded SQL. Every gather is `safe()`-wrapped and fail-soft. Each feature also gets a trimmed set of companion signals (most automations start in one surface and end in Tasks or Chat). `GATHERS` is a `Record<AutomationFeature, …>` so exhaustiveness is a compile-time guarantee — no drift test needed.
+  1. **Deterministic signals** — `lib/workflows/suggestion-signals.ts`, one gather per feature, returning `{id, signal, evidence}` lines describing the property's REAL state ("3 tasks are blocked — 50% of open work", "8 documents haven't been edited in 90+ days"). **No model in the number path**: Tasks reuses `computeInsightsMetrics` / `computeTrendSignals` / `detectAnomalies` (the same functions the dashboards chart) rather than a second, quietly-diverging definition of "overdue"; the rest are bounded SQL. Every gather is `safe()`-wrapped and fail-soft. Each feature also gets a trimmed set of companion signals (most automations start in one surface and end in Tasks or Chat). `GATHERS` is a `Record<AutomationFeature, …>` so exhaustiveness is a compile-time guarantee — no drift test needed.
   2. **The catalog** — the exact triggers/actions the feature supports, so the model can't propose what the engine can't build.
   3. **property memory** — institutional memory (`memoryContextLines` over `agent_memories`), with the query **steered by the top deterministic signals** (search "blocked work" only when work is actually blocked). Same Postgres as the signals, so no timeout race; skipped on cache hits.
   4. **Industry prior** — hospitality-ops judgement in the system prompt, disciplined by 1–3.
@@ -737,6 +1130,15 @@ Current block set (slash `/` to insert):
 - **Basic** — H1/H2/H3, bulleted/numbered/to-do list, quote, divider, **code block with syntax highlighting** (lowlight + github-dark theme).
 - **Blocks** — sub-page, **table** (native, resizable), **callout** (5 tones + emoji icon), **toggle** (collapsible, open-state synced via Yjs), **chart** (bar/line/area/pie via recharts with an editable data grid).
 - **Media** — image (paste/drop), **file/PDF attachment** (uploaded to Supabase `documents-files` bucket via `/api/documents/files/upload`), **embed** (YouTube/Vimeo/Loom/Figma/Twitter/Spotify/CodePen with og:meta bookmark fallback via `/api/documents/og-preview` — detection in `lib/documents/url-embeds.ts`), **spreadsheet** (Google Sheets / Excel Online iframe).
+
+**Never write into an unsynced or empty Yjs doc from the client.** The
+Liveblocks webhook persists every room update over the Postgres snapshot, so
+a client-side seed into a room that lost its data WIPES the stored body
+(happened 2026-10-29: a sync-timeout fallback seeded `<h1>title</h1>`). Rules
+in `document-editor.tsx`: `initialContent` (applied only to an EMPTY room) is
+the Postgres `body_json` snapshot when it has content, else the title; the
+editor stays read-only (`setEditable(isReady)`) with a "Still connecting"
+notice until Yjs has synced — no timeout fallback writes.
 
 Custom node implementations live in `lib/documents/nodes/`; their React views live in `components/documents/nodes/`. When adding a new node type, also:
 1. Register it in the GlobalDragHandle `customNodes` array in `document-editor.tsx` so the drag handle picks it up.
@@ -1199,7 +1601,7 @@ pushState exception); components in `components/fleet/*`.
 
 Eve owns the whole durable-agent slot: long-running, multi-step, approval-gated work runs as durable eve sessions (the same runtime behind the fleet pod bots, the Agents section, and the channel bot). `delegate_task` (`lib/ai/tools/delegate.ts` → `lib/ai/eve-delegate.ts`) hands a self-contained brief to a fresh eve session with the service bearer; the session is recorded in `channel_bot_sessions` (`delegate:<sessionId>`, 0078) so subagents can recover tenant scope and the work is discoverable. The workflow action keeps its historical id `action.external.delegate_to_openclaw` (saved workflows) but its runner (`lib/workflows/runners/system.ts`) delegates to eve. Recurring delegation is NOT wired (eve schedules are authored files) — bots point users at Workflows instead.
 
-**FULL CONTROL SURFACE — PHASE 2 (2026-07-23, latest):** the channel bot now covers every major app surface (36 grants; `AgentConfigZod` tools cap raised to 64). New catalog tools (`apps/agent/agent/tools/catalog.ts`, entries in `packages/agent-config`): **meetings** `schedule_meeting`/`update_meeting`/`cancel_meeting` (direct inserts minting `stream_call_id: meeting-<uuid>`; `started_at` mirrors `scheduled_start`); **bookings** `create_booking`/`update_booking_status` → service-bearer `/api/internal/bookings` (POST runs `createBookingChecked` with `bypassRules` like staff — NEVER a raw insert — returning alternatives on a full slot; PATCH enforces the STATUS_TRANSITIONS state machine — a mirror of components/bookings/actions.ts, keep in sync — and emits `booking.cancelled`); **spreadsheets** `read_sheet`/`update_sheet_cells` → `/api/internal/sheets` + `lib/spreadsheet/write-cells.ts` (Liveblocks `mutateStorage` on the workbook LiveObject, A1→`colId@rowId` via the sheet's id arrays, snapshot repersisted after; `LiveObject` is importable from `@liveblocks/node`); **forms** `create_form` (server-assigned field ids `fN_<rand>`, option ids likewise)/`set_form_status`/`share_form_to_channel` (posts the same `{type:"form"}` attachment as the app's Share button); **tasks** `delete_task` (approval-gated), `escalate_task` (ladder: assignee's `memberships.manager_id` → team `lead_user_id` → owners/managers; `task_escalated` notification — the renderer case existed, deduped a pre-existing duplicate switch case), `create_project`, and `update_task` grew labels_add/labels_remove/project_name; **comms** `send_notification` (new `ai_message` type + renderer case; notifications.type has NO db CHECK), `post_to_channel` (tenancy guard: id must start `prop-<pid.slice(0,8)>`); **workflows** `list_workflows`/`trigger_workflow` (manual.run emission identical to the app's run route; only enabled + `trigger.event_type==='manual.run'` specs); **docs** `restore_document_revision` (lists/reads the 0094 stash via `?revisions=1`/`?revisionId=` on the internal read route, restores via the write route — the restore itself stashes first, so it's undoable). **Turn messages now carry a `[Now: <ISO> (UTC)]` line** (`channel-bot-eve.ts`) — without it the model resolved "tomorrow" into its training-data year (a probe scheduled a meeting in 2025). All probed live end-to-end 2026-07-23: meeting/sheet/form/booking/cancel/notify/label/escalate rows + workflow events verified in DB.
+**FULL CONTROL SURFACE — PHASE 2 (2026-07-23, latest):** the channel bot now covers every major app surface (36 grants; `AgentConfigZod` tools cap raised to 64). New catalog tools (`apps/agent/agent/tools/catalog.ts`, entries in `packages/agent-config`): **meetings** `schedule_meeting`/`update_meeting`/`cancel_meeting` (direct inserts minting `stream_call_id: meeting-<uuid>`; `started_at` mirrors `scheduled_start`); **bookings** (removed 2026-10-29) `create_booking`/`update_booking_status` → service-bearer `/api/internal/bookings` (POST runs `createBookingChecked` with `bypassRules` like staff — NEVER a raw insert — returning alternatives on a full slot; PATCH enforces the STATUS_TRANSITIONS state machine — a mirror of components/bookings/actions.ts, keep in sync — and emits `booking.cancelled`); **spreadsheets** `read_sheet`/`update_sheet_cells` → `/api/internal/sheets` + `lib/spreadsheet/write-cells.ts` (Liveblocks `mutateStorage` on the workbook LiveObject, A1→`colId@rowId` via the sheet's id arrays, snapshot repersisted after; `LiveObject` is importable from `@liveblocks/node`); **forms** `create_form` (server-assigned field ids `fN_<rand>`, option ids likewise)/`set_form_status`/`share_form_to_channel` (posts the same `{type:"form"}` attachment as the app's Share button); **tasks** `delete_task` (approval-gated), `escalate_task` (ladder: assignee's `memberships.manager_id` → team `lead_user_id` → owners/managers; `task_escalated` notification — the renderer case existed, deduped a pre-existing duplicate switch case), `create_project`, and `update_task` grew labels_add/labels_remove/project_name; **comms** `send_notification` (new `ai_message` type + renderer case; notifications.type has NO db CHECK), `post_to_channel` (tenancy guard: id must start `prop-<pid.slice(0,8)>`); **workflows** `list_workflows`/`trigger_workflow` (manual.run emission identical to the app's run route; only enabled + `trigger.event_type==='manual.run'` specs); **docs** `restore_document_revision` (lists/reads the 0094 stash via `?revisions=1`/`?revisionId=` on the internal read route, restores via the write route — the restore itself stashes first, so it's undoable). **Turn messages now carry a `[Now: <ISO> (UTC)]` line** (`channel-bot-eve.ts`) — without it the model resolved "tomorrow" into its training-data year (a probe scheduled a meeting in 2025). All probed live end-to-end 2026-07-23: meeting/sheet/form/booking/cancel/notify/label/escalate rows + workflow events verified in DB.
 
 **THINKING INDICATOR IS DB-DRIVEN (2026-07-23):** the bot's "thinking" state is `components/chat/ai-thinking-indicator.tsx` — a row PORTALED into `.str-chat__message-list-scroll` (so it scrolls with the conversation like a real message) that watches `channel_bot_sessions.turn_state` over Supabase Realtime (0078 publication + member SELECT RLS) and therefore spans the WHOLE eve turn; after 25s the copy softens to "Still working on it". Stream `typing.start/stop` is GONE from the bot path (web + runtime) — Stream expires typing client-side after seconds while turns run minutes, and its indicator layout misaligned with the Slack message grid. The row reuses Stream's own avatar classes (`str-chat__avatar--one-letter` etc.) so the avatar matches real bot messages exactly; root `_root` rows only (thread turns + `job:` rows excluded). The artifact side panel is drag-resizable (pointer-captured left-edge handle, 380px–85vw; expand button snaps between ~46vw/~72vw presets).
 
@@ -1334,7 +1736,7 @@ remain in the schema unused.
   records; check every surface before asserting absence; cite
   `[memory #id]` / doc titles). The procedure is the eve skill
   `apps/agent/agent/skills/knowledge-lookup.md` (step 0: read the recalled
-  block). `search_tasks`, `list_documents`, `list_meetings`, `list_bookings`,
+  block). `search_tasks`, `list_documents`, `list_meetings`,
   `search_chat_messages`, forms/handover/insight readers are unchanged.
 - **What we deliberately did NOT adopt (see the report):** Vercel Drives as
   the knowledge store (sandbox-mount only — a Next.js route cannot read or

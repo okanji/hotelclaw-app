@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { MoveDown, MoveUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { G8Note } from "./g8-insights";
 import { createClient } from "@/lib/supabase/client";
 import { spacesQueryOptions } from "@/lib/query/project-queries";
 
@@ -155,36 +155,37 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-md bg-muted px-6 py-8 text-center text-sm text-muted-foreground">
+      <G8Note>
         Nothing to compare yet — team pulse fills in once teams run daily ops.
-      </p>
+      </G8Note>
     );
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="ins-tbl">
         <thead>
-          <tr className="h-8 border-b border-border text-left text-xs leading-3 font-medium text-faint-foreground">
-            <th className="pr-3 font-medium">Team</th>
-            <th className="pr-3 font-medium">Day rating (14d)</th>
-            <th className="pr-3 font-medium">Routines done</th>
-            <th className="pr-3 font-medium">Days signed off</th>
-            <th className="font-medium">Tasks done</th>
+          <tr>
+            <th>Team</th>
+            <th>Day rating (14d)</th>
+            <th>Routines done</th>
+            <th>Days signed off</th>
+            <th>Tasks done</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {rows.map((row) => {
             const completion =
               row.totalRuns > 0
                 ? Math.round((row.completedRuns / row.totalRuns) * 100)
                 : null;
             return (
-              <tr key={row.spaceId} className="group h-[37px] transition-colors hover:bg-accent">
-                <td className="pr-3">
+              <tr key={row.spaceId}>
+                <td>
                   <Link
                     href={`/p/${propertyId}/spaces/${row.spaceId}`}
-                    className="flex min-w-0 items-center gap-1.5 font-medium text-foreground hover:underline"
+                    className="row"
+                    style={{ gap: 6, minWidth: 0, fontWeight: 500 }}
                   >
                     {row.icon ? (
                       <span className="shrink-0">{row.icon}</span>
@@ -192,18 +193,21 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                     <span className="truncate">{row.name}</span>
                   </Link>
                 </td>
-                <td className="pr-3 tabular-nums">
+                <td>
                   {row.rating != null ? (
                     <span className="inline-flex items-center gap-1.5">
                       {row.rating}/10
                       {row.ratingDelta != null && row.ratingDelta !== 0 ? (
                         <span
-                          className={cn(
-                            "inline-flex items-center text-xs font-medium",
-                            row.ratingDelta > 0
-                              ? "text-success"
-                              : "text-destructive",
-                          )}
+                          className="inline-flex items-center"
+                          style={{
+                            fontSize: "var(--g8-fs-xs)",
+                            fontWeight: 500,
+                            color:
+                              row.ratingDelta > 0
+                                ? "var(--g8-green)"
+                                : "var(--g8-red)",
+                          }}
                           title="vs the previous 14 days"
                         >
                           {row.ratingDelta > 0 ? (
@@ -216,18 +220,18 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
                       ) : null}
                     </span>
                   ) : (
-                    <span className="text-faint-foreground">—</span>
+                    <span className="faint">—</span>
                   )}
                 </td>
-                <td className="pr-3 tabular-nums text-muted-foreground">
+                <td className="muted">
                   {completion != null
                     ? `${row.completedRuns}/${row.totalRuns} · ${completion}%`
                     : "—"}
                 </td>
-                <td className="pr-3 tabular-nums text-muted-foreground">
+                <td className="muted">
                   {row.signedOffDays}
                 </td>
-                <td className="tabular-nums text-muted-foreground">
+                <td className="muted">
                   {row.tasksDone}
                 </td>
               </tr>
@@ -235,7 +239,7 @@ export function TeamsPulseBody({ propertyId }: { propertyId: string }) {
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="faint" style={{ margin: "8px 0 0", fontSize: "var(--g8-fs-xs)" }}>
         Ratings compare each team to its own previous 14 days — managers rate
         differently, so deltas are the fair signal.
       </p>

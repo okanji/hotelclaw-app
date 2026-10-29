@@ -3,16 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ShieldCheck } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AuthCardMark,
+  AuthShell,
+  FieldErr,
+  PasswordInput,
+  StrengthMeter,
+} from "@/components/auth/auth-shell";
 import { completeOnboarding } from "./actions";
 
 type Props = {
@@ -65,56 +63,63 @@ export function SecureAccountForm({ fullName, email, next }: Props) {
     });
   }
 
+  // gr8r's "reset" card shape — this is an auth moment, not onboarding.
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Secure your account</CardTitle>
-        <CardDescription>
+    <AuthShell>
+      <form className="auth-card fx-auth" onSubmit={onSubmit}>
+        <AuthCardMark icon={ShieldCheck} />
+        <h1>Secure your account</h1>
+        <p className="sub">
           Create a password for{" "}
-          <span className="font-medium text-foreground">{email}</span> so you
-          can sign in any time — email links only work once.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoFocus
-              minLength={8}
-              maxLength={72}
-              autoComplete="new-password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm">Confirm password</Label>
-            <Input
-              id="confirm"
-              name="confirmPassword"
-              type="password"
-              required
-              minLength={8}
-              maxLength={72}
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              disabled={busy}
-            />
-          </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? "Saving…" : "Save password"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          <b style={{ color: "var(--g8-text)" }}>{email}</b> so you can sign in
+          any time — email links only work once.
+        </p>
+        <div className="field">
+          <label className="label" htmlFor="password">
+            Password
+          </label>
+          <PasswordInput
+            id="password"
+            name="password"
+            required
+            autoFocus
+            minLength={8}
+            maxLength={72}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={busy}
+          />
+          <StrengthMeter password={password} />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="confirm">
+            Confirm password
+          </label>
+          <PasswordInput
+            id="confirm"
+            name="confirmPassword"
+            required
+            minLength={8}
+            maxLength={72}
+            autoComplete="new-password"
+            className={error ? "is-error" : undefined}
+            aria-invalid={error ? true : undefined}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            disabled={busy}
+          />
+          {error ? <FieldErr>{error}</FieldErr> : null}
+        </div>
+        <button
+          type="submit"
+          className={`btn btn-primary btn-lg btn-block${busy ? " is-loading" : ""}`}
+          disabled={busy}
+        >
+          Save password
+        </button>
+      </form>
+    </AuthShell>
   );
 }

@@ -1,7 +1,7 @@
 import type { Task } from "@/components/tasks/kanban";
 import { PRIORITY_IDS, STATUS_IDS } from "@/components/tasks/kanban";
 import type { CustomFieldRow } from "@/lib/query/custom-field-queries";
-import { formatFieldValue } from "@/lib/tasks/custom-field-options";
+import { formatCurrency, formatFieldValue } from "@/lib/tasks/custom-field-options";
 import type {
   CustomFieldValue,
   TaskViewColumn,
@@ -298,7 +298,7 @@ function parseCalc(raw: string | undefined): ColumnCalc | undefined {
 
 function calcKind(column: ResolvedColumn): "number" | "date" | "other" {
   if (column.field) {
-    if (column.field.type === "number") return "number";
+    if (column.field.type === "number" || column.field.type === "currency") return "number";
     if (column.field.type === "date") return "date";
     return "other";
   }
@@ -364,14 +364,19 @@ export function computeColumnCalc(
     case "max":
     case "range": {
       const nums = filled.filter((k): k is number => typeof k === "number");
+      // Money columns total in their own currency (0116).
+      const fmt = (n: number) =>
+        column.field?.type === "currency"
+          ? formatCurrency(n, column.field.config)
+          : formatCalcNumber(n);
       if (nums.length === 0) return null;
-      if (calc === "sum") return formatCalcNumber(nums.reduce((a, b) => a + b, 0));
+      if (calc === "sum") return fmt(nums.reduce((a, b) => a + b, 0));
       if (calc === "avg") {
-        return formatCalcNumber(nums.reduce((a, b) => a + b, 0) / nums.length);
+        return fmt(nums.reduce((a, b) => a + b, 0) / nums.length);
       }
-      if (calc === "min") return formatCalcNumber(Math.min(...nums));
-      if (calc === "max") return formatCalcNumber(Math.max(...nums));
-      return formatCalcNumber(Math.max(...nums) - Math.min(...nums));
+      if (calc === "min") return fmt(Math.min(...nums));
+      if (calc === "max") return fmt(Math.max(...nums));
+      return fmt(Math.max(...nums) - Math.min(...nums));
     }
     case "earliest":
     case "latest": {

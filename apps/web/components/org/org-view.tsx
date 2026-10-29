@@ -13,16 +13,10 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SectionHeader } from "@/components/ui/section-header";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
-import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, G8_COLOR } from "@/components/gr8r/home-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import {
   orgChartQueryOptions,
   type OrgChartResponse,
@@ -34,12 +28,7 @@ import { TeamDetail } from "./team-detail";
 import { TeamEditPopover } from "./team-edit-popover";
 import { OrgProposals } from "./org-proposals";
 
-function initials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
+type CSSVars = React.CSSProperties & Record<`--${string}`, string | number>;
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -72,31 +61,45 @@ export function OrgView({
   // to the full pane while every text block sat in a centred 6xl column, which
   // gave the page two left edges; the diagram scrolls horizontally inside its
   // own container (see `tree-scroller`), so it does not need the extra width.
+  const reportingCount = data?.people.filter((p) => p.managerId).length ?? 0;
+
   return (
     <div className="flex h-full w-full flex-col">
       <PageHeader title="Org chart" icon={<Network />} />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page" style={{ maxWidth: 1160 }}>
           {isPending || !data ? (
-            <div className="flex flex-col gap-3">
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
+            <div className="stack">
+              <span className="sk" style={{ height: 24, width: 160 }} />
+              <span className="sk" style={{ height: 96 }} />
+              <span className="sk" style={{ height: 96 }} />
             </div>
           ) : selectedTeam ? (
-            <div>
-              <TeamDetail
-                propertyId={propertyId}
-                team={selectedTeam}
-                org={data}
-                openTaskCount={data.openTaskCounts[selectedTeam.id] ?? 0}
-                isManagement={isManagement}
-                onBack={() => setSelectedTeamId(null)}
-              />
-            </div>
+            <TeamDetail
+              propertyId={propertyId}
+              team={selectedTeam}
+              org={data}
+              openTaskCount={data.openTaskCounts[selectedTeam.id] ?? 0}
+              isManagement={isManagement}
+              onBack={() => setSelectedTeamId(null)}
+            />
           ) : (
             <>
-              <div>
+              <div className="ph">
+                <div>
+                  <h1>Org chart</h1>
+                  <p>
+                    Who runs what at {propertyName} — teams nested by parent,
+                    people by reporting line.
+                  </p>
+                </div>
+              </div>
+              <div className="stats" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 16 }}>
+                <OrgStat icon={Users} value={data.teams.length} label="Teams" />
+                <OrgStat icon={Users} value={data.people.length} label="People" />
+                <OrgStat icon={Network} value={reportingCount} label="Reporting lines" />
+              </div>
+              <div style={{ marginBottom: 16 }}>
                 <OrgProposals propertyId={propertyId} org={data} />
               </div>
               <OrgBody
@@ -108,7 +111,7 @@ export function OrgView({
               />
             </>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -127,104 +130,97 @@ function OrgBody({
   isManagement: boolean;
   onSelectTeam: (teamId: string) => void;
 }) {
-  const reportingCount = org.people.filter((p) => p.managerId).length;
   const [structureView, setStructureView] = useState<"diagram" | "list">(
     "diagram",
   );
 
   return (
-    <>
-      <div className="mt-10 flex gap-8 border-t border-border pt-5 text-sm">
-        <Stat value={org.teams.length} label="teams" />
-        <Stat value={org.people.length} label="people" />
-        <Stat value={reportingCount} label="reporting lines" />
-      </div>
-
-      <section className="mt-14 min-w-0">
-        <SectionHeader
-          className="mb-5"
-          eyebrow="Structure"
-          eyebrowTone="brand"
-          title="Teams"
-          actions={
-            /* A view switcher is a PILL row, never buttons or an underline
-               (notion-spec-v2 §6). */
-            <TabNav variant="pill" aria-label="Structure view">
-              <ViewToggleButton
-                active={structureView === "diagram"}
-                label="Diagram"
-                icon={<Network />}
+    <div className="stack">
+      <section className="panel" style={{ minWidth: 0 }}>
+        <div className="panel-h">
+          <span className="eyebrow">Structure</span>
+          <h2>Teams</h2>
+          <div className="acts">
+            <div className="seg" role="tablist" aria-label="Structure view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={structureView === "diagram"}
+                className={structureView === "diagram" ? "on" : ""}
                 onClick={() => setStructureView("diagram")}
-              />
-              <ViewToggleButton
-                active={structureView === "list"}
-                label="List"
-                icon={<ListTree />}
+              >
+                <Gi icon={Network} size={13} />
+                Diagram
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={structureView === "list"}
+                className={structureView === "list" ? "on" : ""}
                 onClick={() => setStructureView("list")}
-              />
-            </TabNav>
-          }
-        />
-        {structureView === "diagram" ? (
-          <OrgDiagram
-            propertyId={propertyId}
-            propertyName={propertyName}
-            org={org}
-            openTaskCounts={org.openTaskCounts}
-            isManagement={isManagement}
-            onSelectTeam={onSelectTeam}
-          />
-        ) : (
-          <TeamsTree
-            propertyId={propertyId}
-            propertyName={propertyName}
-            org={org}
-            openTaskCounts={org.openTaskCounts}
-            isManagement={isManagement}
-            onSelectTeam={onSelectTeam}
-          />
-        )}
+              >
+                <Gi icon={ListTree} size={13} />
+                List
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="panel-b" style={{ minWidth: 0 }}>
+          {structureView === "diagram" ? (
+            <OrgDiagram
+              propertyId={propertyId}
+              propertyName={propertyName}
+              org={org}
+              openTaskCounts={org.openTaskCounts}
+              isManagement={isManagement}
+              onSelectTeam={onSelectTeam}
+            />
+          ) : (
+            <TeamsTree
+              propertyId={propertyId}
+              propertyName={propertyName}
+              org={org}
+              openTaskCounts={org.openTaskCounts}
+              isManagement={isManagement}
+              onSelectTeam={onSelectTeam}
+            />
+          )}
+        </div>
       </section>
 
-      <section className="mt-16 min-w-0">
-        <SectionHeader className="mb-5" eyebrow="Directory" eyebrowTone="brand" title="People" />
+      <section className="panel" style={{ minWidth: 0 }}>
+        <div className="panel-h">
+          <span className="eyebrow">Directory</span>
+          <h2>People</h2>
+          <span className="faint num">{org.people.length}</span>
+        </div>
         <PeopleDirectory
           propertyId={propertyId}
           org={org}
           isManagement={isManagement}
         />
       </section>
-    </>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-2xl leading-8 font-semibold tabular-nums text-foreground">
-        {value}
-      </span>
-      <span className="text-sm text-muted-foreground">{label}</span>
     </div>
   );
 }
 
-function ViewToggleButton({
-  active,
-  label,
+function OrgStat({
   icon,
-  onClick,
+  value,
+  label,
 }: {
-  active: boolean;
+  icon: React.ComponentProps<typeof Gi>["icon"];
+  value: number;
   label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
 }) {
   return (
-    <TabNavItem active={active} onClick={onClick}>
-      {icon}
-      {label}
-    </TabNavItem>
+    <div className="stat">
+      <span className="k">
+        <Gi icon={icon} size={13} />
+        {label}
+      </span>
+      <span className="v">{value}</span>
+    </div>
   );
 }
 
@@ -259,10 +255,12 @@ function TeamsTree({
 
   if (org.teams.length === 0) {
     return (
-      <EmptyState icon={Users} title="No teams yet">
-        Add teams like Front Office, Housekeeping, or F&amp;B from the Home
-        sidebar, then organize them here.
-      </EmptyState>
+      <G8Empty
+        icon={Users}
+        title="No teams yet"
+        text="Add teams like Front Office, Housekeeping, or F&B from the sidebar, then organize them here."
+        sm
+      />
     );
   }
 
@@ -271,13 +269,19 @@ function TeamsTree({
   // property → team → person hierarchy reads top to bottom.
   return (
     <div>
-      <div className="flex items-center gap-2 py-1.5 pl-1.5">
-        <Building2 className="size-4 shrink-0 text-muted-foreground" />
-        <span className="truncate text-sm font-semibold text-foreground">
+      <div className="row" style={{ padding: "6px 6px" }}>
+        <span className="faint" style={{ display: "inline-flex" }}>
+          <Gi icon={Building2} size={15} />
+        </span>
+        <span className="trunc" style={{ fontWeight: 600 }}>
           {propertyName}
         </span>
       </div>
-      <ul role="list" className="ml-3 flex flex-col gap-1 border-l border-border pl-3">
+      <ul
+        role="list"
+        className="flex flex-col"
+        style={{ margin: "0 0 0 12px", padding: "0 0 0 12px", listStyle: "none", gap: 2, borderLeft: "1px solid var(--g8-border)" }}
+      >
         {roots.map((t) => (
           <TeamNode
             key={t.id}
@@ -332,18 +336,20 @@ function TeamNode({
 
   return (
     <li>
-      <div className="group flex items-center gap-2 rounded-md py-1.5 pr-1.5 pl-1.5 hover:bg-accent">
+      <div
+        className="group row hover:bg-(--g8-surface-2)"
+        style={{ padding: "5px 6px", borderRadius: "var(--g8-r-sm)" }}
+      >
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Collapse" : "Expand"}
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none",
-            !hasDetail && "invisible",
-          )}
+          className={cn("ibtn ibtn-xs", !hasDetail && "invisible")}
         >
-          <ChevronRight
-            className={cn("size-4 transition-transform", open && "rotate-90")}
+          <Gi
+            icon={ChevronRight}
+            size={13}
+            className={cn("transition-transform", open && "rotate-90")}
           />
         </button>
 
@@ -353,10 +359,8 @@ function TeamNode({
           </span>
         ) : (
           <span
-            className={cn(
-              "size-2.5 shrink-0 rounded-[3px]",
-              LABEL_DOT[team.color],
-            )}
+            className="pdot"
+            style={{ "--g8-c": G8_COLOR[team.color] } as CSSVars}
             aria-hidden="true"
           />
         )}
@@ -364,22 +368,18 @@ function TeamNode({
         <button
           type="button"
           onClick={() => onSelectTeam(team.id)}
-          className="min-w-0 flex-1 truncate text-left text-sm font-medium text-foreground hover:underline"
+          className="trunc hover:underline"
+          style={{ flex: 1, textAlign: "left", fontWeight: 500 }}
         >
           {team.name}
         </button>
 
         {lead ? (
-          <span className="flex shrink-0 items-center gap-1.5 text-xs text-faint-foreground">
-            <Avatar size="sm" className="size-4">
-              {lead.avatarUrl ? (
-                <AvatarImage src={lead.avatarUrl} alt={lead.name ?? ""} />
-              ) : null}
-              <AvatarFallback className="text-xs">
-                {initials(lead.name)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="max-w-[14ch] truncate">{lead.name ?? "Lead"}</span>
+          <span className="row faint" style={{ gap: 6, flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}>
+            <Av member={lead} />
+            <span className="trunc" style={{ maxWidth: "14ch" }}>
+              {lead.name ?? "Lead"}
+            </span>
           </span>
         ) : null}
 
@@ -387,14 +387,16 @@ function TeamNode({
         {openTaskCounts[team.id] ? (
           <Link
             href={`/p/${propertyId}/tasks?space=${team.id}`}
-            className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground hover:text-foreground"
+            className="badge gray num"
+            style={{ flexShrink: 0 }}
           >
             {openTaskCounts[team.id]} open
           </Link>
         ) : null}
 
         <span
-          className="shrink-0 text-xs tabular-nums text-muted-foreground"
+          className="faint num"
+          style={{ flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}
           title={`${team.memberIds.length} ${team.memberIds.length === 1 ? "member" : "members"}`}
         >
           {team.memberIds.length}
@@ -410,7 +412,10 @@ function TeamNode({
       </div>
 
       {open && hasDetail ? (
-        <div className="ml-3.5 flex flex-col gap-1 border-l border-border pl-3">
+        <div
+          className="flex flex-col"
+          style={{ marginLeft: 14, paddingLeft: 12, gap: 2, borderLeft: "1px solid var(--g8-border)" }}
+        >
           {members.map((p) => (
             <MemberRow
               key={p.id}
@@ -419,7 +424,7 @@ function TeamNode({
             />
           ))}
           {children.length > 0 ? (
-            <ul role="list" className="flex flex-col gap-1">
+            <ul role="list" className="flex flex-col" style={{ margin: 0, padding: 0, listStyle: "none", gap: 2 }}>
               {children.map((c) => (
                 <TeamNode
                   key={c.id}
@@ -449,28 +454,15 @@ function MemberRow({
   isLead: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 py-1 pl-1.5">
-      <Avatar size="sm" className="size-5">
-        {person.avatarUrl ? (
-          <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
-        ) : null}
-        <AvatarFallback className="text-xs">
-          {initials(person.name)}
-        </AvatarFallback>
-      </Avatar>
-      <span className="min-w-0 truncate text-sm text-foreground">
-        {person.name ?? "Member"}
-      </span>
+    <div className="row" style={{ padding: "4px 6px", gap: 8 }}>
+      <Av member={person} />
+      <span className="trunc">{person.name ?? "Member"}</span>
       {person.title ? (
-        <span className="min-w-0 truncate text-xs text-faint-foreground">
+        <span className="trunc faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
           {person.title}
         </span>
       ) : null}
-      {isLead ? (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs/[1] font-medium text-faint-foreground">
-          Head
-        </span>
-      ) : null}
+      {isLead ? <span className="badge accent">Head</span> : null}
     </div>
   );
 }
@@ -496,9 +488,12 @@ function PeopleDirectory({
 
   if (org.people.length === 0) {
     return (
-      <EmptyState icon={Users} title="No people yet">
-        Invite teammates to the property and they&apos;ll appear here.
-      </EmptyState>
+      <G8Empty
+        icon={Users}
+        title="No people yet"
+        text="Invite teammates to the property and they'll appear here."
+        sm
+      />
     );
   }
 
@@ -526,27 +521,26 @@ function PeopleDirectory({
 
   return (
     <>
-      <div className="relative mb-2 max-w-xs">
-        <Search
-          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          type="search"
-          name="peopleSearch"
-          aria-label="Search people"
-          placeholder="Search name, title, or team…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="h-8 pl-8"
-        />
+      <div style={{ padding: "0 14px 10px" }}>
+        <div className="inwrap" style={{ maxWidth: 320 }}>
+          <Gi icon={Search} size={13} />
+          <input
+            type="search"
+            name="peopleSearch"
+            className="input search-sm"
+            aria-label="Search people"
+            placeholder="Search name, title, or team…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       </div>
       {people.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
+        <p className="faint" style={{ margin: 0, padding: "20px 14px", textAlign: "center" }}>
           No one matches &ldquo;{query}&rdquo;.
         </p>
       ) : (
-        <ul role="list" className="divide-y divide-border">
+        <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {people.map((person) => (
             <PersonRow
               key={person.id}
@@ -601,19 +595,17 @@ function PersonRow({
   }
 
   return (
-    <li className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
-      <div className="flex min-w-0 items-center gap-3 sm:w-52 sm:shrink-0">
-        <Avatar className="size-8">
-          {person.avatarUrl ? (
-            <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
-          ) : null}
-          <AvatarFallback>{initials(person.name)}</AvatarFallback>
-        </Avatar>
+    <li
+      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
+      style={{ padding: "10px 14px", borderTop: "1px solid var(--g8-divider)" }}
+    >
+      <div className="flex min-w-0 items-center gap-3 sm:w-56 sm:shrink-0">
+        <Av member={person} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">
+          <p className="trunc" style={{ margin: 0, fontWeight: 500 }}>
             {person.name ?? "Member"}
           </p>
-          <p className="truncate text-xs text-faint-foreground">
+          <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
             {ROLE_LABEL[person.role] ?? person.role}
             {!isManagement && person.title ? ` · ${person.title}` : ""}
             {!isManagement && teamName(person.primaryTeamId)
@@ -621,7 +613,7 @@ function PersonRow({
               : ""}
           </p>
           {person.email ? (
-            <p className="truncate text-xs text-faint-foreground">
+            <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
               {person.email}
             </p>
           ) : null}
@@ -629,8 +621,9 @@ function PersonRow({
       </div>
 
       {isManagement ? (
-        <div className="grid grid-cols-1 gap-2 pl-11 sm:grid-cols-3 sm:gap-3 sm:pl-0 min-w-0 flex-1">
-          <Input
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+          <input
+            className="input"
             aria-label={`Title for ${person.name ?? "member"}`}
             name={`title-${person.id}`}
             placeholder="Job title"
@@ -641,9 +634,9 @@ function PersonRow({
               if ((person.title ?? "") !== title.trim())
                 save({ title: title.trim() || null });
             }}
-            className="h-8 text-sm"
           />
-          <NativeSelect
+          <select
+            className="select"
             aria-label={`Reports to, for ${person.name ?? "member"}`}
             disabled={pending}
             value={person.managerId ?? ""}
@@ -657,8 +650,9 @@ function PersonRow({
                   {p.name ?? "Member"}
                 </option>
               ))}
-          </NativeSelect>
-          <NativeSelect
+          </select>
+          <select
+            className="select"
             aria-label={`Home team for ${person.name ?? "member"}`}
             disabled={pending}
             value={person.primaryTeamId ?? ""}
@@ -670,12 +664,12 @@ function PersonRow({
                 {t.name}
               </option>
             ))}
-          </NativeSelect>
+          </select>
         </div>
       ) : person.managerId ? (
-        <p className="pl-11 text-xs text-faint-foreground sm:pl-0">
+        <p className="faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
           Reports to{" "}
-          <span className="text-foreground">
+          <span style={{ color: "var(--g8-text)" }}>
             {personName(person.managerId) ?? "—"}
           </span>
         </p>

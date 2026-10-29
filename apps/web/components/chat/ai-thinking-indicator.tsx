@@ -49,8 +49,8 @@ function hasPendingQuestion(pendingApproval: unknown): boolean {
  * like a real message row (a sibling row outside the list stayed pinned
  * above the composer while the chat scrolled — wrong). The avatar reuses
  * Stream's own avatar classes so color/radius match real bot messages
- * exactly, and the row mirrors the Slack message grid (22px inline start
- * padding, 36px avatar, 10px gap — the `--slack-avatar-*` tokens).
+ * exactly, and the row mirrors the message grid (gr8r gutter inline start,
+ * the `--slack-avatar-*` size / radius / gap tokens).
  *
  * BACKGROUND JOBS get their own strip above that row. They were invisible
  * until 2026-08-11: a `kind='job'` row carries a synthetic `job:<uuid>`
@@ -306,8 +306,8 @@ export function AiThinkingIndicator({
                 bot message: a job is not part of the conversation, it is
                 something running alongside it. */}
             {jobs.map((job) => (
-              <div key={job.id} className="py-1.5 pl-[22px] pr-4">
-                <div className="flex max-w-[560px] items-start gap-2.5 rounded-md px-2.5 py-2 shadow-ring">
+              <div key={job.id} className="py-1.5 pl-(--g8-gutter) pr-4">
+                <div className="g8-chat-card flex max-w-[560px] items-start gap-2.5 px-2.5 py-2">
                   {job.awaitingAnswer ? (
                     <MessageCircleQuestion
                       className="mt-0.5 size-3.5 shrink-0 text-[var(--warning)]"
@@ -330,8 +330,15 @@ export function AiThinkingIndicator({
               </div>
             ))}
             {thinking ? (
-              <div className="flex items-start gap-[10px] py-1.5 pl-[22px] pr-4">
-                <div className="str-chat__avatar str-chat__avatar--with-border str-chat__avatar--one-letter str-chat__avatar--size-md shrink-0 opacity-80">
+              <div className="flex items-start gap-(--slack-avatar-column-gap) py-1.5 pl-(--g8-gutter) pr-4">
+                <div
+                  className="str-chat__avatar str-chat__avatar--with-border str-chat__avatar--one-letter str-chat__avatar--size-md shrink-0 opacity-80"
+                  style={{
+                    width: "var(--slack-avatar-size)",
+                    height: "var(--slack-avatar-size)",
+                    borderRadius: "var(--slack-avatar-radius)",
+                  }}
+                >
                   <div className="str-chat__avatar-initials">H</div>
                 </div>
                 <div className="flex min-w-0 flex-col">

@@ -4,6 +4,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -81,36 +82,42 @@ export function FormSettingsPanel({
   return (
     <>
       <Group title="Status" hint="Only published forms accept responses.">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           <FormStatusBadge status={status} />
+          <span className="sp" />
           {status !== "published" ? (
-            <Button size="sm" onClick={() => onStatusChange("published")} disabled={statusBusy}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => onStatusChange("published")}
+              disabled={statusBusy}
+            >
               Publish
-            </Button>
+            </button>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
               onClick={() => onStatusChange("draft")}
               disabled={statusBusy}
             >
               Unpublish
-            </Button>
+            </button>
           )}
           {status !== "closed" ? (
-            <Button
-              size="sm"
-              variant="ghost"
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
               onClick={() => onStatusChange("closed")}
               disabled={statusBusy}
             >
               Close
-            </Button>
+            </button>
           ) : null}
         </div>
       </Group>
 
-      <div className="divide-y divide-border border-y border-border">
+      <div className="panel g8-fs-toggles">
         <Toggle
           id="fs-allow-multiple"
           label="Multiple responses"
@@ -177,7 +184,7 @@ export function FormSettingsPanel({
           />
         </div>
         <div className="grid gap-2">
-          <span className="text-sm font-medium">Layout on one page</span>
+          <span className="label">Layout on one page</span>
           <div className="flex gap-1.5">
             {(
               [
@@ -199,7 +206,7 @@ export function FormSettingsPanel({
           </div>
         </div>
         <div className="grid gap-2">
-          <span className="text-sm font-medium">Background</span>
+          <span className="label">Background</span>
           <div className="flex flex-wrap gap-2">
             {FORM_BACKGROUNDS.map((bg) => {
               const active = (settings.background ?? "default") === bg;
@@ -224,15 +231,15 @@ export function FormSettingsPanel({
       </Group>
 
       <Group title="Delete" hint="Deleting a form removes all of its responses.">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-fit text-destructive"
+        <button
+          type="button"
+          className="btn btn-danger-ghost btn-sm"
+          style={{ width: "fit-content" }}
           onClick={() => setConfirmDelete(true)}
         >
-          <Trash2 data-slot="icon" />
+          <Gi icon={Trash2} size={13} />
           Delete form
-        </Button>
+        </button>
       </Group>
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
@@ -266,8 +273,12 @@ function Group({ title, hint, children }: { title: string; hint?: string; childr
   return (
     <section className="grid gap-3">
       <div>
-        <p className="text-sm font-medium">{title}</p>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        <h3 className="g8-fs-h">{title}</h3>
+        {hint ? (
+          <p className="hint" style={{ margin: "2px 0 0" }}>
+            {hint}
+          </p>
+        ) : null}
       </div>
       {children}
     </section>
@@ -288,10 +299,10 @@ function Toggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <label htmlFor={id} className="grid gap-0.5">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground">{help}</span>
+    <div className="row" style={{ alignItems: "flex-start", gap: 16, padding: "10px 12px" }}>
+      <label htmlFor={id} className="grow" style={{ display: "grid", gap: 2 }}>
+        <span style={{ fontWeight: 500 }}>{label}</span>
+        <span className="hint">{help}</span>
       </label>
       <Switch id={id} checked={checked} onCheckedChange={onChange} className="mt-0.5" />
     </div>

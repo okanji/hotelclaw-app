@@ -296,7 +296,7 @@ export const DocumentAiPanel = forwardRef<
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
       <div className="pointer-events-auto flex w-full max-w-2xl flex-col">
         {expanded && hasConversation ? (
-          <div className="mb-2 flex flex-col overflow-hidden rounded-overlay bg-popover shadow-overlay">
+          <div className="g8-ai-dock mb-2 flex flex-col overflow-hidden">
             <header className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
               {/* Chat switcher */}
               <Popover open={chatsOpen} onOpenChange={setChatsOpen}>
@@ -372,7 +372,7 @@ export const DocumentAiPanel = forwardRef<
                 <button
                   type="button"
                   onClick={newChat}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
+                  className="ibtn ibtn-sm"
                   aria-label="New chat"
                   title="New chat"
                 >
@@ -381,7 +381,7 @@ export const DocumentAiPanel = forwardRef<
                 <button
                   type="button"
                   onClick={() => setExpanded(false)}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
+                  className="ibtn ibtn-sm"
                   aria-label="Collapse"
                   title="Collapse"
                 >
@@ -414,7 +414,7 @@ export const DocumentAiPanel = forwardRef<
                         <button
                           type="button"
                           onClick={() => applyEdit(t.edit!)}
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                          className="btn btn-ghost btn-sm"
                           title="Show these changes in the document again"
                         >
                           <CornerDownLeft className="size-3.5" />
@@ -423,7 +423,7 @@ export const DocumentAiPanel = forwardRef<
                         <button
                           type="button"
                           onClick={() => void copyEdit(t.edit!.html)}
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                          className="btn btn-ghost btn-sm"
                         >
                           <Copy className="size-3.5" />
                           Copy
@@ -443,7 +443,7 @@ export const DocumentAiPanel = forwardRef<
         ) : null}
 
         <div
-          className="flex items-end gap-2 rounded-overlay bg-popover p-2 shadow-overlay"
+          className="g8-ai-dock flex items-end gap-2 p-2"
           onClick={() => {
             if (hasConversation && !expanded) setExpanded(true);
           }}
@@ -465,7 +465,7 @@ export const DocumentAiPanel = forwardRef<
             }}
             placeholder="Ask AI to write, edit, or explain this document…"
             rows={1}
-            className="max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-faint-foreground focus:outline-none"
+            className="g8-ai-input max-h-32 flex-1 resize-none bg-transparent px-2 py-1.5 focus:outline-none"
             disabled={busy}
           />
           <button
@@ -475,7 +475,7 @@ export const DocumentAiPanel = forwardRef<
               void send();
             }}
             disabled={busy || !input.trim()}
-            className="rounded-md bg-primary p-1.5 text-primary-foreground transition-colors disabled:opacity-40"
+            className="btn btn-primary btn-sm"
             aria-label="Send"
           >
             {busy ? (

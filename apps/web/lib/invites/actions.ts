@@ -15,16 +15,27 @@ import {
   findAlreadyNotifiedUserIds,
 } from "@/lib/notifications/server";
 import type { Role } from "@/lib/db/types";
-import { FULL_ROLES } from "@/lib/auth/roles";
+import { FULL_ROLES, ROLES } from "@/lib/auth/roles";
+import { applyGuestScopes, syncGuestChannels, validateScopes } from "@/lib/guests/scopes";
+import type { ScopeGrant } from "@/lib/db/types";
 
-// Guests become invitable with 0118 (they also need a scope list); until
-// then the DB CHECK would reject the row, so only full roles are offered.
+// Full roles for role edits; a GUEST invite (0118) also needs its scopes, so
+// it is only created through `createInvite` with a non-empty `scopes`.
 const Roles = FULL_ROLES;
+const InviteRoles = ROLES;
+
+const ScopeZ = z.object({
+  kind: z.enum(["space", "list", "task", "document", "channel"]),
+  id: z.string().uuid(),
+  can_edit: z.boolean().default(false),
+});
 
 const CreateSchema = z.object({
   propertyId: z.string().uuid(),
   email: z.string().email().max(254),
-  role: z.enum(Roles).default("staff"),
+  role: z.enum(InviteRoles).default("staff"),
+  /** Guest invites only: what they may see (applied on accept). */
+  scopes: z.array(ScopeZ).max(100).default([]),
   // Optional pre-fill: the inviter (or onboarding wizard) can position the
   // person up front. Applied to their profile/membership on accept; the
   // invited-user onboarding form pre-fills from these and stays editable.
@@ -99,6 +110,19 @@ export async function createInvite(
   const email = parsed.data.email.toLowerCase();
   const service = createServiceClient();
 
+  // Guests (0118): kill switch, and they must be given SOMETHING to see.
+  // Scopes are validated to this property; full members carry none.
+  let scopes: ScopeGrant[] = [];
+  if (parsed.data.role === "guest") {
+    if (process.env.GUEST_ROLE_ENABLED === "false") {
+      return { error: "Guest invites are turned off." };
+    }
+    scopes = await validateScopes(service, parsed.data.propertyId, parsed.data.scopes);
+    if (scopes.length === 0) {
+      return { error: "Pick at least one team, list or document to share with this guest." };
+    }
+  }
+
   // Look for an existing pending (unaccepted) invite for this email+property.
   const { data: existingInvite } = await service
     .from("invites")
@@ -127,6 +151,7 @@ export async function createInvite(
       .update({
         expires_at: expiresAt,
         role: parsed.data.role,
+        scopes,
         ...prefill,
       })
       .eq("token", token);
@@ -137,6 +162,7 @@ export async function createInvite(
       property_id: parsed.data.propertyId,
       email,
       role: parsed.data.role,
+      scopes,
       token,
       expires_at: expiresAt,
       created_by: user.id,
@@ -398,7 +424,7 @@ export async function acceptInvite(
   const { data: invite, error: fetchErr } = await service
     .from("invites")
     .select(
-      "property_id, role, expires_at, accepted_at, email, full_name, title, primary_space_id, manager_id",
+      "property_id, role, scopes, expires_at, accepted_at, email, full_name, title, primary_space_id, manager_id",
     )
     .eq("token", token)
     .maybeSingle();
@@ -430,14 +456,17 @@ export async function acceptInvite(
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const isGuestInvite = invite.role === "guest";
   if (!existing) {
     // Resolve position/team/reports-to: the user's edits win, else the
-    // inviter's pre-fill, else null.
+    // inviter's pre-fill, else null. A GUEST (0118) gets none of it — no
+    // home team, no manager, no org-chart position.
     const resolvedTitle =
       (overrides?.title ?? invite.title ?? "").trim().slice(0, 80) || null;
-    const resolvedSpaceId =
-      overrides?.primarySpaceId ?? invite.primary_space_id ?? null;
-    const resolvedManagerId = invite.manager_id ?? null;
+    const resolvedSpaceId = isGuestInvite
+      ? null
+      : (overrides?.primarySpaceId ?? invite.primary_space_id ?? null);
+    const resolvedManagerId = isGuestInvite ? null : (invite.manager_id ?? null);
 
     const { error: memErr } = await service.from("memberships").insert({
       property_id: invite.property_id,
@@ -484,19 +513,36 @@ export async function acceptInvite(
       image: profile?.avatar_url ?? null,
     });
 
-    const { data: publicChannels } = await service
-      .from("chat_channels")
-      .select("stream_channel_id")
-      .eq("property_id", invite.property_id)
-      .eq("is_private", false)
-      .is("archived_at", null);
-
-    if (publicChannels && publicChannels.length > 0) {
-      await addUserToPublicChannels({
+    if (isGuestInvite) {
+      // Guests join ONLY the channels of what was shared with them.
+      const scopes = await validateScopes(
+        service,
+        invite.property_id,
+        (invite.scopes ?? []) as ScopeGrant[],
+      );
+      const applied = await applyGuestScopes(service, {
         propertyId: invite.property_id,
         userId: user.id,
-        streamChannelIds: publicChannels.map((c) => c.stream_channel_id),
+        scopes,
+        grantedBy: null,
       });
+      if (applied.error) return { error: applied.error };
+      await syncGuestChannels(service, { propertyId: invite.property_id, userId: user.id });
+    } else {
+      const { data: publicChannels } = await service
+        .from("chat_channels")
+        .select("stream_channel_id")
+        .eq("property_id", invite.property_id)
+        .eq("is_private", false)
+        .is("archived_at", null);
+
+      if (publicChannels && publicChannels.length > 0) {
+        await addUserToPublicChannels({
+          propertyId: invite.property_id,
+          userId: user.id,
+          streamChannelIds: publicChannels.map((c) => c.stream_channel_id),
+        });
+      }
     }
   }
 

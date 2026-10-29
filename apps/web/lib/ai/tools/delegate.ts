@@ -45,7 +45,7 @@ export function buildDelegateTool(scope: BotScope): ToolSet {
     delegate_task: tool({
       description: [
         "Hand off a task that doesn't fit this single turn to the property's durable agent runtime. Use when the user wants something long-running or multi-step that should proceed after you reply:",
-        "- investigate-and-report jobs (dig through bookings/tasks/docs and produce a summary)",
+        "- investigate-and-report jobs (dig through tasks/docs and produce a summary)",
         "- multi-step operations that may need human approval mid-way",
         "DON'T use this for questions you can answer right now, and don't promise ongoing monitoring or recurring runs — for recurring automations, point the user at Workflows.",
         "The user sees your instant reply confirming the delegation; the work continues durably in the background.",

@@ -1,4 +1,5 @@
-import { SearchPageClient } from "@/components/chat/search/search-page-client";
+import { RouteGate } from "@/components/gr8r/route-gate";
+import { SearchView } from "@/components/gr8r/search-view";
 
 export default async function SearchPage({
   params,
@@ -6,5 +7,9 @@ export default async function SearchPage({
   params: Promise<{ propertyId: string }>;
 }) {
   const { propertyId } = await params;
-  return <SearchPageClient propertyId={propertyId} />;
+  return (
+    <RouteGate segment="search">
+      <SearchView propertyId={propertyId} />
+    </RouteGate>
+  );
 }

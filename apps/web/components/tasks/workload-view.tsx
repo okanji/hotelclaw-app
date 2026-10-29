@@ -1,5 +1,6 @@
 "use client";
 
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
 import { isDone } from "@/lib/tasks/statuses";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -296,25 +297,23 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
 
     for (const t of activeTasks) {
       if (!t.scheduled_start || !t.scheduled_end) continue;
-      const targetRow = t.assignee_id ? rows.get(t.assignee_id) : null;
+      // 0115: a shared task's hours land on EACH assignee's row (they
+      // are all booked for it); the day total counts the task once.
+      const people = taskAssigneeIds(t);
       for (let i = 0; i < range; i++) {
         const h = hoursForDay(t, days[i]!);
         if (h <= 0) continue;
-        if (targetRow) {
-          targetRow.perDay[i] = (targetRow.perDay[i] ?? 0) + h;
-          targetRow.total += h;
-        } else if (!t.assignee_id) {
-          unassignedTotal += h;
-        } else {
-          // Assignee not in member list (left org?) — drop into a synthetic row.
-          let row = rows.get(t.assignee_id);
+        if (people.length === 0) unassignedTotal += h;
+        for (const id of people) {
+          let row = rows.get(id);
           if (!row) {
+            // Assignee not in member list (left org?) — a synthetic row.
             row = {
-              assigneeId: t.assignee_id,
+              assigneeId: id,
               perDay: new Array(range).fill(0) as number[],
               total: 0,
             };
-            rows.set(t.assignee_id, row);
+            rows.set(id, row);
           }
           row.perDay[i] = (row.perDay[i] ?? 0) + h;
           row.total += h;
@@ -354,7 +353,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
     [activeTasks],
   );
   const unassignedTasks = useMemo(
-    () => activeTasks.filter((t) => !t.assignee_id),
+    () => activeTasks.filter((t) => taskAssigneeIds(t).length === 0),
     [activeTasks],
   );
   const overdueTasks = useMemo(() => {

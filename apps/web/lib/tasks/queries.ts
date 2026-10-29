@@ -2,6 +2,7 @@ import "server-only";
 import type { createClient } from "@/lib/supabase/server";
 import type { EntityColor, StatusCategory } from "@/lib/db/types";
 import { formatTaskKey } from "@/lib/tasks/task-key";
+import { assigneeIdsFromEmbed } from "@/lib/tasks/assignees";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -33,7 +34,7 @@ export async function getTasks(supabase: ServerClient, propertyId: string) {
       // onto the task (status_name, status_category, status_color,
       // status_blocked) so no client needs a second lookup to draw a card.
       .select(
-        "id, number, title, description, status, priority, assignee_id, created_by, due_at, scheduled_start, scheduled_end, position, parent_id, labels, project_name, space_id, project_id, recurrence, recurrence_of, source, source_workflow_id, source_workflow_run_id, created_at, updated_at, estimate, cycle_id, milestone_id, triage_state, list_id, status_id, completed_at, status_ref:statuses!tasks_status_id_fkey(name, category, color, is_blocked)",
+        "id, number, title, description, status, priority, assignee_id, created_by, due_at, scheduled_start, scheduled_end, position, parent_id, labels, project_name, space_id, project_id, recurrence, recurrence_of, source, source_workflow_id, source_workflow_run_id, created_at, updated_at, estimate, cycle_id, milestone_id, triage_state, list_id, status_id, completed_at, checklist_total, checklist_done, status_ref:statuses!tasks_status_id_fkey(name, category, color, is_blocked), task_assignees(user_id, position, created_at)",
       )
       .eq("property_id", propertyId)
       .is("archived_at", null)
@@ -53,9 +54,14 @@ export async function getTasks(supabase: ServerClient, propertyId: string) {
   return (tasksRes.data ?? []).map((row) => {
     // The embed is typed by hand (Relationships: [] in lib/db/types.ts), so
     // PostgREST's nested object arrives as unknown here.
-    const { status_ref, ...t } = row as typeof row & { status_ref: StatusEmbed };
+    const { status_ref, task_assignees, ...t } = row as typeof row & {
+      status_ref: StatusEmbed;
+      task_assignees: { user_id: string; position: number; created_at: string }[] | null;
+    };
     return {
       ...t,
+      // 0115: the full set, primary first (`assignee_id` stays the primary).
+      assignee_ids: assigneeIdsFromEmbed(task_assignees),
       key: formatTaskKey(prefix, t.number),
       status_name: status_ref?.name ?? null,
       status_category: status_ref?.category ?? null,

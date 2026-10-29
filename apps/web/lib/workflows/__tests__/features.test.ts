@@ -93,7 +93,7 @@ describe("automation features", () => {
   it("round-trips a non-ASCII goal through the builder prefill", () => {
     // btoa() throws on non-Latin1, so an en dash in a suggestion title used to
     // break the link entirely. Mirror the decoder in new-workflow-client.tsx.
-    const goal = "When a booking is cancelled — alert the front-desk café";
+    const goal = "When a task is cancelled — alert the front-desk café";
     const href = builderPrefillHref("prop-1", goal, { source: "test" });
     const raw = decodeURIComponent(href.split("prefill=")[1]);
     const bytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));

@@ -1,4 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
+import { TaskDrawer } from "@/components/gr8r/task-drawer";
+import { AppearancePrefs } from "@/components/gr8r/appearance-prefs";
 import { cookies } from "next/headers";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/server";
@@ -151,7 +154,14 @@ export default async function PropertyLayout({
                       (docs/notion-spec.md §1). Below md the rail/sidebar move
                       into a drawer behind the MobileTopBar hamburger and the
                       content goes full-bleed. */}
-                  <div className="flex h-svh w-full flex-col overflow-hidden bg-card">
+                  <div className="g8 flex h-svh w-full flex-col overflow-hidden bg-card">
+                    {/* gr8r accent / density / motion prefs (Settings →
+                        Appearance) — sets data-* on this .g8 root. */}
+                    <AppearancePrefs />
+                    {/* gr8r task drawer: `?task=<id>` on any page. */}
+                    <Suspense fallback={null}>
+                      <TaskDrawer propertyId={propertyId} />
+                    </Suspense>
                     <MobileTopBar
                       currentPropertyId={propertyId}
                       memberships={memberships}

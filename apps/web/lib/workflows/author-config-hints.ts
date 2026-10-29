@@ -46,6 +46,11 @@ const EXAMPLE_CONFIGS: Partial<Record<StepType, Record<string, unknown>>> = {
     input: "{{trigger.new.description}}",
     labels: ["urgent", "routine"],
   },
+  "action.task.add_checklist": {
+    task_id: "{{trigger.new.id}}",
+    name: "Task Prep",
+    items: "Keys\nRadios\nFloat",
+  },
   "action.task.assign": {
     task_id: "{{trigger.new.id}}",
     assignee_id: "<property-member-user-id>",

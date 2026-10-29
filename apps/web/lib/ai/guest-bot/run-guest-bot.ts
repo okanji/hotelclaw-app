@@ -17,7 +17,7 @@ import {
   CHATBOT_TIER_MODELS,
   type ChatbotConfig,
 } from "@/lib/chatbots/schema";
-import { cardsFromToolResults, type ChatAttachments } from "@/lib/chatbots/cards";
+import type { ChatAttachments } from "@/lib/chatbots/cards";
 
 const MAX_TOOL_STEPS = 5;
 
@@ -43,7 +43,7 @@ export function assembleGuestSystemPrompt(opts: {
       "You are a helpful assistant for this property's guests.",
     "",
     "# Context",
-    `You are "${config.appearance.displayName}", chatting with a guest of ${opts.propertyName}. The guest is on their phone or laptop — keep replies short, warm, and concrete. You may use light markdown: "-" bulleted lists, "1." numbered lists, and **bold** for names or key figures. Never use markdown headings (#) or tables — this is a small chat bubble. When you present several options (menu items, treatments, policies), a short bulleted list reads far better than one long sentence. When your booking tools return bookable services or open time slots, the app shows them as tappable cards below your reply, so keep the prose brief ("Here's what you can book:") and let the cards carry the detail — don't repeat every price and time in text.`,
+    `You are "${config.appearance.displayName}", chatting with a guest of ${opts.propertyName}. The guest is on their phone or laptop — keep replies short, warm, and concrete. You may use light markdown: "-" bulleted lists, "1." numbered lists, and **bold** for names or key figures. Never use markdown headings (#) or tables — this is a small chat bubble. When you present several options (menu items, treatments, policies), a short bulleted list reads far better than one long sentence.`,
   ];
 
   const guestFacts = [
@@ -62,12 +62,10 @@ export function assembleGuestSystemPrompt(opts: {
     );
   }
 
-  // Bots that take bookings must resolve "tomorrow at 7" — give them an
-  // anchor. UTC here; availability tools return dates/times in the
-  // service's own timezone (today_at_property / local_time fields).
+  // Guests say "tomorrow at 7" — give the model an anchor (UTC).
   const now = new Date();
   sections.push(
-    `Right now it is ${now.toISOString().slice(0, 16).replace("T", " ")} UTC (${new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(now)}). Resolve relative dates ("tomorrow", "this Friday") from this, and trust the local dates/times your booking tools return.`,
+    `Right now it is ${now.toISOString().slice(0, 16).replace("T", " ")} UTC (${new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(now)}). Resolve relative dates ("tomorrow", "this Friday") from this.`,
   );
 
   sections.push(
@@ -156,17 +154,13 @@ export function runGuestBot(opts: RunGuestBotOptions) {
       const toolCalls = steps.flatMap((step) =>
         step.toolCalls.map((tc) => ({ name: tc.toolName, input: tc.input })),
       );
-      const toolResults = steps.flatMap((step) =>
-        step.toolResults.map((tr) => ({
-          toolName: tr.toolName,
-          output: tr.output,
-        })),
-      );
       await opts.onEnd({
         text: (text ?? "").trim(),
         totalTokens: totalUsage?.totalTokens ?? null,
         toolCalls,
-        attachments: cardsFromToolResults(toolResults),
+        // No tool produces render cards since the booking tools were
+        // removed (2026-10-29); the field stays for the persist contract.
+        attachments: [],
       });
     },
   });

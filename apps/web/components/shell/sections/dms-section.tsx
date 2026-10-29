@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import {
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-} from "@/components/ui/sidebar";
+import { Gi } from "@/components/gr8r/icon";
 import { ChannelListSection } from "@/components/chat/channel-list/channel-list-section";
 import { CreateDmDialog } from "@/components/chat/dms/create-dm-dialog";
 
 /**
- * Secondary-sidebar content for the DMs section: the direct-message channel
- * list with a create-DM control.
+ * The direct-message list in gr8r sidebar markup: a `.sgroup` with a
+ * `.sgroup-h` heading whose hover-revealed `.ibtn` starts a new DM.
  */
 export function DmsSection({
   propertyId,
@@ -26,23 +21,27 @@ export function DmsSection({
 
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupLabel>Direct messages</SidebarGroupLabel>
-        <SidebarGroupAction
-          onClick={() => setDmOpen(true)}
-          title="New direct message"
-        >
-          <Plus />
-        </SidebarGroupAction>
-        <SidebarGroupContent>
-          <ChannelListSection
-            propertyId={propertyId}
-            userId={userId}
-            channelKind="messaging"
-            emptyState="No direct messages"
-          />
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <div className="sgroup">
+        <div className="sgroup-h">
+          <span>Direct messages</span>
+          <span className="sp" />
+          <button
+            type="button"
+            className="ibtn ibtn-xs"
+            onClick={() => setDmOpen(true)}
+            title="New direct message"
+            aria-label="New direct message"
+          >
+            <Gi icon={Plus} size={14} />
+          </button>
+        </div>
+        <ChannelListSection
+          propertyId={propertyId}
+          userId={userId}
+          channelKind="messaging"
+          emptyState="No direct messages"
+        />
+      </div>
 
       <CreateDmDialog
         propertyId={propertyId}

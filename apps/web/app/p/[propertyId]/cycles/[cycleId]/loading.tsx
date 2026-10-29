@@ -1,20 +1,35 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Sk, SkHead, SkMini, SkPage, SkTabs } from "@/components/gr8r/route-skeleton";
 
-/** Generic cycle skeleton while the detail page loads. */
+/** Shaped like a cycle's page: `.ph`, the burn-up panel, then the by-status
+ *  task panels beside the breakdown rail. */
 export default function CycleDetailLoading() {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="h-11 shrink-0" />
-      <div className="w-full max-w-page px-(--page-gutter) pt-8">
-        <Skeleton className="h-12 w-64" />
-        <Skeleton className="mt-3 h-4 w-80" />
-        <Skeleton className="mt-10 h-72 w-full rounded-card" />
-        <div className="mt-6 flex flex-col gap-2">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
+    <SkPage variant="wide" style={{ paddingTop: 20 }} crumbs={[72, 96]}>
+      <SkHead title={200} lede={260} acts={2} />
+      <div className="grid2">
+        <div className="stack">
+          <section className="panel">
+            <div className="panel-h">
+              <Sk w={90} h={12} />
+            </div>
+            <div className="panel-b">
+              <Sk w="100%" h={200} r={8} />
+            </div>
+          </section>
+          <section className="panel">
+            <div className="panel-h">
+              <Sk w={110} h={12} />
+            </div>
+            <SkMini n={6} />
+          </section>
         </div>
+        <section className="panel" style={{ alignSelf: "start" }}>
+          <div className="panel-b" style={{ paddingTop: 8 }}>
+            <SkTabs n={3} />
+            <SkMini n={5} />
+          </div>
+        </section>
       </div>
-    </div>
+    </SkPage>
   );
 }

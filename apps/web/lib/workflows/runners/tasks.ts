@@ -1,3 +1,5 @@
+import { addChecklistItemsFor } from "@/lib/tasks/checklist-write";
+import { setTaskFieldValueFor } from "@/lib/tasks/field-write";
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { statusPatchForTask } from "@/lib/tasks/status-resolve";
@@ -20,7 +22,99 @@ type CreateTaskConfig = {
   project_id?: string;
   priority?: string;
   parent_id?: string;
+  /** 0116 — custom-field id/name → resolved value. */
+  fields?: Record<string, unknown>;
 };
+
+type FormFile = { url?: string; path?: string; name?: string; size?: number; type?: string };
+
+function isFormFileList(v: unknown): v is FormFile[] {
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    v.every((f) => f && typeof f === "object" && typeof (f as FormFile).name === "string")
+  );
+}
+
+/**
+ * Write a create step's `fields` onto the new task. Never throws — a bad
+ * value on one field must not lose the task; failures come back as
+ * `field_errors` on the step output. A form FILE answer is copied from the
+ * form-uploads bucket into task-attachments and registered against the
+ * files field (the DB derives the field value from those rows).
+ */
+async function applyCreateFields(
+  supabase: ReturnType<typeof createServiceClient>,
+  args: { propertyId: string; taskId: string; actorId: string | null; fields: Record<string, unknown> },
+): Promise<Record<string, string>> {
+  const errors: Record<string, string> = {};
+  for (const [field, value] of Object.entries(args.fields)) {
+    if (value === undefined || value === null || value === "") continue;
+    try {
+      if (isFormFileList(value)) {
+        const { data: defs } = await supabase
+          .from("custom_fields")
+          .select("id, name, type")
+          .eq("property_id", args.propertyId)
+          .is("archived_at", null);
+        const def = (defs ?? []).find(
+          (d) => d.id === field || d.name.toLowerCase() === field.trim().toLowerCase(),
+        );
+        if (!def || def.type !== "files") {
+          errors[field] = "Not a files field";
+          continue;
+        }
+        for (const file of value) {
+          const name = (file.name ?? "file").replace(/[^\w.\-() ]+/g, "_").slice(0, 120);
+          const dest = `${args.propertyId}/${args.taskId}/${crypto.randomUUID()}-${name}`;
+          let copied = false;
+          if (file.path) {
+            const { error: copyErr } = await supabase.storage
+              .from("form-uploads")
+              .copy(file.path, dest, { destinationBucket: "task-attachments" });
+            copied = !copyErr;
+          }
+          if (!copied && file.url) {
+            // Fallback: fetch the public form upload and re-upload it.
+            const res = await fetch(file.url).catch(() => null);
+            if (res?.ok) {
+              const blob = await res.blob();
+              const { error: upErr } = await supabase.storage
+                .from("task-attachments")
+                .upload(dest, blob, { contentType: file.type || blob.type || "application/octet-stream" });
+              copied = !upErr;
+            }
+          }
+          if (!copied) {
+            errors[field] = `Couldn't copy ${file.name ?? "a file"}`;
+            continue;
+          }
+          const { error: insErr } = await supabase.from("task_attachments").insert({
+            task_id: args.taskId,
+            file_name: file.name ?? name,
+            storage_path: dest,
+            mime_type: file.type ?? null,
+            byte_size: typeof file.size === "number" ? file.size : null,
+            field_id: def.id,
+            created_by: args.actorId,
+          });
+          if (insErr) errors[field] = insErr.message;
+        }
+        continue;
+      }
+      const res = await setTaskFieldValueFor(supabase, args.actorId, {
+        propertyId: args.propertyId,
+        taskId: args.taskId,
+        field,
+        value,
+      });
+      if ("error" in res) errors[field] = res.error;
+    } catch (err) {
+      errors[field] = err instanceof Error ? err.message : String(err);
+    }
+  }
+  return errors;
+}
 
 const TASK_PRIORITIES = ["none", "low", "medium", "high", "urgent"] as const;
 
@@ -42,7 +136,7 @@ function flattenLabels(labels: unknown[] | undefined): string[] {
 
 export const createTaskRunner: RunnerImpl<
   CreateTaskConfig,
-  { task: Record<string, unknown> }
+  { task: Record<string, unknown>; field_errors?: Record<string, string> }
 > = async ({ config, ctx }) => {
   if (ctx.dryRun) {
     return {
@@ -80,6 +174,17 @@ export const createTaskRunner: RunnerImpl<
     .select("*")
     .single();
   if (error) throw new Error(`create_task failed: ${error.message}`);
+  if (config.fields && Object.keys(config.fields).length > 0) {
+    const fieldErrors = await applyCreateFields(supabase, {
+      propertyId: ctx.propertyId,
+      taskId: data.id,
+      actorId: ctx.workflowOwnerId ?? null,
+      fields: config.fields,
+    });
+    if (Object.keys(fieldErrors).length > 0) {
+      return { task: data as Record<string, unknown>, field_errors: fieldErrors };
+    }
+  }
   return { task: data as Record<string, unknown> };
 };
 
@@ -127,16 +232,60 @@ export const updateTaskRunner: RunnerImpl<
   return { task: data as Record<string, unknown> };
 };
 
-type AssignTaskConfig = { task_id: string; assignee_id: string };
+type AssignTaskConfig = { task_id: string; assignee_id: string; mode?: "replace" | "add" };
 
 export const assignTaskRunner: RunnerImpl<
   AssignTaskConfig,
   { task: Record<string, unknown> }
 > = async ({ config, ctx }) => {
+  const mode = config.mode ?? "replace";
   if (ctx.dryRun) {
-    return { task: { id: config.task_id, assignee_id: config.assignee_id } };
+    return { task: { id: config.task_id, assignee_id: config.assignee_id, mode } };
   }
   const supabase = createServiceClient();
+  if (mode === "add") {
+    // The service client skips RLS, so fence the person to the property
+    // the way the member insert policy would.
+    const { data: member } = await supabase
+      .from("memberships")
+      .select("user_id")
+      .eq("property_id", ctx.propertyId)
+      .eq("user_id", config.assignee_id)
+      .maybeSingle();
+    if (!member) throw new Error("assign_task: that person is not a member of this property");
+    const { data: owned } = await supabase
+      .from("tasks")
+      .select("id")
+      .eq("id", config.task_id)
+      .eq("property_id", ctx.propertyId)
+      .maybeSingle();
+    if (!owned) throw new Error("assign_task: task not found");
+    const { data: existing } = await supabase
+      .from("task_assignees")
+      .select("position")
+      .eq("task_id", config.task_id)
+      .order("position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const { error: addErr } = await supabase.from("task_assignees").upsert(
+      {
+        task_id: config.task_id,
+        user_id: config.assignee_id,
+        property_id: ctx.propertyId,
+        position: (existing?.position ?? -1) + 1,
+      },
+      { onConflict: "task_id,user_id", ignoreDuplicates: true },
+    );
+    if (addErr) throw new Error(`assign_task failed: ${addErr.message}`);
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("id", config.task_id)
+      .eq("property_id", ctx.propertyId)
+      .single();
+    if (error) throw new Error(`assign_task failed: ${error.message}`);
+    return { task: data as Record<string, unknown> };
+  }
   const { data, error } = await supabase
     .from("tasks")
     .update({ assignee_id: config.assignee_id })
@@ -146,6 +295,32 @@ export const assignTaskRunner: RunnerImpl<
     .single();
   if (error) throw new Error(`assign_task failed: ${error.message}`);
   return { task: data as Record<string, unknown> };
+};
+
+type AddChecklistConfig = { task_id: string; name: string; items: string };
+
+/** 0117 — find-or-create a named checklist and append the items. */
+export const addChecklistRunner: RunnerImpl<
+  AddChecklistConfig,
+  { checklist_id: string; created: boolean; added: number }
+> = async ({ config, ctx }) => {
+  if (ctx.dryRun) {
+    const { parseChecklistText } = await import("@/lib/tasks/checklist-progress");
+    const lines = parseChecklistText(config.items ?? "");
+    return {
+      checklist_id: `dry-${ctx.stepId}`,
+      created: true,
+      added: lines.reduce((n, l) => n + 1 + l.children.length, 0),
+    };
+  }
+  const res = await addChecklistItemsFor(createServiceClient(), {
+    propertyId: ctx.propertyId,
+    taskId: config.task_id,
+    name: config.name,
+    items: config.items ?? "",
+  });
+  if ("error" in res) throw new Error(`add_checklist: ${res.error}`);
+  return { checklist_id: res.checklistId, created: res.created, added: res.added };
 };
 
 type AddLabelConfig = { task_id: string; label: string };
@@ -243,110 +418,42 @@ export const setTaskFieldRunner: RunnerImpl<
 > = async ({ config, ctx }) => {
   const supabase = createServiceClient();
 
-  const { data: fields, error: fieldsErr } = await supabase
-    .from("custom_fields")
-    .select("id, name, type, options")
-    .eq("property_id", ctx.propertyId)
-    .is("archived_at", null);
-  if (fieldsErr) throw new Error(`set_field failed: ${fieldsErr.message}`);
-
-  const needle = config.field.trim().toLowerCase();
-  const field = (fields ?? []).find(
-    (f) => f.id === config.field.trim() || f.name.toLowerCase() === needle,
-  );
-  if (!field) throw new Error(`set_field: no custom field named "${config.field}"`);
-
-  const raw = (config.value ?? "").trim();
-  const options = (field.options ?? []) as { id: string; label: string }[];
-
-  function matchOption(token: string): string {
-    const t = token.trim();
-    const hit = options.find(
-      (o) => o.id === t || o.label.toLowerCase() === t.toLowerCase(),
-    );
-    if (!hit) {
-      throw new Error(
-        `set_field: "${t}" is not an option on ${field!.name} (${options
-          .map((o) => o.label)
-          .join(", ")})`,
-      );
-    }
-    return hit.id;
-  }
-
-  let value: string | number | boolean | string[] | null;
-  if (raw === "") {
-    value = null;
-  } else if (field.type === "checkbox") {
-    value = ["true", "yes", "1", "checked", "on"].includes(raw.toLowerCase());
-  } else if (field.type === "number") {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) throw new Error(`set_field: "${raw}" is not a number`);
-    value = n;
-  } else if (field.type === "select") {
-    value = matchOption(raw);
-  } else if (field.type === "multi_select") {
-    const picked = raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map(matchOption);
-    // Canonical order + dedupe, matching setTaskFieldValue: the trigger's
-    // `is not distinct from` no-op test compares arrays element-wise, so a
-    // workflow writing ["b","a"] over ["a","b"] must not emit a phantom
-    // task.field_changed.
-    const ids = options.map((o) => o.id).filter((id) => picked.includes(id));
-    value = ids.length > 0 ? ids : null;
-  } else if (field.type === "date") {
-    // Same contract as the UI action: bare ISO date. Without this a workflow
-    // could store "tomorrow", which renders as a blank date input and
-    // string-sorts randomly.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      throw new Error(
-        `set_field: "${raw}" is not a date — use YYYY-MM-DD`,
-      );
-    }
-    value = raw;
-  } else {
-    // text — same 500-char ceiling the UI action enforces.
-    value = raw.slice(0, 500);
-  }
-
   if (ctx.dryRun) {
-    return { field_id: field.id, field_name: field.name, value };
-  }
-
-  // Tenancy: the task must belong to the running property. RLS is bypassed by
-  // the service client, so this check is the fence.
-  const { data: task } = await supabase
-    .from("tasks")
-    .select("id")
-    .eq("id", config.task_id)
-    .eq("property_id", ctx.propertyId)
-    .maybeSingle();
-  if (!task) throw new Error("set_field: task not found in this property");
-
-  if (value === null) {
-    const { error } = await supabase
-      .from("task_field_values")
-      .delete()
-      .eq("task_id", config.task_id)
-      .eq("field_id", field.id);
-    if (error) throw new Error(`set_field failed: ${error.message}`);
-  } else {
-    const { error } = await supabase.from("task_field_values").upsert(
-      {
-        task_id: config.task_id,
-        field_id: field.id,
-        property_id: ctx.propertyId,
-        value,
-      },
-      { onConflict: "task_id,field_id" },
+    // Resolve + coerce without writing, so a test run still surfaces a bad
+    // option name or an unparseable amount.
+    const { data: fields } = await supabase
+      .from("custom_fields")
+      .select("id, name, type, options, config")
+      .eq("property_id", ctx.propertyId)
+      .is("archived_at", null);
+    const needle = config.field.trim().toLowerCase();
+    const field = (fields ?? []).find(
+      (f) => f.id === config.field.trim() || f.name.toLowerCase() === needle,
     );
-    if (error) throw new Error(`set_field failed: ${error.message}`);
+    if (!field) throw new Error(`set_field: no custom field named "${config.field}"`);
+    const { coerceFieldValue } = await import("@/lib/tasks/field-coerce");
+    const coerced = coerceFieldValue(field, config.value ?? "");
+    // people / relation need DB lookups — report the raw text in a dry run.
+    if (!coerced.ok && field.type !== "people" && field.type !== "relation") {
+      throw new Error(`set_field: ${coerced.error}`);
+    }
+    return {
+      field_id: field.id,
+      field_name: field.name,
+      value: coerced.ok ? coerced.value : config.value,
+    };
   }
 
-  return { field_id: field.id, field_name: field.name, value };
+  // One write path (0116): coercion for every type, the property fence, and
+  // the team / list scope check this runner used to skip.
+  const res = await setTaskFieldValueFor(supabase, null, {
+    propertyId: ctx.propertyId,
+    taskId: config.task_id,
+    field: config.field,
+    value: config.value ?? "",
+  });
+  if ("error" in res) throw new Error(`set_field: ${res.error}`);
+  return { field_id: res.fieldId, field_name: res.fieldName, value: res.value };
 };
 
 type QueryTasksConfig = {

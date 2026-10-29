@@ -1,35 +1,35 @@
-import { Skeleton } from "@/components/ui/skeleton";
-
 /**
- * Loading placeholder shaped like <InboxView> — page header + mention rows.
- * Shared by `inbox/loading.tsx` and InboxView's pending state.
+ * Loading placeholder shaped like <InboxView> — the gr8r topbar, the `.ph`
+ * title, then a `.panel` of `.nrow`-shaped shimmer rows. Shared by
+ * `inbox/loading.tsx` and InboxView's pending state.
  */
 export function InboxSkeleton() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col" aria-busy="true">
-      {/* Header — mirrors PageHeader (h-11, border-b, px-4). */}
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-(--page-gutter)">
-        <Skeleton className="size-4 rounded-sm" />
-        <Skeleton className="h-3.5 w-20" />
+      <header className="topbar">
+        <span className="sk" style={{ width: 16, height: 16 }} />
+        <span className="sk" style={{ width: 80, height: 12 }} />
       </header>
-      <div className="flex-1 overflow-y-auto p-4">
-        <ul className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <li
-              key={i}
-              className="flex gap-3 rounded-md bg-muted p-3"
-            >
-              <Skeleton className="size-9 shrink-0 rounded-lg" />
-              <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-3.5 w-28" />
-                  <Skeleton className="h-3 w-12" />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page" style={{ maxWidth: 820 }}>
+          <div className="ph">
+            <span className="sk" style={{ width: 160, height: 24 }} />
+          </div>
+          <div className="panel" style={{ overflow: "hidden" }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="nrow" style={{ cursor: "default" }}>
+                <span
+                  className="sk"
+                  style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0 }}
+                />
+                <div className="grow" style={{ display: "grid", gap: 6, paddingTop: 2 }}>
+                  <span className="sk" style={{ width: 140, height: 11 }} />
+                  <span className="sk" style={{ width: "70%", height: 11 }} />
                 </div>
-                <Skeleton className="h-3.5 w-[70%]" />
               </div>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

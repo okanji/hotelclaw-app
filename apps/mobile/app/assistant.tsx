@@ -124,7 +124,7 @@ export default function AssistantScreen() {
             <View style={styles.hero}>
               <Text style={styles.heroTitle}>What can I help with?</Text>
               <Text style={styles.heroBody}>
-                I can see your tasks, documents, calendar, bookings and what this
+                I can see your tasks, documents, calendar and what this
                 property has learned — and change them for you.
               </Text>
               <View style={styles.chips}>

@@ -55,7 +55,9 @@ export function matchesFamily(row: ActivityLogRow, family: ActivityFamily) {
         (row.verb === "status_changed" ||
           row.verb === "completed" ||
           row.verb === "reopened" ||
-          row.verb === "priority_changed")
+          row.verb === "priority_changed" ||
+          // 0117 — checklist progress reads as status.
+          row.verb.startsWith("checklist_"))
       );
     case "assignments":
       return row.verb === "assigned" || row.verb === "unassigned";

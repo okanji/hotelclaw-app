@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link2, Plus, Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Popover,
   PopoverContent,
@@ -119,15 +119,12 @@ export function DocumentLinkedTasks({
           <button
             type="button"
             title="Linked tasks"
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors hover:bg-accent",
-              count > 0 ? "text-foreground" : "text-muted-foreground",
-            )}
+            className={count > 0 ? "btn btn-ghost btn-sm on" : "btn btn-ghost btn-sm"}
           />
         }
       >
-        <Link2 className="size-3.5" />
-        <span className="tabular-nums">{count > 0 ? count : "Link"}</span>
+        <Gi icon={Link2} size={13} />
+        <span className="num">{count > 0 ? count : "Link"}</span>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-72 p-0">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">

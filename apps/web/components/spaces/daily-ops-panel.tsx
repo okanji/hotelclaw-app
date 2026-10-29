@@ -3,15 +3,19 @@
 import { useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
-import { Archive, CheckCheck, Flag, Plus, RotateCcw } from "lucide-react";
+import {
+  Archive,
+  CalendarCheck,
+  CheckCheck,
+  Flag,
+  ListChecks,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Chip } from "@/components/ui/chip";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
+import { Gi } from "@/components/gr8r/icon";
+import { ProgBar } from "@/components/gr8r/home-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { createClient } from "@/lib/supabase/client";
 import type { RoutineItem } from "@/lib/db/types";
 import {
@@ -179,7 +183,7 @@ export function DailyOpsPanel({
   });
   const date = todayISO();
   const weekday = new Date().getDay();
-  const { data: routines = [] } = useQuery(
+  const { data: routines = [], isPending: routinesPending } = useQuery(
     routinesQueryOptions(propertyId, spaceId),
   );
   const { data: runs = [] } = useQuery(
@@ -279,198 +283,190 @@ export function DailyOpsPanel({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stack">
       {dueToday.length > 0 ? (
-        <div className="flex items-center gap-3 rounded-md bg-muted px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <p className="text-sm font-medium text-foreground">
-                {signedOff
-                  ? "Day signed off"
-                  : dayPct === 100
-                    ? "Everything's done — ready to sign off"
-                    : "Is today done?"}
-              </p>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {ratingTrend
-                  ? `${ratingTrend.avg}/10 over ${ratingTrend.days}d · `
-                  : ""}
-                {doneItems}/{totalItems} · {dayPct}%
-              </span>
-            </div>
-            <Progress value={dayPct} className="h-1.5" />
+        <section className="panel">
+          <div className="panel-h">
+            <h2>
+              {signedOff
+                ? "Day signed off"
+                : dayPct === 100
+                  ? "Everything's done — ready to sign off"
+                  : "Is today done?"}
+            </h2>
+            <span className="sp" />
+            <span className="faint" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+              {ratingTrend
+                ? `${ratingTrend.avg}/10 over ${ratingTrend.days}d · `
+                : ""}
+              {doneItems}/{totalItems} · {dayPct}%
+            </span>
+            {isManagement ? (
+              <button
+                type="button"
+                className={signedOff ? "btn btn-ghost btn-sm" : "btn btn-secondary btn-sm"}
+                disabled={pending || signedOff}
+                onClick={() => setRatingOpen(true)}
+              >
+                <Gi icon={CheckCheck} size={14} />
+                {signedOff ? "Signed off" : "Sign off the day"}
+              </button>
+            ) : null}
           </div>
-          {isManagement ? (
-            <Button
-              type="button"
-              size="sm"
-              variant={signedOff ? "ghost" : "outline"}
-              disabled={pending || signedOff}
-              onClick={() => setRatingOpen(true)}
-            >
-              <CheckCheck className="size-4" />
-              {signedOff ? "Signed off" : "Sign off the day"}
-            </Button>
-          ) : null}
-        </div>
+          <div className="panel-b">
+            <ProgBar value={dayPct} tone={dayPct === 100 ? "green" : ""} />
+          </div>
+        </section>
       ) : null}
 
       {ratingOpen && !signedOff ? (
-        <div className="flex flex-col gap-3 rounded-md bg-muted p-4">
-          <p className="text-sm font-medium text-foreground">
-            How did the day go?
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setRating(rating === n ? null : n)}
-                className={cn(
-                  "size-8 rounded-md text-sm font-medium tabular-nums transition-colors",
-                  rating === n
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent",
-                )}
-              >
-                {n}
+        <section className="panel">
+          <div className="panel-h">
+            <h2>How did the day go?</h2>
+          </div>
+          <div className="panel-b stack" style={{ gap: 10 }}>
+            <div className="seg" role="group" aria-label="Day rating" style={{ flexWrap: "wrap", width: "fit-content" }}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={rating === n ? "on" : ""}
+                  aria-pressed={rating === n}
+                  onClick={() => setRating(rating === n ? null : n)}
+                  style={{ minWidth: 28, justifyContent: "center", fontVariantNumeric: "tabular-nums" }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <input
+              className="input"
+              value={ratingNote}
+              onChange={(e) => setRatingNote(e.target.value)}
+              placeholder="Optional note — what went well, what to fix"
+              maxLength={500}
+            />
+            <div className="row" style={{ gap: 6 }}>
+              <button type="button" className="btn btn-primary btn-sm" disabled={pending} onClick={signOff}>
+                <Gi icon={CheckCheck} size={14} />
+                {rating ? `Sign off · ${rating}/10` : "Sign off without rating"}
               </button>
-            ))}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={pending}
+                onClick={() => setRatingOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-          <Input
-            value={ratingNote}
-            onChange={(e) => setRatingNote(e.target.value)}
-            placeholder="Optional note — what went well, what to fix"
-            maxLength={500}
-            className="h-8 text-sm"
-          />
-          <div className="flex items-center gap-2">
-            <Button type="button" size="sm" disabled={pending} onClick={signOff}>
-              <CheckCheck className="size-4" />
-              {rating ? `Sign off · ${rating}/10` : "Sign off without rating"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={pending}
-              onClick={() => setRatingOpen(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+        </section>
+      ) : null}
+
+      {routines.length === 0 && !routinesPending && !adding ? (
+        <G8Empty
+          icon={ListChecks}
+          title="No routines yet"
+          text="Recurring checklists — opening, closing, shift handover — live here and reset every day."
+          sm
+        />
       ) : null}
 
       {dueToday.length === 0 && routines.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Nothing scheduled today — {routines.length}{" "}
-          {routines.length === 1 ? "routine runs" : "routines run"} on other
-          days.
-        </p>
+        <G8Empty
+          icon={CalendarCheck}
+          title="Nothing scheduled today"
+          text={`${routines.length} ${routines.length === 1 ? "routine runs" : "routines run"} on other days.`}
+          sm
+        />
       ) : null}
 
       {dueToday.map((routine) => {
         const run = runByRoutine.get(routine.id);
         const done = new Set(run?.done_items ?? []);
+        const flags = feedbackByRoutine.get(routine.id) ?? [];
+        const complete = done.size === routine.items.length;
         return (
-          <div
-            key={routine.id}
-            className="flex flex-col gap-2 rounded-md bg-muted p-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h4 className="text-sm font-medium text-foreground">
-                {routine.name}
-              </h4>
-              <div className="flex items-center gap-2">
-                {needsReview(routine) && isManagement ? (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    title="Flags or staleness suggest a relook — clicking marks it reviewed"
-                    onClick={() =>
-                      startTransition(async () => {
-                        const res = await markRoutineReviewed(routine.id);
-                        if ("error" in res) toast.error(res.error);
-                        else toast.success("Marked reviewed");
-                        refresh();
-                      })
-                    }
-                    className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning transition-colors hover:bg-warning/20"
-                  >
-                    Review suggested
-                  </button>
-                ) : null}
-                <RoutineFlagButton
-                  propertyId={propertyId}
-                  routineId={routine.id}
-                  onFlagged={refresh}
-                />
-                <span
-                  className={cn(
-                    "text-xs tabular-nums",
-                    done.size === routine.items.length
-                      ? "text-success"
-                      : "text-muted-foreground",
-                  )}
+          <section key={routine.id} className="panel">
+            <div className="panel-h">
+              <h2 className="trunc">{routine.name}</h2>
+              <span
+                className={complete ? "badge green" : "faint"}
+                style={{ fontSize: 12, fontVariantNumeric: "tabular-nums" }}
+              >
+                {done.size}/{routine.items.length}
+              </span>
+              <span className="sp" />
+              {needsReview(routine) && isManagement ? (
+                <button
+                  type="button"
+                  className="badge amber"
+                  disabled={pending}
+                  title="Flags or staleness suggest a relook — clicking marks it reviewed"
+                  onClick={() =>
+                    startTransition(async () => {
+                      const res = await markRoutineReviewed(routine.id);
+                      if ("error" in res) toast.error(res.error);
+                      else toast.success("Marked reviewed");
+                      refresh();
+                    })
+                  }
                 >
-                  {done.size}/{routine.items.length}
-                </span>
-                {isManagement ? (
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    title="Archive routine"
-                    aria-label={`Archive ${routine.name}`}
-                    className="size-6 text-muted-foreground"
-                    onClick={() =>
-                      startTransition(async () => {
-                        const res = await archiveRoutine(routine.id);
-                        if ("error" in res) toast.error(res.error);
-                        refresh();
-                      })
-                    }
-                  >
-                    <Archive className="size-3.5" />
-                  </Button>
-                ) : null}
-              </div>
+                  Review suggested
+                </button>
+              ) : null}
+              <RoutineFlagButton
+                propertyId={propertyId}
+                routineId={routine.id}
+                onFlagged={refresh}
+              />
+              {isManagement ? (
+                <button
+                  type="button"
+                  className="ibtn ibtn-sm"
+                  title="Archive routine"
+                  aria-label={`Archive ${routine.name}`}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const res = await archiveRoutine(routine.id);
+                      if ("error" in res) toast.error(res.error);
+                      refresh();
+                    })
+                  }
+                >
+                  <Gi icon={Archive} size={14} />
+                </button>
+              ) : null}
             </div>
-            {isManagement && (feedbackByRoutine.get(routine.id)?.length ?? 0) > 0 ? (
-              <ul className="flex flex-col gap-0.5 rounded-card bg-warning/10 p-3">
-                {feedbackByRoutine.get(routine.id)!.slice(0, 4).map((f) => (
-                  <li key={f.id} className="text-xs text-faint-foreground">
-                    <Flag className="mr-1.5 inline size-3 text-warning" />
-                    {f.note}
-                  </li>
-                ))}
-              </ul>
+            {isManagement && flags.length > 0 ? (
+              <div className="panel-b">
+                <div className="alert warn">
+                  <Gi icon={Flag} size={14} />
+                  <div className="stack" style={{ gap: 2 }}>
+                    {flags.slice(0, 4).map((f) => (
+                      <span key={f.id}>{f.note}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             ) : null}
-            <ul className="flex flex-col gap-1">
-              {routine.items.map((item) => (
-                <li key={item.id}>
-                  <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-accent">
-                    <Checkbox
-                      checked={done.has(item.id)}
-                      disabled={pending}
-                      onCheckedChange={(c) =>
-                        toggle(routine.id, item.id, c === true)
-                      }
-                    />
-                    <span
-                      className={cn(
-                        done.has(item.id) &&
-                          "text-muted-foreground line-through",
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {routine.items.map((item) => {
+              const isDoneItem = done.has(item.id);
+              return (
+                <label key={item.id} className={isDoneItem ? "mini done" : "mini"}>
+                  <input
+                    type="checkbox"
+                    className="check"
+                    checked={isDoneItem}
+                    disabled={pending}
+                    onChange={(e) => toggle(routine.id, item.id, e.target.checked)}
+                  />
+                  <span className="tt">{item.label}</span>
+                </label>
+              );
+            })}
+          </section>
         );
       })}
 
@@ -485,16 +481,12 @@ export function DailyOpsPanel({
           onCancel={() => setAdding(false)}
         />
       ) : (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-fit"
-          onClick={() => setAdding(true)}
-        >
-          <Plus className="size-4" />
-          New routine
-        </Button>
+        <div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAdding(true)}>
+            <Gi icon={Plus} size={14} />
+            New routine
+          </button>
+        </div>
       )}
     </div>
   );
@@ -547,62 +539,63 @@ function NewRoutineForm({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md bg-muted p-4">
-      <Input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Routine name — e.g. Morning opening checklist"
-        maxLength={120}
-        className="h-8"
-      />
-      <Textarea
-        value={itemsText}
-        onChange={(e) => setItemsText(e.target.value)}
-        placeholder={"One checklist item per line:\nUnlock front doors\nCount the float\nCheck reservations for the day"}
-        rows={4}
-        className="text-sm"
-      />
-      <div className="flex flex-wrap items-center gap-1">
-        {DAY_LABELS.map((label, day) => (
-          /* Day toggles are the house Chip: a control you PRESS, so it stays
-             on the 6px clickable rung at the 14px UI size — not a 12px pill. */
-          <Chip
-            key={day}
-            size="sm"
-            selected={days.includes(day)}
-            onClick={() =>
-              setDays((d) =>
-                d.includes(day) ? d.filter((x) => x !== day) : [...d, day],
-              )
-            }
+    <section className="panel">
+      <div className="panel-h">
+        <h2>New routine</h2>
+      </div>
+      <div className="panel-b stack" style={{ gap: 10 }}>
+        <input
+          autoFocus
+          className="input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Routine name — e.g. Morning opening checklist"
+          maxLength={120}
+        />
+        <textarea
+          className="textarea"
+          value={itemsText}
+          onChange={(e) => setItemsText(e.target.value)}
+          placeholder={"One checklist item per line:\nUnlock front doors\nCount the float\nCheck reservations for the day"}
+          rows={4}
+        />
+        <div className="seg" role="group" aria-label="Days" style={{ width: "fit-content", flexWrap: "wrap" }}>
+          {DAY_LABELS.map((label, day) => (
+            <button
+              key={day}
+              type="button"
+              className={days.includes(day) ? "on" : ""}
+              aria-pressed={days.includes(day)}
+              onClick={() =>
+                setDays((d) =>
+                  d.includes(day) ? d.filter((x) => x !== day) : [...d, day],
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => void submit()}
+            disabled={busy || !name.trim() || !itemsText.trim() || days.length === 0}
           >
-            {label}
-          </Chip>
-        ))}
+            Create routine
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <span className="sp" />
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDays([1, 2, 3, 4, 5])}>
+            <Gi icon={RotateCcw} size={13} />
+            Weekdays only
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void submit()}
-          disabled={busy || !name.trim() || !itemsText.trim() || days.length === 0}
-        >
-          Create routine
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-        <button
-          type="button"
-          onClick={() => setDays([1, 2, 3, 4, 5])}
-          className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <RotateCcw className="size-3" />
-          Weekdays only
-        </button>
-      </div>
-    </div>
+    </section>
   );
 }
 
@@ -644,19 +637,21 @@ function RoutineFlagButton({
     return (
       <button
         type="button"
+        className="ibtn ibtn-sm"
         title="Flag something about this routine"
         aria-label="Flag this routine"
         onClick={() => setOpen(true)}
-        className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
       >
-        <Flag className="size-3.5" />
+        <Gi icon={Flag} size={14} />
       </button>
     );
   }
   return (
-    <span className="flex items-center gap-1">
-      <Input
+    <span className="row" style={{ gap: 4 }}>
+      <input
         autoFocus
+        className="input"
+        style={{ height: 26, width: 192, fontSize: 12 }}
         value={note}
         onChange={(e) => setNote(e.target.value)}
         onKeyDown={(e) => {
@@ -666,17 +661,15 @@ function RoutineFlagButton({
         placeholder="What's not working?"
         maxLength={500}
         disabled={busy}
-        className="h-7 w-48 text-xs"
       />
-      <Button
+      <button
         type="button"
-        size="sm"
-        className="h-7 text-xs"
+        className="btn btn-primary btn-sm"
         disabled={busy || !note.trim()}
         onClick={() => void submit()}
       >
         Flag
-      </Button>
+      </button>
     </span>
   );
 }
@@ -757,16 +750,14 @@ export function TeamScoreboard({
     },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div
+      className="stats"
+      style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
+    >
       {stats.map((stat) => (
-        <div
-          key={stat.label}
-          className="rounded-md bg-muted px-4 py-3"
-        >
-          <p className="text-2xl leading-8 font-semibold text-foreground tabular-nums">
-            {stat.value}
-          </p>
-          <p className="text-xs text-faint-foreground">{stat.label}</p>
+        <div key={stat.label} className="stat">
+          <span className="k">{stat.label}</span>
+          <span className="v">{stat.value}</span>
         </div>
       ))}
     </div>

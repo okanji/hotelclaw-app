@@ -11,14 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, UserCog } from "lucide-react";
+import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
 import { EditProfileDialog } from "./edit-profile-dialog";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { ThemeToggle } from "./theme-toggle";
 import { TimeFormatToggle } from "./time-format-toggle";
 import { NotificationsToggle } from "./notifications-toggle";
 import { signOut } from "@/lib/auth/actions";
-import { cn } from "@/lib/utils";
 
 type User = {
   id: string;
@@ -48,24 +47,26 @@ export function UserMenu({ user }: { user: User }) {
   return (
     <>
       <DropdownMenu>
+        {/* gr8r `.side-bot` user row: 36px sitem, avatar, name in text
+            colour 500, chevrons-up-down in the count slot. */}
         <DropdownMenuTrigger
-          className={cn(
-            // The sidebar row contract: 30px, 7px radius, 8px inset, 14px
-            // label in secondary ink, warm hover fill only.
-            "flex h-[30px] w-full min-w-0 items-center gap-2.5 rounded-[7px] px-2 text-left text-sm text-sidebar-foreground outline-hidden transition-colors",
-            "hover:bg-sidebar-accent data-[popup-open]:bg-sidebar-accent",
-            "focus-visible:shadow-focus",
-          )}
+          className="sitem"
+          style={{ height: 36 }}
           title={displayName}
           aria-label={`Account menu for ${displayName}`}
         >
-          <Avatar className="size-5">
+          <Avatar className="size-[22px]">
             <AvatarImage src={user.avatarUrl ?? undefined} />
             <AvatarFallback className="text-[10px]">
               {initials || "?"}
             </AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1 truncate">{displayName}</span>
+          <span className="trunc" style={{ color: "var(--g8-text)", fontWeight: 500 }}>
+            {displayName}
+          </span>
+          <span className="ct">
+            <ChevronsUpDown className="i" size={13} strokeWidth={1.8} />
+          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="min-w-56">
           <DropdownMenuGroup>

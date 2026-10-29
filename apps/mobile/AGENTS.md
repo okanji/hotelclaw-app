@@ -152,7 +152,7 @@ automations) but silently skip all three.
   `GET .../calendar?from&to`, `GET .../documents`, `GET .../members` all accept
   cookie **or** Bearer via `lib/auth/api-caller.ts`.
 - The calendar route already returns a unified feed (meetings + scheduled tasks
-  + bookings + connected external calendars), so the agenda needs no merging.
+  + connected external calendars), so the agenda needs no merging.
 - Task filtering lives in `lib/task-filters.ts` (pure), mirroring **every** web
   board facet — search, status, priority, assignee, creator, team, project,
   label, due bucket, source, and custom fields (0080) — including the exact
@@ -164,7 +164,7 @@ automations) but silently skip all three.
 - The calendar is a real calendar: list + compact month views, search, event
   detail, and create/edit/delete via `/api/properties/:id/meetings`, which runs
   the same `saveMeetingFor` as the web dialog. Only `source: "meeting"` events
-  are editable — tasks, bookings and external-calendar events are owned by
+  are editable — tasks and external-calendar events are owned by
   other surfaces.
   Native date/time pickers come from `@react-native-community/datetimepicker`
   (native module — adding it required a rebuild).
@@ -213,7 +213,7 @@ Still web-only after this pass (ranked by the audit): push notifications
 (needs `expo-notifications` + a token table + a native build), daily-ops
 routines, task comments (Liveblocks auth needs Bearer, or embed the task page
 in `WebSurface`), photo attachments, shift brief / handover / check-in,
-mentions + threads feeds, a Home "today" view, spaces, bookings, forms.
+mentions + threads feeds, a Home "today" view, spaces, forms.
 
 ## Assistant + AI on mobile (built 2026-10-23; agent-turn parity with web 2026-10-26)
 

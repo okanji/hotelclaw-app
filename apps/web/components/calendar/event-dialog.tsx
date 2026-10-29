@@ -7,27 +7,20 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
 import { saveMeeting, deleteMeeting } from "@/lib/calendar/actions";
 import {
-  BookingDetails,
   ExternalDetails,
   MeetingDetails,
   TaskDetails,
 } from "./event-details";
 import type { CalendarEvent } from "@/lib/calendar/types";
 import type { MeetingRecurrence } from "@/lib/db/types";
-import { NativeSelect } from "@/components/ui/native-select";
 
 type RecurrencePreset = "none" | "daily" | "weekdays" | "weekly" | "monthly";
 
@@ -235,22 +228,11 @@ export function EventDialog({
     });
   }
 
-  // Bookings are read-only here — manage them from the Bookings section.
-  if (editing?.source === "booking") {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <BookingDetails event={editing} propertyId={propertyId} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   // External events are read-only — rich details with a provider deep link.
   if (editing?.source === "external") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="g8 g8-port">
           <ExternalDetails event={editing} />
         </DialogContent>
       </Dialog>
@@ -260,7 +242,7 @@ export function EventDialog({
   if (editing?.source === "task") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="g8 g8-port">
           <TaskDetails
             event={editing}
             propertyId={propertyId}
@@ -276,7 +258,7 @@ export function EventDialog({
   if (editing?.source === "meeting" && view === "details") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="g8 g8-port">
           <MeetingDetails
             event={editing}
             propertyId={propertyId}
@@ -292,19 +274,25 @@ export function EventDialog({
     );
   }
 
+  // gr8r modal anatomy (`.modal-h` / `.modal-b` / `.modal-f`, `.field`,
+  // `.label`, `.input` / `.select` / `.textarea`, `.check`, `.btn`) inside
+  // the shadcn Dialog (focus trap + a11y). It portals out of the shell, so
+  // the popup carries `g8 g8-port` itself.
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="g8 g8-port gap-0 p-0 sm:max-w-md">
+        <DialogHeader className="modal-h">
+          <DialogTitle render={<h2 />}>
             {editing ? "Edit event" : "New event"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="event-title">Title</Label>
-            <Input
+        <form onSubmit={handleSave} className="flex min-h-0 flex-col">
+          <div className="modal-b" style={{ maxHeight: "70vh" }}>
+          <div className="field">
+            <label className="label" htmlFor="event-title">Title</label>
+            <input
               id="event-title"
+              className="input"
               autoFocus
               required
               value={title}
@@ -314,19 +302,21 @@ export function EventDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="event-start">Start</Label>
-              <Input
+            <div className="field">
+              <label className="label" htmlFor="event-start">Start</label>
+              <input
                 id="event-start"
+                className="input"
                 type="datetime-local"
                 value={startInput}
                 onChange={(e) => setStartInput(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-end">End</Label>
-              <Input
+            <div className="field">
+              <label className="label" htmlFor="event-end">End</label>
+              <input
                 id="event-end"
+                className="input"
                 type="datetime-local"
                 value={endInput}
                 onChange={(e) => setEndInput(e.target.value)}
@@ -334,20 +324,21 @@ export function EventDialog({
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
+          <label className="row" style={{ gap: 8, fontSize: "var(--g8-fs-sm)" }}>
             <input
               type="checkbox"
+              className="check"
               checked={allDay}
               onChange={(e) => setAllDay(e.target.checked)}
-              className="size-4 accent-ring"
             />
             All-day event
           </label>
 
-          <div className="space-y-2">
-            <Label htmlFor="event-repeats">Repeats</Label>
-            <NativeSelect
+          <div className="field">
+            <label className="label" htmlFor="event-repeats">Repeats</label>
+            <select
               id="event-repeats"
+              className="select"
               value={recurrence}
               onChange={(e) =>
                 setRecurrence(e.target.value as RecurrencePreset)
@@ -358,37 +349,47 @@ export function EventDialog({
               <option value="weekdays">Every weekday (Mon–Fri)</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
-            </NativeSelect>
+            </select>
             {isOccurrence ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="hint" style={{ margin: 0 }}>
                 Editing applies to the whole series.
               </p>
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="event-location">Location</Label>
-            <Input
+          <div className="field">
+            <label className="label" htmlFor="event-location">Location</label>
+            <input
               id="event-location"
+              className="input"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Conference room or video link"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="event-description">Description</Label>
-            <Textarea
+          <div className="field">
+            <label className="label" htmlFor="event-description">Description</label>
+            <textarea
               id="event-description"
+              className="textarea"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Guests</Label>
-            <ul role="list" className="max-h-40 space-y-px overflow-auto rounded-md bg-muted p-1">
+          <div className="field">
+            <span className="label">Guests</span>
+            <ul
+              role="list"
+              className="max-h-40 overflow-auto"
+              style={{
+                border: "1px solid var(--g8-border)",
+                borderRadius: "var(--g8-r-sm)",
+                padding: 4,
+              }}
+            >
               {(membersQuery.data ?? [])
                 .slice()
                 .sort((a, b) =>
@@ -405,28 +406,29 @@ export function EventDialog({
                         type="button"
                         disabled={isOrganizer}
                         onClick={() => toggleAttendee(m.id)}
-                        className={cn(
-                          "flex min-h-7 w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-sm transition-colors focus-visible:shadow-focus focus-visible:outline-none",
-                          on
-                            ? "bg-accent-pressed text-foreground"
-                            : "text-muted-foreground hover:bg-accent",
-                          isOrganizer && "cursor-default",
-                        )}
+                        aria-pressed={on}
+                        className="mi"
+                        style={{
+                          cursor: isOrganizer ? "default" : undefined,
+                          color: on ? "var(--g8-text)" : "var(--g8-text-2)",
+                        }}
                       >
-                        <Avatar className="size-6">
-                          <AvatarImage src={m.avatarUrl ?? undefined} />
-                          <AvatarFallback>
-                            {(m.name ?? "?").slice(0, 1).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="min-w-0 flex-1 truncate">
+                        <input
+                          type="checkbox"
+                          className="check"
+                          tabIndex={-1}
+                          aria-hidden
+                          readOnly
+                          checked={on}
+                          style={{ pointerEvents: "none" }}
+                        />
+                        <Av member={m} size="md" />
+                        <span className="min-w-0 flex-1 trunc">
                           {m.name ?? "Unnamed"}
                           {isMe ? " (you)" : ""}
                         </span>
                         {isOrganizer ? (
-                          <span className="shrink-0 text-xs text-faint-foreground">
-                            Organizer
-                          </span>
+                          <span className="r">Organizer</span>
                         ) : null}
                       </button>
                     </li>
@@ -435,46 +437,53 @@ export function EventDialog({
             </ul>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <label
+            className="row"
+            style={{ gap: 8, fontSize: "var(--g8-fs-sm)", cursor: "pointer" }}
+          >
             <input
               type="checkbox"
+              className="check"
               checked={withVideoCall}
               onChange={(e) => setWithVideoCall(e.target.checked)}
-              className="size-4 accent-ring"
             />
-            {withVideoCall ? (
-              <Video className="size-4 text-primary-ink" />
-            ) : (
-              <VideoOff className="size-4 text-muted-foreground" />
-            )}
+            <span
+              style={{
+                display: "flex",
+                color: withVideoCall ? "var(--g8-accent)" : "var(--g8-text-3)",
+              }}
+            >
+              <Gi icon={withVideoCall ? Video : VideoOff} size={15} />
+            </span>
             Add a Stream video call
           </label>
+          </div>
 
-          <DialogFooter>
+          <div className="modal-f">
             {editing ? (
-              <Button
+              <button
                 type="button"
-                variant="outline"
+                className="btn btn-danger-ghost"
                 onClick={handleDelete}
                 disabled={pending}
-                className="mr-auto"
               >
-                <Trash2 className="size-4" />
+                <Gi icon={Trash2} size={14} />
                 Delete
-              </Button>
+              </button>
             ) : null}
-            <Button
+            <span className="sp" />
+            <button
               type="button"
-              variant="outline"
+              className="btn btn-secondary"
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
               Cancel
-            </Button>
-            <Button type="submit" disabled={pending}>
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={pending}>
               {pending ? "Saving…" : editing ? "Save changes" : "Create event"}
-            </Button>
-          </DialogFooter>
+            </button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

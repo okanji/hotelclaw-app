@@ -6,7 +6,6 @@ import {
   CalendarDays,
   ClipboardList,
   Database,
-  Ticket,
   Zap,
   Sparkles,
   GitBranch,
@@ -55,11 +54,6 @@ const SURFACE_META: Record<
     tone: "bg-muted text-muted-foreground",
     icon: ClipboardList,
     label: "Forms",
-  },
-  bookings: {
-    tone: "bg-muted text-muted-foreground",
-    icon: Ticket,
-    label: "Bookings",
   },
   entities: {
     tone: "bg-muted text-muted-foreground",

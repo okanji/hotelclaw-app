@@ -77,21 +77,22 @@ export default function MobileBridgePage() {
       });
   }, []);
 
+  // A bare gr8r `.fullstate` — this runs inside the phone's WebView for a
+  // split second, so no auth chrome (brand / theme toggle) around it.
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100dvh",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        color: "#6b7280",
-        fontSize: 15,
-        textAlign: "center",
-      }}
-    >
-      {error ? `Couldn't open this: ${error}` : "Opening…"}
+    <div className="g8 min-h-0 flex-1">
+      <div className="fullstate">
+        <div className="box" role={error ? "alert" : "status"}>
+          {error ? (
+            <>
+              <h1>Couldn&apos;t open this</h1>
+              <p>{error}</p>
+            </>
+          ) : (
+            <p className="muted">Opening…</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

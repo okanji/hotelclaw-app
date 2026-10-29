@@ -46,3 +46,24 @@ export async function resolveApiCaller(request: Request): Promise<ApiCaller> {
   } = await supabase.auth.getUser();
   return { supabase, user, isBearer: false };
 }
+
+/**
+ * Is the caller a FULL member (owner / manager / staff) of the property?
+ * The cookie-or-Bearer twin of `requireFullMember` for routes reached from
+ * mobile. Guests (0118) answer false: their membership row opens the
+ * property, but full-member surfaces (AI panels, triage, channel AI
+ * settings) act beyond any one grant.
+ */
+export async function callerIsFullMember(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  propertyId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("memberships")
+    .select("role")
+    .eq("property_id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.role === "owner" || data?.role === "manager" || data?.role === "staff";
+}

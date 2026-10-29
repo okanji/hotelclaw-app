@@ -4,12 +4,12 @@ import { isDone } from "@/lib/tasks/statuses";
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDraggable } from "@dnd-kit/core";
-import { CircleDashed, GripVertical, X } from "lucide-react";
+import { CircleDashed, X } from "lucide-react";
 import { toast } from "sonner";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
 import { unscheduleTask } from "@/lib/calendar/actions";
-import { CountBadge } from "@/components/ui/count-badge";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { PrIcon } from "@/components/gr8r/home-glyphs";
 import { PRIORITY_META } from "@/components/tasks/kanban";
 
 type RailTask = {
@@ -46,16 +46,10 @@ export function TaskChipGhost({
 }) {
   return (
     // A drag ghost genuinely floats, so it takes the ONE elevation recipe.
-    <div className="flex w-56 cursor-grabbing items-start gap-2 rounded-overlay bg-card px-2.5 py-2 text-sm shadow-overlay">
-      <span
-        className={cn(
-          "mt-1.5 size-1.5 shrink-0 rounded-full",
-          PRIORITY_META[priority].dotClass,
-        )}
-      />
-      <span className="line-clamp-2 min-w-0 flex-1 text-foreground">
-        {title}
-      </span>
+    // The room wraps this in a `.g8 .cal-ghost` (it portals out of the shell).
+    <div className="cal-ghost-chip">
+      <PrIcon priority={priority} size={13} />
+      <span className="line-clamp-2 min-w-0 flex-1">{title}</span>
     </div>
   );
 }
@@ -116,52 +110,39 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
     }
   }
 
+  // gr8r-styled rail section (`.cal-rail-*`, gr8r-ext.css): header with a
+  // count, priority groups, draggable rows with the gr8r priority glyph.
   return (
-    <aside className="flex min-h-0 w-64 flex-1 shrink-0 flex-col">
-      <div className="flex h-11 items-center justify-between gap-2 px-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-secondary-ink">
-          <CircleDashed className="size-3.5 shrink-0 text-faint-foreground" />
-          Unscheduled
-        </div>
-        <CountBadge>{total}</CountBadge>
+    <section className="cal-rail-sec grow" aria-label="Unscheduled tasks">
+      <div className="cal-rail-h">
+        <Gi icon={CircleDashed} size={14} />
+        Unscheduled
+        <span className="cnt">{total}</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        <div className="flex flex-col gap-3">
-          {groups.map(({ key, meta, tasks }) => (
-            <section key={key}>
-              <div className="flex items-baseline justify-between px-1 pb-1">
-                {/* Group label: 12px/12px w500 faint, sentence case. */}
-                <span
-                  className={cn(
-                    "text-xs leading-3 font-medium",
-                    key === "urgent"
-                      ? "text-destructive"
-                      : "text-faint-foreground",
-                  )}
-                >
-                  {meta.label}
-                </span>
-                <span className="text-xs tabular-nums text-faint-foreground">
-                  {tasks.length}
-                </span>
-              </div>
-              <ul role="list" className="flex flex-col gap-1">
-                {tasks.map((task) => (
-                  <TaskChip
-                    key={task.id}
-                    task={task}
-                    onUnschedule={() => handleUnschedule(task.id)}
-                  />
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+      <div className="cal-rail-b">
+        {groups.map(({ key, meta, tasks }) => (
+          <div key={key}>
+            <div
+              className="cal-rail-grp"
+              style={key === "urgent" ? { color: "var(--g8-red)" } : undefined}
+            >
+              <span>{meta.label}</span>
+              <span className="num">{tasks.length}</span>
+            </div>
+            <ul role="list">
+              {tasks.map((task) => (
+                <TaskChip
+                  key={task.id}
+                  task={task}
+                  onUnschedule={() => handleUnschedule(task.id)}
+                />
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-      <div className="px-3 py-2 text-xs text-faint-foreground">
-        Drag a task onto the grid to schedule it
-      </div>
-    </aside>
+      <div className="cal-rail-f">Drag a task onto the grid to schedule it</div>
+    </section>
   );
 }
 
@@ -185,7 +166,6 @@ function TaskChip({
       priority: task.priority,
     } satisfies TaskDragData,
   });
-  const priorityMeta = PRIORITY_META[task.priority];
   return (
     <li
       ref={setNodeRef}
@@ -194,32 +174,20 @@ function TaskChip({
       style={{ opacity: isDragging ? 0.4 : 1 }}
       {...attributes}
       {...listeners}
-      className={cn(
-        // A resting row: fill-only hover, no stroke, no lift.
-        "group flex cursor-grab items-start gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-        "hover:bg-accent active:cursor-grabbing",
-      )}
+      className="cal-rail-item"
     >
-      <GripVertical className="mt-1 size-3 shrink-0 text-transparent transition-colors group-hover:text-faint-foreground" />
-      <span
-        className={cn(
-          "mt-1.5 size-1.5 shrink-0 rounded-full",
-          priorityMeta.dotClass,
-        )}
-      />
-      <span className="line-clamp-2 min-w-0 flex-1 text-secondary-ink">
-        {task.title}
-      </span>
+      <PrIcon priority={task.priority} size={13} />
+      <span className="line-clamp-2 min-w-0 flex-1">{task.title}</span>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           onUnschedule();
         }}
-        className="-m-1 rounded-md p-1 opacity-0 transition-opacity hover:bg-accent-pressed focus-visible:shadow-focus focus-visible:outline-none group-hover:opacity-100"
+        className="ibtn ibtn-xs"
         aria-label="Hide from rail"
       >
-        <X className="size-3 text-faint-foreground" />
+        <Gi icon={X} size={12} />
       </button>
     </li>
   );

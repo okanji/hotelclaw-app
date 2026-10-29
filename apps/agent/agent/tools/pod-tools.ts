@@ -7,7 +7,7 @@ import { resolvePodContext } from "../lib/pods";
 
 // Pod-bot tool surface (fleet spec M2). Built per session from the
 // addressed bot's `tool_set` allow-list — a tool not in the list does not
-// exist for that bot (spec acceptance: `housekeeping` lacks refund_booking).
+// exist for that bot (spec acceptance: `housekeeping` lacks the approval-gated money tools).
 // Sessions without a pod bot get no pod tools (the Agents-section catalog
 // in catalog.ts covers custom agents).
 //
@@ -182,69 +182,6 @@ export default defineDynamic({
         });
       }
 
-      if (allowed.has("get_bookings")) {
-        tools.get_bookings = defineTool({
-          description:
-            "List bookings for this property in a date window (default: next 7 days). Returns reference, guest, party, status, start time, service.",
-          inputSchema: z.object({
-            from: z.string().optional().describe("ISO date, default today"),
-            days: z.number().int().min(1).max(60).default(7),
-            status: z
-              .enum(["pending", "confirmed", "seated", "completed", "cancelled", "no_show"])
-              .optional(),
-            limit: z.number().int().min(1).max(50).default(25),
-          }),
-          async execute({ from, days, status, limit }) {
-            const start = from ? new Date(`${from}T00:00:00Z`) : new Date();
-            const end = new Date(start.getTime() + days * 86_400_000);
-            let query = serviceClient()
-              .from("bookings")
-              .select(
-                "reference, guest_name, party_size, status, starts_at, bookable_services(name)",
-              )
-              .eq("property_id", propertyId)
-              .gte("starts_at", start.toISOString())
-              .lte("starts_at", end.toISOString())
-              .order("starts_at", { ascending: true })
-              .limit(limit);
-            if (status) query = query.eq("status", status);
-            const { data, error } = await query;
-            if (error) return { error: error.message };
-            return {
-              count: (data ?? []).length,
-              bookings: (data ?? []).map((b) => ({
-                reference: b.reference,
-                guest: b.guest_name,
-                party: b.party_size,
-                status: b.status,
-                starts_at: b.starts_at,
-                service: (b.bookable_services as { name?: string } | null)?.name ?? null,
-              })),
-            };
-          },
-        });
-      }
-
-      if (allowed.has("get_booking")) {
-        tools.get_booking = defineTool({
-          description: "Fetch one booking by its reference (BKG-XXXXXX).",
-          inputSchema: z.object({ reference: z.string().min(4).max(20) }),
-          async execute({ reference }) {
-            const { data, error } = await serviceClient()
-              .from("bookings")
-              .select(
-                "reference, guest_name, guest_email, party_size, status, starts_at, ends_at, notes, bookable_services(name)",
-              )
-              .eq("property_id", propertyId)
-              .eq("reference", reference.toUpperCase())
-              .maybeSingle();
-            if (error) return { error: error.message };
-            if (!data) return { error: "No booking with that reference here." };
-            return { booking: data };
-          },
-        });
-      }
-
       if (allowed.has("notify_channel")) {
         tools.notify_channel = defineTool({
           description:
@@ -271,49 +208,6 @@ export default defineDynamic({
               user_id: botUser,
             });
             return { posted: true, message_id: sent.message.id };
-          },
-        });
-      }
-
-      if (allowed.has("refund_booking")) {
-        tools.refund_booking = defineTool({
-          description:
-            "Cancel a booking and record a refund request. Money-moving: the SYSTEM automatically parks every call for human approval before it executes — so when a refund is requested, call this tool directly and let the approval gate do its job. Never ask for permission in chat instead of calling it.",
-          approval: always(),
-          inputSchema: z.object({
-            reference: z.string().min(4).max(20),
-            reason: z.string().min(5).max(500),
-          }),
-          async execute({ reference, reason }) {
-            const supabase = serviceClient();
-            const { data: booking } = await supabase
-              .from("bookings")
-              .select("id, reference, status, guest_name")
-              .eq("property_id", propertyId)
-              .eq("reference", reference.toUpperCase())
-              .maybeSingle();
-            if (!booking) return { error: "No booking with that reference here." };
-            if (booking.status === "cancelled") {
-              return { error: "Booking is already cancelled." };
-            }
-            const { error } = await supabase
-              .from("bookings")
-              .update({ status: "cancelled" })
-              .eq("id", booking.id);
-            if (error) return { error: error.message };
-            await supabase.from("tasks").insert({
-              property_id: propertyId,
-              title: `Process refund for ${booking.reference} (${booking.guest_name ?? "guest"})`,
-              description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
-              priority: "high",
-              source: "ai",
-              created_by: userId,
-            });
-            return {
-              cancelled: true,
-              reference: booking.reference,
-              refund_task_created: true,
-            };
           },
         });
       }
@@ -357,18 +251,14 @@ export default defineDynamic({
             reason: z.string().min(10).max(500),
           }),
           async execute({ booking_reference, reason }) {
-            const { data: booking } = await serviceClient()
-              .from("bookings")
-              .select("id, reference, guest_name")
-              .eq("property_id", propertyId)
-              .eq("reference", booking_reference.toUpperCase())
-              .maybeSingle();
-            if (!booking) return { error: "No booking with that reference here." };
+            // The reference is recorded as given — the bookings tables are
+            // no longer read by the app (Bookings removed 2026-10-29).
+            const reference = booking_reference.toUpperCase();
             const { data, error } = await serviceClient()
               .from("tasks")
               .insert({
                 property_id: propertyId,
-                title: `Comp night approved for ${booking.reference} (${booking.guest_name ?? "guest"})`,
+                title: `Comp night approved for ${reference}`,
                 description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
                 priority: "high",
                 source: "ai",
@@ -377,7 +267,7 @@ export default defineDynamic({
               .select("id")
               .single();
             if (error) return { error: error.message };
-            return { recorded: true, reference: booking.reference, follow_up_task: data.id };
+            return { recorded: true, reference, follow_up_task: data.id };
           },
         });
       }

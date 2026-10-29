@@ -7,7 +7,8 @@ import { History, LibraryBig, Sparkles, Workflow } from "lucide-react";
 import { workflowDetailQueryOptions } from "@/lib/query/workflow-queries";
 import { classifyMode } from "@/lib/workflows/spec";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { Gi } from "@/components/gr8r/icon";
+import { WfEmpty, WfPage } from "./g8-bits";
 import { BuilderShell } from "./builder/builder-shell";
 import { WorkflowRoom } from "./builder/workflow-room";
 
@@ -34,9 +35,9 @@ export function WorkflowDetail({
         actions={
           <Link
             href={`/p/${propertyId}/workflows/${workflowId}/runs`}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="btn btn-ghost btn-sm"
           >
-            <History className="size-3.5" aria-hidden />
+            <Gi icon={History} size={14} />
             Runs
           </Link>
         }
@@ -57,36 +58,29 @@ export function WorkflowDetail({
           />
         </WorkflowRoom>
       ) : (
-        <div className="flex-1 overflow-y-auto">
-          <PageShell className="pt-10 pb-12">
-            <div className="rounded-lg bg-muted p-12 text-center">
-              <Workflow className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden />
-              <p className="text-sm font-medium text-foreground">
-                This workflow is empty
-              </p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-pretty text-muted-foreground">
-                Start from a template, or describe what you want and let the AI
-                design it.
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <Link
-                  href={`/p/${propertyId}/workflows/new`}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-                >
-                  <Sparkles className="size-3.5" aria-hidden />
+        <WfPage title={data.workflow.name} narrow>
+          <WfEmpty
+            icon={Workflow}
+            title="This workflow is empty"
+            actions={
+              <>
+                <Link href={`/p/${propertyId}/workflows/new`} className="btn btn-primary btn-sm">
+                  <Gi icon={Sparkles} size={14} />
                   Build with AI
                 </Link>
                 <Link
                   href={`/p/${propertyId}/workflows/templates`}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md bg-card px-2 text-sm font-medium shadow-ring hover:bg-accent"
+                  className="btn btn-secondary btn-sm"
                 >
-                  <LibraryBig className="size-3.5" aria-hidden />
+                  <Gi icon={LibraryBig} size={14} />
                   Browse templates
                 </Link>
-              </div>
-            </div>
-          </PageShell>
-        </div>
+              </>
+            }
+          >
+            Start from a template, or describe what you want and let the AI design it.
+          </WfEmpty>
+        </WfPage>
       )}
     </div>
   );

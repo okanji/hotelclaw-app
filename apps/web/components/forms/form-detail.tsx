@@ -7,8 +7,8 @@ import { ClipboardList, Link2, MessageSquareShare, Pencil } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Gi } from "@/components/gr8r/icon";
+import { FavoriteStar } from "@/components/gr8r/favorite-star";
 import { FormRenderer } from "./form-renderer";
 import { FormBuilder } from "./form-builder";
 import { FormSettingsPanel } from "./form-settings-panel";
@@ -27,12 +27,7 @@ import {
   type FormSchema,
   type FormSettings,
 } from "@/lib/forms/schema";
-import {
-  duplicateFieldIn,
-  insertFieldAt,
-  persistableSchema,
-  removeFieldFrom,
-} from "@/lib/forms/builder";
+import { duplicateFieldIn, insertFieldAt, persistableSchema, removeFieldFrom } from "@/lib/forms/builder";
 import type { FormStatus } from "@/lib/db/types";
 
 export type FormRow = {
@@ -133,7 +128,10 @@ export function FormDetail({
             }
           : {}),
     };
-    setSchema((prev) => ({ ...prev, fields: insertFieldAt(prev.fields, index, field) }));
+    setSchema((prev) => ({
+      ...prev,
+      fields: insertFieldAt(prev.fields, index, field),
+    }));
     setSelectedId(field.id);
   }
 
@@ -144,7 +142,10 @@ export function FormDetail({
   }
 
   function removeField(id: string) {
-    setSchema((prev) => ({ ...prev, fields: removeFieldFrom(prev.fields, id) }));
+    setSchema((prev) => ({
+      ...prev,
+      fields: removeFieldFrom(prev.fields, id),
+    }));
     if (selectedId === id) setSelectedId(null);
   }
 
@@ -164,7 +165,10 @@ export function FormDetail({
       for (const key of Object.keys(settings) as (keyof FormSettings)[]) {
         if (settings[key] === undefined || settings[key] === "") delete settings[key];
       }
-      return { ...prev, settings: Object.keys(settings).length > 0 ? settings : undefined };
+      return {
+        ...prev,
+        settings: Object.keys(settings).length > 0 ? settings : undefined,
+      };
     });
   }
 
@@ -208,7 +212,10 @@ export function FormDetail({
 
   function changeStatus(next: FormStatus) {
     startStatus(async () => {
-      const result = await updateForm({ formId: form.id, patch: { status: next } });
+      const result = await updateForm({
+        formId: form.id,
+        patch: { status: next },
+      });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -229,66 +236,89 @@ export function FormDetail({
     void navigator.clipboard.writeText(url).then(() => toast.success("Fill link copied"));
   }
 
-  const meta = { title: title.trim(), description: description.trim() || null, icon: icon.trim() || null };
+  const meta = {
+    title: title.trim(),
+    description: description.trim() || null,
+    icon: icon.trim() || null,
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         breadcrumbs={[
-          { label: "Forms", href: `/p/${propertyId}/forms`, icon: <ClipboardList /> },
+          {
+            label: "Forms",
+            href: `/p/${propertyId}/forms`,
+            icon: <ClipboardList />,
+          },
           { label: title.trim() || "Untitled form" },
         ]}
         meta={
           canEdit ? (
-            <SaveStatus
-              state={autosave.state}
-              message={autosave.message}
-              onRetry={autosave.flush}
-            />
+            <SaveStatus state={autosave.state} message={autosave.message} onRetry={autosave.flush} />
           ) : undefined
         }
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="row" style={{ gap: 6 }}>
+            <FavoriteStar
+              propertyId={propertyId}
+              kind="form"
+              id={form.id}
+              label={title.trim() || "Untitled form"}
+            />
             <FormStatusBadge status={status} />
-            <Button variant="ghost" size="sm" onClick={copyFillLink}>
-              <Link2 data-slot="icon" />
-              <span className="hidden sm:inline">Copy link</span>
-            </Button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={copyFillLink}>
+              <Gi icon={Link2} size={13} />
+              <span className="hide-m">Copy link</span>
+            </button>
             {status === "published" ? (
-              <Button variant="ghost" size="sm" onClick={() => setSharing(true)}>
-                <MessageSquareShare data-slot="icon" />
-                <span className="hidden sm:inline">Share</span>
-              </Button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSharing(true)}>
+                <Gi icon={MessageSquareShare} size={13} />
+                <span className="hide-m">Share</span>
+              </button>
             ) : null}
             {canEdit && status !== "published" ? (
-              <Button size="sm" onClick={() => changeStatus("published")} disabled={statusBusy}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => changeStatus("published")}
+                disabled={statusBusy}
+              >
                 Publish
-              </Button>
+              </button>
             ) : null}
           </div>
         }
       />
 
-      <Tabs
-        value={tab}
-        onValueChange={(t) => setTab(t as typeof tab)}
-        className="min-h-0 flex-1 gap-0"
-      >
-        <div className="px-(--page-gutter) pb-2">
-          <TabsList>
-            <TabsTrigger value="build">{canEdit ? "Build" : "Preview"}</TabsTrigger>
-            <TabsTrigger value="responses">
-              Responses
-              {responseCount !== undefined ? (
-                <span className="text-xs text-faint-foreground tabular-nums">{responseCount}</span>
-              ) : null}
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      {/* gr8r `.tabs` strip on the gutter (Build | Responses), then the
+          active pane in a `.page.wide` scroller. */}
+      <div className="tabs g8-form-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "build"}
+          className={tab === "build" ? "tab on" : "tab"}
+          onClick={() => setTab("build")}
+        >
+          {canEdit ? "Build" : "Preview"}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "responses"}
+          className={tab === "responses" ? "tab on" : "tab"}
+          onClick={() => setTab("responses")}
+        >
+          Responses
+          {responseCount !== undefined ? <span className="cnt num">{responseCount}</span> : null}
+        </button>
+      </div>
 
-        <TabsContent value="build" className="min-h-0 flex-1 overflow-y-auto">
-          <div className="w-full max-w-6xl px-(--page-gutter) pt-4 pb-16">
-            {canEdit ? (
+      <div className="min-h-0 flex-1 overflow-y-auto" role="tabpanel">
+        <div className="page wide" style={{ maxWidth: 1200, paddingTop: 20 }}>
+          {tab === "build" ? (
+            canEdit ? (
               <FormBuilder
                 shared={shared}
                 meta={meta}
@@ -321,20 +351,12 @@ export function FormDetail({
               />
             ) : (
               <ReadOnlyPreview schema={schema} meta={meta} propertyId={propertyId} />
-            )}
-          </div>
-        </TabsContent>
-        <TabsContent value="responses" className="min-h-0 flex-1 overflow-y-auto">
-          <div className="w-full max-w-6xl px-(--page-gutter) pt-4 pb-16">
-            <ResponsesTab
-              propertyId={propertyId}
-              formId={form.id}
-              status={status}
-              schema={schema}
-            />
-          </div>
-        </TabsContent>
-      </Tabs>
+            )
+          ) : (
+            <ResponsesTab propertyId={propertyId} formId={form.id} status={status} schema={schema} />
+          )}
+        </div>
+      </div>
 
       {sharing ? (
         <ShareFormDialog
@@ -383,14 +405,15 @@ function TitleBlock({
           placeholder="Name this form"
           autoComplete="off"
           aria-label="Form name"
-          className="peer -ml-2 field-sizing-content max-w-full min-w-[6ch] rounded-md bg-transparent px-2 py-1 text-2xl font-semibold text-foreground outline-none transition-shadow placeholder:text-faint-foreground hover:shadow-ring focus:bg-card focus:shadow-focus"
+          className="peer g8-form-title -ml-2 field-sizing-content max-w-full min-w-[6ch] px-2 py-1"
         />
         <label
           htmlFor="form-name"
           title="Rename"
-          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-faint-foreground transition-opacity hover:bg-accent hover:text-foreground peer-focus:opacity-0"
+          className="ibtn peer-focus:opacity-0"
+          style={{ cursor: "pointer" }}
         >
-          <Pencil className="size-4" aria-hidden />
+          <Gi icon={Pencil} size={15} />
           <span className="sr-only">Rename the form</span>
         </label>
       </div>
@@ -400,10 +423,7 @@ function TitleBlock({
         rows={description.length > 120 ? 3 : 1}
         placeholder="Add a description for respondents…"
         aria-label="Form description"
-        className={cn(
-          "-ml-2 w-full resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed text-muted-foreground outline-none transition-shadow",
-          "placeholder:text-faint-foreground hover:shadow-ring focus:bg-card focus:shadow-focus",
-        )}
+        className="g8-form-desc -ml-2 w-full resize-none px-2 py-1"
       />
     </header>
   );
@@ -431,9 +451,7 @@ function ReadOnlyPreview({
           ) : null}
         </header>
         {schema.fields.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            This form has no questions yet.
-          </p>
+          <p className="py-10 text-center text-sm text-muted-foreground">This form has no questions yet.</p>
         ) : (
           <FormRenderer
             schema={schema}

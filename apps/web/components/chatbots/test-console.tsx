@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Columns2, FlaskConical, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import type { ChatbotConfig } from "@/lib/chatbots/schema";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
@@ -104,27 +104,26 @@ export function TestConsole({
   }
 
   return (
-    <section className="flex h-[calc(100dvh-8rem)] max-h-[760px] flex-col rounded-lg bg-muted">
-      <header className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <FlaskConical className="size-4" />
-          Test your bot
-        </div>
-        <div className="flex items-center gap-3">
+    <section
+      className="panel flex h-[calc(100dvh-8rem)] max-h-[760px] flex-col"
+      style={{ overflow: "hidden" }}
+    >
+      <header className="panel-h" style={{ borderBottom: "1px solid var(--g8-border)", paddingBottom: 10 }}>
+        <span className="faint" style={{ display: "inline-flex" }}>
+          <Gi icon={FlaskConical} size={15} />
+        </span>
+        <h2>Test your bot</h2>
+        <div className="acts">
           <button
             type="button"
             onClick={() => setPlaygroundOpen(true)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="btn btn-ghost btn-sm"
           >
-            <Columns2 className="size-3" />
+            <Gi icon={Columns2} size={13} />
             Compare
           </button>
-          <button
-            type="button"
-            onClick={() => void reset()}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <RotateCcw className="size-3" />
+          <button type="button" onClick={() => void reset()} className="btn btn-ghost btn-sm">
+            <Gi icon={RotateCcw} size={13} />
             Reset
           </button>
         </div>
@@ -141,12 +140,19 @@ export function TestConsole({
       ) : null}
 
       {dirty ? (
-        <p className="border-b border-warning/20 bg-warning/10 px-3 py-1.5 text-xs text-warning">
+        <div
+          className="alert warn"
+          style={{ borderRadius: 0, fontSize: 12, padding: "6px 12px" }}
+        >
           Unsaved changes — the test runs your last saved version.
-        </p>
+        </div>
       ) : null}
 
-      <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto p-3">
+      <div
+        ref={listRef}
+        className="flex-1 space-y-2 overflow-y-auto p-3"
+        style={{ background: "var(--g8-surface-2)" }}
+      >
         {/* Greeting bubble mirrors what guests see first. */}
         <BotBubble emoji={avatarEmoji}>{greeting}</BotBubble>
 
@@ -155,17 +161,16 @@ export function TestConsole({
             {suggestedQuestions
               .filter((q) => q.trim())
               .map((q) => (
-                <Button
+                <button
                   key={q}
                   type="button"
-                  variant="outline"
-                  size="xs"
                   onClick={() => void send(q)}
                   disabled={busy}
-                  className="font-normal text-muted-foreground hover:text-foreground"
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontWeight: 400 }}
                 >
                   {q}
-                </Button>
+                </button>
               ))}
           </div>
         ) : null}
@@ -197,8 +202,8 @@ export function TestConsole({
         {busy ? <ThinkingRow /> : null}
       </div>
 
-      <div className="border-t border-border p-2">
-        <div className="flex items-end gap-2">
+      <div style={{ borderTop: "1px solid var(--g8-border)", padding: 8 }}>
+        <div className="row" style={{ alignItems: "flex-end" }}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -211,17 +216,20 @@ export function TestConsole({
             placeholder="Message as a guest…"
             rows={1}
             disabled={busy}
-            className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm max-sm:text-base text-foreground shadow-composer transition-[box-shadow] placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-composer-focus"
+            aria-label="Message as a guest"
+            className="textarea grow max-sm:text-base"
+            style={{ resize: "none", minHeight: 36 }}
           />
-          <Button
+          <button
             type="button"
+            className="btn btn-primary"
             onClick={() => void send(input)}
             disabled={busy || !input.trim()}
           >
             Send
-          </Button>
+          </button>
         </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">
+        <p className="hint" style={{ margin: "6px 0 0" }}>
           Sandbox: tickets and escalations are simulated; knowledge search is
           real.
         </p>

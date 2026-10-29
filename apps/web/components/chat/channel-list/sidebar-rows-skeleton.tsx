@@ -1,12 +1,10 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
-
 /**
- * Skeleton that mirrors `ChannelPreviewRow` — small leading icon + a single
- * text label — so the loading state shape matches the loaded state. Stream's
- * default LoadingIndicator (the big-card LoadingChannels) doesn't fit the
- * sidebar row layout at all.
+ * Skeleton that mirrors `ChannelPreviewRow` — a gr8r `.sitem` row with a
+ * small leading glyph + one label, drawn in gr8r's `.sk` shimmer — so the
+ * loading state shape matches the loaded state. Stream's default
+ * LoadingIndicator (the big-card LoadingChannels) doesn't fit the sidebar.
  */
 export function SidebarRowsSkeleton({
   count = 4,
@@ -20,26 +18,25 @@ export function SidebarRowsSkeleton({
   const widths = ["70%", "55%", "82%", "48%", "65%", "75%"];
 
   return (
-    <ul aria-busy="true" aria-live="polite" className="space-y-0.5">
+    <div aria-busy="true" aria-live="polite">
       {Array.from({ length: count }).map((_, i) => (
-        <li
+        <div
           key={i}
-          className="flex h-8 items-center gap-2.5 px-2"
-          style={{ opacity: Math.max(0.35, 1 - i * 0.18) }}
+          className="sitem"
+          style={{ opacity: Math.max(0.35, 1 - i * 0.18), pointerEvents: "none" }}
         >
-          <Skeleton
-            className={
-              withAvatar
-                ? "size-[18px] shrink-0 rounded-full"
-                : "size-[18px] shrink-0 rounded-sm"
-            }
+          <span
+            className="sk"
+            style={{
+              width: withAvatar ? 20 : 15,
+              height: withAvatar ? 20 : 15,
+              borderRadius: withAvatar ? "50%" : 4,
+              flexShrink: 0,
+            }}
           />
-          <Skeleton
-            className="h-3"
-            style={{ width: widths[i % widths.length] }}
-          />
-        </li>
+          <span className="sk" style={{ height: 10, width: widths[i % widths.length] }} />
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }

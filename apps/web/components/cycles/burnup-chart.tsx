@@ -45,7 +45,7 @@ export function BurnupChart({
     <div className={cn("h-40 w-full", className)}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--color-border)" />
+          <CartesianGrid vertical={false} stroke={COLOR.grid} />
           <XAxis
             dataKey="label"
             tickLine={false}
@@ -90,13 +90,13 @@ export function BurnupChart({
 /** The small legend row under/above a burn-up. */
 export function BurnupLegend({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center gap-3 text-xs text-faint-foreground", className)}>
+    <div className={cn("ins-legend", className)}>
       {BURNUP_SERIES.map((s) => (
-        <span key={s.key} className="inline-flex items-center gap-1.5">
-          <span
+        <span key={s.key}>
+          <i
             aria-hidden
-            className="inline-block h-0.5 w-3 rounded-full"
-            style={{ background: s.color }}
+            className="ln"
+            style={{ "--g8-c": s.color } as React.CSSProperties}
           />
           {s.name}
         </span>

@@ -501,8 +501,10 @@ export function SlackComposer({
     <div
       ref={rootRef}
       className={cn(
-        "group/composer mx-4 mt-2 mb-4 flex flex-col rounded-md bg-transparent shadow-composer transition-[box-shadow] focus-within:shadow-composer-focus",
-        dragActive && "shadow-composer-focus",
+        // `g8-composer`: gr8r's input frame (stream-chat-overrides.css,
+        // "gr8r skin") — hairline border, 10px radius, accent ring on focus.
+        "g8-composer group/composer mx-4 mt-2 mb-4 flex flex-col",
+        dragActive && "g8-composer--drag",
       )}
     >
       {/* Drop hint — the whole panel accepts the drop; this is the cue. */}

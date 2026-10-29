@@ -1,11 +1,14 @@
 import "server-only";
 import { formatTaskKey } from "@/lib/tasks/task-key";
 import { z } from "zod";
+import { MAX_ASSIGNEES } from "@/lib/tasks/assignees";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db/types";
 import {
   emitTaskAssignmentNotifications,
+  readAssigneeIds,
+  writeAssigneeSet,
   topPositionFor,
 } from "@/lib/tasks/mutations";
 import {
@@ -163,6 +166,8 @@ export const AcceptTriageSchema = z.object({
   // Overrides applied in the SAME update as the accept. Absent = keep.
   spaceId: z.string().uuid().nullable().optional(),
   assigneeId: z.string().uuid().nullable().optional(),
+  /** The full set (0115), primary first — wins over `assigneeId`. */
+  assigneeIds: z.array(z.string().uuid()).max(MAX_ASSIGNEES).optional(),
   priority: z.enum(Priorities).optional(),
   projectId: z.string().uuid().nullable().optional(),
 });
@@ -212,7 +217,11 @@ export async function acceptTriageTaskFor(
     position: await topPositionFor(supabase, before.property_id, before.status),
   };
   if (parsed.data.spaceId !== undefined) patch.space_id = parsed.data.spaceId;
-  if (parsed.data.assigneeId !== undefined) patch.assignee_id = parsed.data.assigneeId;
+  if (parsed.data.assigneeIds !== undefined) {
+    patch.assignee_id = parsed.data.assigneeIds[0] ?? null;
+  } else if (parsed.data.assigneeId !== undefined) {
+    patch.assignee_id = parsed.data.assigneeId;
+  }
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
   if (parsed.data.projectId !== undefined) patch.project_id = parsed.data.projectId;
 
@@ -227,14 +236,24 @@ export async function acceptTriageTaskFor(
   if (error) return { error: error.message };
   if (!row) return { error: "Already triaged" };
 
-  if (row.assignee_id) {
+  // The primary rode the guarded update; the rest of the set follows.
+  if (parsed.data.assigneeIds && parsed.data.assigneeIds.length > 1) {
+    await writeAssigneeSet(supabase, {
+      taskId,
+      propertyId: row.property_id,
+      previous: row.assignee_id ? [row.assignee_id] : [],
+      next: parsed.data.assigneeIds,
+    });
+  }
+  const assigned = await readAssigneeIds(supabase, taskId);
+  if (assigned.length > 0) {
     await emitTaskAssignmentNotifications({
       taskId,
       propertyId: row.property_id,
       title: row.title,
       byUserId: userId,
-      previousAssigneeId: null,
-      nextAssigneeId: row.assignee_id,
+      previousAssigneeIds: [],
+      nextAssigneeIds: assigned,
     });
   }
 

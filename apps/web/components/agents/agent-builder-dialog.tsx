@@ -30,7 +30,7 @@ type Draft = { name: string; config: AgentConfig };
 
 const EXAMPLES = [
   "A maintenance assistant that monitors open maintenance tasks and reports which are stuck and why",
-  "A morning briefing agent that summarizes today's bookings and meetings for the front office",
+  "A morning briefing agent that summarizes today's tasks and meetings for the front office",
   "A docs concierge that answers policy questions from our documents",
 ];
 

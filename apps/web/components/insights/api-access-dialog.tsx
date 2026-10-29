@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Input } from "@/components/ui/input";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * API access — property-scoped tokens for the MCP endpoint, so external AI
@@ -49,15 +50,15 @@ export function ApiAccessButton({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
+      <button
         type="button"
-        size="sm"
-        variant="ghost"
+        className="ibtn"
         onClick={() => setOpen(true)}
         title="API access for external AI clients"
+        aria-label="API access"
       >
-        <KeyRound className="size-4" />
-      </Button>
+        <Gi icon={KeyRound} size={15} />
+      </button>
       <ApiAccessDialog
         propertyId={propertyId}
         open={open}

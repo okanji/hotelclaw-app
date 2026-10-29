@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, FolderOpen, MessageSquare, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
 import { NewIcon } from "@/components/shell/clickup-icons";
 import {
@@ -15,8 +14,8 @@ import {
   assistantProjectsQueryOptions,
 } from "@/lib/query/assistant-queries";
 import { asTint, type AssistantChat } from "@/lib/assistant/types";
-import { TintIcon } from "@/components/ui/tint-card";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { tintVar } from "@/components/gr8r/ai-glyphs";
 import { ArtifactSidePanel } from "@/components/chat/artifact-side-panel";
 import { AssistantChat as ChatPane } from "./assistant-chat";
 import { AssistantComposer } from "./assistant-composer";
@@ -276,15 +275,13 @@ export function AssistantWorkspace({
           title="Assistant"
           icon={<NewIcon />}
           actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              render={<Link href={`/p/${propertyId}/assistant/projects`} />}
+            <Link
+              href={`/p/${propertyId}/assistant/projects`}
+              className="btn btn-ghost btn-sm"
             >
-              <FolderOpen />
+              <Gi icon={FolderOpen} size={14} />
               Projects
-            </Button>
+            </Link>
           }
         />
       ) : null}
@@ -395,20 +392,23 @@ function AssistantHome({
   busy: boolean;
 }) {
   const recents = chats.slice(0, 8);
+  // gr8r idiom: a centred `.page` with the hero composer, then two `.panel`
+  // lists (projects tiles + recents `.mini` rows).
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-content px-6 py-14">
-        <h2 className="text-center text-3xl font-semibold tracking-normal text-balance">
-          What can I help with?
-        </h2>
-        <p className="mx-auto mt-2 max-w-md text-center text-base text-pretty text-muted-foreground">
-          Your assistant sees everything you do — tasks, documents, the
-          calendar, bookings, your conversations, and the property brain.
-        </p>
+      <div className="page" style={{ maxWidth: 760, paddingTop: 56 }}>
+        <div className="ph" style={{ justifyContent: "center", textAlign: "center" }}>
+          <div>
+            <h1>What can I help with?</h1>
+            <p style={{ maxWidth: 440, marginInline: "auto" }}>
+              Your assistant sees everything you do — tasks, documents, the
+              calendar, your conversations, and the property brain.
+            </p>
+          </div>
+        </div>
 
         <AssistantComposer
           size="hero"
-          className="mt-7"
           value={input}
           onChange={onInput}
           onSubmit={onSubmit}
@@ -417,67 +417,64 @@ function AssistantHome({
         />
 
         {projects.length > 0 ? (
-          <section className="mt-10">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-xs font-medium text-faint-foreground">Projects</h2>
-              <Link
-                href={`/p/${propertyId}/assistant/projects`}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                All projects
-              </Link>
+          <section className="panel" style={{ marginTop: 32 }}>
+            <div className="panel-h">
+              <h2>Projects</h2>
+              <div className="acts">
+                <Link
+                  href={`/p/${propertyId}/assistant/projects`}
+                  className="btn btn-ghost btn-sm"
+                >
+                  All projects
+                </Link>
+              </div>
             </div>
-            <ul role="list" className="mt-2 grid gap-2 sm:grid-cols-2">
-              {projects.slice(0, 4).map((project) => (
-                <li key={project.id}>
-                  <Link
-                    href={`/p/${propertyId}/assistant/projects/${project.id}`}
-                    className="flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-accent"
-                  >
-                    <TintIcon tone={asTint(project.tint)} className="text-sm">
-                      {project.emoji}
-                    </TintIcon>
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {project.name}
-                    </span>
-                    <ArrowRight className="size-3.5 shrink-0 text-faint-foreground" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {projects.slice(0, 4).map((project) => (
+              <Link
+                key={project.id}
+                href={`/p/${propertyId}/assistant/projects/${project.id}`}
+                className="mini"
+              >
+                <span
+                  className="picon"
+                  style={{ ...tintVar(asTint(project.tint)), "--g8-sz": "22px", fontSize: 12 } as React.CSSProperties}
+                >
+                  {project.emoji}
+                </span>
+                <span className="tt">{project.name}</span>
+                <Gi icon={ArrowRight} size={14} className="faint" />
+              </Link>
+            ))}
           </section>
         ) : null}
 
-        <section className="mt-8">
-          <h2 className="text-xs font-medium text-faint-foreground">Recents</h2>
+        <section className="panel" style={{ marginTop: 16 }}>
+          <div className="panel-h">
+            <h2>Recents</h2>
+          </div>
           {recents.length === 0 ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles className="size-4 shrink-0 text-faint-foreground" />
-              Nothing yet — ask the first question above.
-            </p>
+            <div className="empty-state sm">
+              <div className="glyph">
+                <Gi icon={Sparkles} />
+              </div>
+              <p>Nothing yet — ask the first question above.</p>
+            </div>
           ) : (
-            <ul role="list" className="mt-1 flex flex-col">
-              {recents.map((chat) => (
-                <li key={chat.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpenChat(chat.id)}
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent",
-                    )}
-                  >
-                    <MessageSquare className="size-4 shrink-0 text-faint-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-sm">{chat.title}</span>
-                    <time
-                      className="shrink-0 text-xs text-faint-foreground"
-                      dateTime={chat.last_message_at}
-                    >
-                      {relativeDay(chat.last_message_at)}
-                    </time>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            recents.map((chat) => (
+              <button
+                key={chat.id}
+                type="button"
+                onClick={() => onOpenChat(chat.id)}
+                className="mini"
+                style={{ width: "100%", textAlign: "left" }}
+              >
+                <Gi icon={MessageSquare} size={15} className="faint" />
+                <span className="tt">{chat.title}</span>
+                <time className="due" dateTime={chat.last_message_at}>
+                  {relativeDay(chat.last_message_at)}
+                </time>
+              </button>
+            ))
           )}
         </section>
       </div>

@@ -1,3 +1,4 @@
+import { isFullMember } from "@/lib/auth/roles";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { z } from "zod";
@@ -8,6 +9,8 @@ import type { Database } from "@/lib/db/types";
 
 /** Membership check against the CALLER's client (cookie or Bearer), so the
  *  phone — which has no cookies — gets the same answer as the browser. */
+// guest-safe: FULL members only — triage suggestions are an internal surface
+// and POST applies them through the service client (0118).
 async function isMember(
   supabase: SupabaseClient<Database>,
   propertyId: string,
@@ -15,11 +18,11 @@ async function isMember(
 ) {
   const { data } = await supabase
     .from("memberships")
-    .select("property_id")
+    .select("role")
     .eq("property_id", propertyId)
     .eq("user_id", userId)
     .maybeSingle();
-  return Boolean(data);
+  return isFullMember(data?.role);
 }
 
 /**

@@ -252,6 +252,24 @@ function FieldManagerRow({
     });
   }
 
+  // Money fields (0116): the currency code + decimals, editable in place.
+  const [code, setCode] = useState(field.config?.code ?? "");
+  function commitCode() {
+    const next = code.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+    if (next === (field.config?.code ?? "") || (next && next.length !== 3)) {
+      setCode(field.config?.code ?? "");
+      return;
+    }
+    startTransition(async () => {
+      const res = await updateCustomField({
+        fieldId: field.id,
+        config: { ...field.config, code: next || undefined },
+      });
+      if ("error" in res) toast.error(res.error);
+      else onChanged();
+    });
+  }
+
   function archive() {
     startTransition(async () => {
       const res = await updateCustomField({ fieldId: field.id, archived: true });
@@ -298,6 +316,23 @@ function FieldManagerRow({
           <Archive className="size-3.5" />
         </Button>
       </div>
+      {field.type === "currency" ? (
+        <label className="flex items-center gap-2 text-xs text-faint-foreground">
+          Currency
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onBlur={commitCode}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            maxLength={3}
+            disabled={pending}
+            className="h-6 w-16 px-1.5 text-xs uppercase"
+          />
+          <span>{field.config?.precision ?? 2} decimals</span>
+        </label>
+      ) : null}
       {isChoiceField(field.type) ? (
         editingOptions ? (
           <OptionListEditor

@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Library, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PageShell } from "@/components/ui/page-shell";
+import { Library, Lock, Sparkles } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { PageHeader } from "@/components/shell/page-header";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import { ActionsApiKeys } from "./actions-api-dialog";
 
 /**
@@ -22,33 +20,30 @@ export function AccessView({ propertyId, isOwner }: { propertyId: string; isOwne
           { label: "Agents", href: `/p/${propertyId}/agents`, icon: <Sparkles /> },
           { label: "API access" },
         ]}
-        actions={
-          <Button nativeButton={false}
-            variant="outline"
-            size="sm"
-            render={<Link href={`/p/${propertyId}/agents/memory`} />}
-          >
-            <Library data-icon="inline-start" />
-            Browse memory
-          </Button>
-        }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
-          <section className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <Eyebrow>Actions API</Eyebrow>
-              <p className="text-sm text-muted-foreground">
-                Keys are shown once and stored hashed.
-              </p>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page">
+          <div className="ph">
+            <div>
+              <h1>API access</h1>
+              <p>Actions API keys for external automations. Keys are shown once and stored hashed.</p>
             </div>
-            {isOwner ? (
-              <ActionsApiKeys propertyId={propertyId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">Only owners manage API keys.</p>
-            )}
-          </section>
-        </PageShell>
+            <div className="acts">
+              <Link href={`/p/${propertyId}/agents/memory`} className="btn btn-secondary btn-sm">
+                <Gi icon={Library} size={14} />
+                Browse memory
+              </Link>
+            </div>
+          </div>
+          {isOwner ? (
+            <ActionsApiKeys propertyId={propertyId} />
+          ) : (
+            <div className="alert info">
+              <Gi icon={Lock} size={15} />
+              <div>Only owners manage API keys.</div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

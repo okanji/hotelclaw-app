@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, G8_COLOR } from "@/components/gr8r/home-glyphs";
 import type { OrgChart, OrgTeam } from "@/lib/org/queries";
 import type { OrgPerson } from "@/lib/org/queries";
 import { TeamEditPopover } from "./team-edit-popover";
@@ -12,16 +12,10 @@ import { PersonEditPopover } from "./person-edit-popover";
 import { AddTeamDialog } from "./add-team-dialog";
 import { TreeScroller } from "./tree-scroller";
 
-function initials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 /** Connector rail + stem for a node sitting in a row of siblings. */
 const RAIL =
-  "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
+  "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-(--g8-border-strong) after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-(--g8-border-strong) first:after:left-1/2 last:after:right-1/2 only:after:hidden";
 
 /** Shared node width — every card in the tree matches so branches align. */
 const NODE = "w-44";
@@ -81,8 +75,8 @@ export function OrgDiagram({
         <div className="min-w-max py-2">
           <div className="flex flex-col items-center">
             {/* Root — the property + its leadership. */}
-            <div className="w-48 rounded-md bg-muted px-3 py-2.5 text-center">
-              <p className="truncate text-sm font-semibold text-foreground">
+            <div className="org-node root w-48" style={{ textAlign: "center" }}>
+              <p className="trunc" style={{ margin: 0, fontWeight: 600 }}>
                 {propertyName}
               </p>
               {leadership.length > 0 ? (
@@ -90,17 +84,11 @@ export function OrgDiagram({
                   {leadership.slice(0, 3).map((p) => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-center gap-1.5 text-xs text-faint-foreground"
+                      className="row faint"
+                      style={{ justifyContent: "center", gap: 6, fontSize: "var(--g8-fs-xs)" }}
                     >
-                      <Avatar size="sm" className="size-4">
-                        {p.avatarUrl ? (
-                          <AvatarImage src={p.avatarUrl} alt={p.name ?? ""} />
-                        ) : null}
-                        <AvatarFallback className="text-xs">
-                          {initials(p.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate">
+                      <Av member={p} />
+                      <span className="trunc">
                         {p.name ?? "Owner"}
                         {p.title ? ` · ${p.title}` : ""}
                       </span>
@@ -110,7 +98,7 @@ export function OrgDiagram({
               ) : null}
             </div>
 
-            <div className="h-4 w-px bg-border" aria-hidden="true" />
+            <div className="h-4 w-px bg-(--g8-border-strong)" aria-hidden="true" />
             <BranchRow
               teams={roots}
               parentId={null}
@@ -245,7 +233,7 @@ function DiagramNode({
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "group relative rounded-md bg-background px-3 py-2.5 shadow-ring",
+          "org-node group relative",
           NODE,
         )}
       >
@@ -256,17 +244,16 @@ function DiagramNode({
             </span>
           ) : (
             <span
-              className={cn(
-                "size-2.5 shrink-0 rounded-[3px]",
-                LABEL_DOT[team.color],
-              )}
+              className="pdot"
+              style={{ "--g8-c": G8_COLOR[team.color] } as React.CSSProperties}
               aria-hidden="true"
             />
           )}
           <button
             type="button"
             onClick={() => onSelectTeam(team.id)}
-            className="min-w-0 flex-1 truncate text-left text-sm font-medium text-foreground hover:underline"
+            className="trunc hover:underline"
+            style={{ flex: 1, textAlign: "left", fontWeight: 500 }}
           >
             {team.name}
           </button>
@@ -279,28 +266,21 @@ function DiagramNode({
 
         {lead ? (
           <div className="mt-1.5 flex items-center gap-1.5">
-            <Avatar size="sm" className="size-5 shrink-0">
-              {lead.avatarUrl ? (
-                <AvatarImage src={lead.avatarUrl} alt={lead.name ?? ""} />
-              ) : null}
-              <AvatarFallback className="text-xs">
-                {initials(lead.name)}
-              </AvatarFallback>
-            </Avatar>
+            <Av member={lead} />
             <div className="min-w-0">
-              <p className="truncate text-xs text-foreground">{lead.name}</p>
-              <p className="truncate text-xs text-faint-foreground">
+              <p className="trunc" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>{lead.name}</p>
+              <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
                 {lead.title ?? "Team lead"}
               </p>
             </div>
           </div>
         ) : (
-          <p className="mt-1.5 text-xs text-faint-foreground">
+          <p className="faint" style={{ margin: "6px 0 0", fontSize: "var(--g8-fs-xs)" }}>
             {isManagement ? "No head yet — assign one" : "No head yet"}
           </p>
         )}
 
-        <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
+        <p className="muted num" style={{ margin: "6px 0 0", fontSize: "var(--g8-fs-xs)" }}>
           {team.memberIds.length}{" "}
           {team.memberIds.length === 1 ? "member" : "members"}
           {open > 0 ? ` · ${open} open` : ""}
@@ -309,7 +289,7 @@ function DiagramNode({
 
       {hasBranch ? (
         <>
-          <div className="h-4 w-px bg-border" aria-hidden="true" />
+          <div className="h-4 w-px bg-(--g8-border-strong)" aria-hidden="true" />
           <ul role="list" className="flex items-start">
             {/* People who report to the head, then their reports. */}
             {topPeople.map((p) => (
@@ -378,23 +358,16 @@ function PersonNode({
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "group relative flex items-center gap-2 rounded-md bg-background px-2.5 py-2 shadow-ring",
+          "org-node group relative flex items-center gap-2",
           NODE,
         )}
       >
-        <Avatar className="size-7 shrink-0">
-          {person.avatarUrl ? (
-            <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
-          ) : null}
-          <AvatarFallback className="text-xs">
-            {initials(person.name)}
-          </AvatarFallback>
-        </Avatar>
+        <Av member={person} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">
+          <p className="trunc" style={{ margin: 0, fontWeight: 500 }}>
             {person.name ?? "Member"}
           </p>
-          <p className="truncate text-xs text-faint-foreground">
+          <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
             {person.title ?? person.role}
           </p>
         </div>
@@ -410,7 +383,7 @@ function PersonNode({
 
       {reports.length > 0 ? (
         <>
-          <div className="h-4 w-px bg-border" aria-hidden="true" />
+          <div className="h-4 w-px bg-(--g8-border-strong)" aria-hidden="true" />
           <ul role="list" className="flex items-start">
             {reports.map((r) => (
               <li key={r.id} className={RAIL}>
@@ -445,11 +418,11 @@ function AddPlaceholder({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-16 flex-col items-center justify-center gap-1 rounded-md text-xs text-faint-foreground transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
+        "org-node add flex h-16 flex-col items-center justify-center gap-1",
         NODE,
       )}
     >
-      <Plus className="size-4" />
+      <Gi icon={Plus} size={15} />
       Add {label.toLowerCase()}
     </button>
   );

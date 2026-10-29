@@ -382,6 +382,15 @@ function maybeTriggerAiReply(args: {
   // synchronous handler returns in <100ms and Stream sees a fast success.
   after(async () => {
     try {
+      // Guests (0118) don't drive the bot: its tools act across the whole
+      // property through the service client, past every grant.
+      const { data: sender } = await createServiceClient()
+        .from("memberships")
+        .select("role")
+        .eq("property_id", args.propertyId)
+        .eq("user_id", args.triggerMessage.userId)
+        .maybeSingle();
+      if (sender?.role === "guest") return;
       const stream = getStreamServer();
       const channel = stream.channel(args.channelType, args.channelId);
       let state;

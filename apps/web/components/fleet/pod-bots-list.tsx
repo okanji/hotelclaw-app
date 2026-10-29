@@ -2,12 +2,10 @@
 
 import Link from "next/link";
 import { Bot, Sparkles } from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { TintIcon } from "@/components/ui/tint-card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { G8Badge } from "@/components/gr8r/ai-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { podBotEmoji, podToolInfo } from "@/lib/fleet/tool-catalog";
 import { CLIENT_STATUS_UI, MODEL_TIER_UI } from "@/lib/fleet/status-colors";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 type BotRow = {
@@ -40,52 +38,60 @@ export function PodBotsList({
           { label: "Pod bots" },
         ]}
         meta={client.name}
-        actions={<StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>}
+        actions={<G8Badge tone={clientStatus.tone}>{clientStatus.label}</G8Badge>}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide" style={{ maxWidth: 1200 }}>
+          <div className="ph">
+            <div>
+              <h1>Pod bots</h1>
+              <p>
+                {client.name} · {bots.length} bot{bots.length === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
           {bots.length === 0 ? (
-            <EmptyState icon={Bot} title="No pod bots yet">
-              Bots are provisioned per client during onboarding — none exist for
-              this pod yet.
-            </EmptyState>
+            <div className="panel">
+              <G8Empty
+                icon={Bot}
+                title="No pod bots yet"
+                text="Bots are provisioned per client during onboarding — none exist for this pod yet."
+              />
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="pgrid">
               {bots.map((bot) => {
                 const tier = MODEL_TIER_UI[bot.model_tier];
                 const gatedCount = bot.tool_set.filter(
                   (id) => podToolInfo(id)?.gated,
                 ).length;
                 return (
-                  <div
-                    key={bot.id}
-                    className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
-                  >
+                  <div key={bot.id} className="pcard">
                     <Link
                       href={`${base}/${bot.id}`}
                       className="absolute inset-0"
                       aria-label={bot.display_name}
                     />
-                    <div className="flex min-w-0 items-center gap-3">
-                      <TintIcon tone="lavender" className="text-base">
+                    <div className="row" style={{ gap: 10 }}>
+                      <span className="picon" style={{ "--g8-c": "var(--g8-violet)", fontSize: 15 } as React.CSSProperties}>
                         {podBotEmoji(bot.bot_id)}
-                      </TintIcon>
-                      <div className="min-w-0">
-                        <p className="truncate text-base leading-6 font-normal">
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <b className="trunc" style={{ display: "block", fontWeight: 600 }}>
                           {bot.display_name}
-                        </p>
-                        <p className="truncate font-mono text-xs text-muted-foreground">
+                        </b>
+                        <span className="mono faint trunc" style={{ display: "block", fontSize: "var(--g8-fs-xs)" }}>
                           @{bot.bot_id}
-                        </p>
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <StatusBadge tone={tier.tone}>{tier.label}</StatusBadge>
-                      <span className="tabular-nums">
+                    <div className="foot">
+                      <G8Badge tone={tier.tone}>{tier.label}</G8Badge>
+                      <span style={{ fontVariantNumeric: "tabular-nums" }}>
                         {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
                       </span>
                       {gatedCount > 0 ? (
-                        <span className="tabular-nums text-warning">
+                        <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--g8-amber)" }}>
                           {gatedCount} approval-gated
                         </span>
                       ) : null}
@@ -95,7 +101,7 @@ export function PodBotsList({
               })}
             </div>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );

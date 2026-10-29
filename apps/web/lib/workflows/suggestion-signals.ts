@@ -370,61 +370,6 @@ async function formsSignals(propertyId: string): Promise<RawSignal[]> {
   return out;
 }
 
-async function bookingsSignals(propertyId: string): Promise<RawSignal[]> {
-  const out: RawSignal[] = [];
-  const supabase = createServiceClient();
-  const [servicesRes, bookingsRes] = await Promise.all([
-    supabase
-      .from("bookable_services")
-      .select("id, name, kind, booking_mode")
-      .eq("property_id", propertyId)
-      .limit(50),
-    supabase
-      .from("bookings")
-      .select("id, status, source, service_id, starts_at")
-      .eq("property_id", propertyId)
-      .gte("starts_at", daysAgo(30))
-      .limit(1000),
-  ]);
-  const services = servicesRes.data ?? [];
-  if (services.length > 0) {
-    out.push({
-      signal: "service_inventory",
-      evidence: `${services.length} bookable services: ${services
-        .slice(0, 8)
-        .map((s) => `${s.name} (${s.kind})`)
-        .join(", ")}`,
-    });
-  }
-  const bookings = bookingsRes.data ?? [];
-  if (bookings.length > 0) {
-    out.push({
-      signal: "booking_volume",
-      evidence: `${bookings.length} bookings in the last 30 days`,
-    });
-    for (const [status, count] of topCounts(bookings, (b) => b.status, 6)) {
-      out.push({
-        signal: `booking_status_${status}`,
-        evidence: `${count} are ${status} (${pct(count, bookings.length)}%)`,
-      });
-    }
-    const pending = bookings.filter((b) => b.status === "pending").length;
-    if (pending > 0) {
-      out.push({
-        signal: "pending_backlog",
-        evidence: `${pending} bookings are waiting on staff approval`,
-      });
-    }
-    for (const [source, count] of topCounts(bookings, (b) => b.source, 3)) {
-      out.push({
-        signal: `booking_source_${source}`,
-        evidence: `${count} came from ${source}`,
-      });
-    }
-  }
-  return out;
-}
-
 async function chatbotsSignals(propertyId: string): Promise<RawSignal[]> {
   const out: RawSignal[] = [];
   const supabase = createServiceClient();
@@ -500,7 +445,6 @@ const GATHERS: Record<AutomationFeature, (propertyId: string) => Promise<RawSign
   meetings: meetingsSignals,
   calendar: calendarSignals,
   forms: formsSignals,
-  bookings: bookingsSignals,
   chatbots: chatbotsSignals,
   entities: entitiesSignals,
 };

@@ -172,18 +172,6 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "read",
   },
   {
-    id: "list_today_bookings",
-    label: "Read today's bookings",
-    summary: "List today's bookings across services (time, party, status).",
-    category: "read",
-  },
-  {
-    id: "list_bookings",
-    label: "Read bookings (any window)",
-    summary: "List bookings across services for a past/future window.",
-    category: "read",
-  },
-  {
     id: "search_chat_messages",
     label: "Search chat history",
     summary:
@@ -264,6 +252,33 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     category: "write",
   },
   {
+    id: "list_custom_fields",
+    label: "Read custom fields",
+    summary:
+      "List the property's custom task fields (Cost, Requester, Quote…) with their types and options, and read one task's values.",
+    category: "read",
+  },
+  {
+    id: "set_task_field",
+    label: "Set custom fields",
+    summary:
+      "Set or clear a custom field on a task — money, people, dates, dropdowns, links, related tasks.",
+    category: "write",
+  },
+  {
+    id: "add_checklist_items",
+    label: "Add checklists",
+    summary:
+      "Add a named checklist to a task (or append items to one) — Task Prep, opening checks.",
+    category: "write",
+  },
+  {
+    id: "check_checklist_item",
+    label: "Tick checklist items",
+    summary: "Tick or untick an item on a task's checklist.",
+    category: "write",
+  },
+  {
     id: "escalate_task",
     label: "Escalate tasks",
     summary:
@@ -292,20 +307,6 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
     id: "cancel_meeting",
     label: "Cancel meetings",
     summary: "Cancel (delete) an upcoming meeting.",
-    category: "write",
-  },
-  {
-    id: "create_booking",
-    label: "Create bookings",
-    summary:
-      "Book a guest into a bookable service through the real availability engine.",
-    category: "write",
-  },
-  {
-    id: "update_booking_status",
-    label: "Update booking status",
-    summary:
-      "Confirm, seat, complete, no-show, or cancel a booking by reference.",
     category: "write",
   },
   {

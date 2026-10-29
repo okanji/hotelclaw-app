@@ -1,4 +1,5 @@
-import { ArchiveView } from "@/components/projects/archive-view";
+import { RouteGate } from "@/components/gr8r/route-gate";
+import { ArchiveView } from "@/components/gr8r/archive-view";
 
 export default async function ArchivePage({
   params,
@@ -6,5 +7,9 @@ export default async function ArchivePage({
   params: Promise<{ propertyId: string }>;
 }) {
   const { propertyId } = await params;
-  return <ArchiveView propertyId={propertyId} />;
+  return (
+    <RouteGate segment="archive">
+      <ArchiveView propertyId={propertyId} />
+    </RouteGate>
+  );
 }

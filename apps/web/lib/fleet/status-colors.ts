@@ -4,7 +4,7 @@ import type { Database } from "@/lib/db/types";
  * Single source of truth for Fleet status treatments. Every fleet surface
  * (bot cards, session rows, approvals, brain card, sidebar badges) derives
  * its StatusBadge tone + label from these maps — never re-pick colors
- * inline (house rule, see lib/bookings/status-colors.ts).
+ * inline (house rule, see components/ui/status-badge.tsx).
  *
  * Conventions: lavender is the AI-family accent (TintIcon), violet =
  * actively running, amber/warning = awaiting a human, danger = broken.

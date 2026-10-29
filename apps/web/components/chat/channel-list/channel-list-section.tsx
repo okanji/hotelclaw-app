@@ -11,7 +11,6 @@ import {
   useStreamConnection,
 } from "@/lib/stream/client-provider";
 import type { ChannelFilters, ChannelOptions, ChannelSort } from "stream-chat";
-import { SidebarMenu } from "@/components/ui/sidebar";
 import { ChannelPreviewRow } from "./channel-preview-row";
 import { SidebarRowsSkeleton } from "./sidebar-rows-skeleton";
 
@@ -115,12 +114,15 @@ export function ChannelListSection({
           channels.filter((c) => c.type === channelKind)
         }
         EmptyStateIndicator={() => (
-          <div className="px-2 py-1 text-xs text-muted-foreground">
+          <div
+            className="faint"
+            style={{ padding: "4px 8px", fontSize: "var(--g8-fs-xs)" }}
+          >
             {emptyState ?? "Nothing here yet."}
           </div>
         )}
         renderChannels={(channels) => (
-          <SidebarMenu>
+          <div>
             {channels.map((c) => (
               <ChannelPreviewRow
                 key={c.cid}
@@ -129,7 +131,7 @@ export function ChannelListSection({
                 channelKind={channelKind}
               />
             ))}
-          </SidebarMenu>
+          </div>
         )}
       />
     </ScopedComponents>

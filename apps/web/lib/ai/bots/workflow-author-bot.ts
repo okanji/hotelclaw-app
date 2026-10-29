@@ -70,15 +70,14 @@ const AUTHOR_GUIDELINES = [
 
 // MUST stay in sync with `Surface` in lib/workflows/catalog/types.ts — this is
 // the enum the bot filters `list_available_actions` / `describe_action` by, so
-// a missing member means the bot can't narrow to that surface at all (it
-// omitted "bookings" until 2026-08-14, which made every bookings-scoped
-// authoring turn fail tool-input validation and fall back to the full catalog).
+// a missing member means the bot can't narrow to that surface at all (a
+// missing surface once made every turn scoped to it fail tool-input
+// validation and fall back to the full catalog).
 const SURFACE_ENUM = z.enum([
   "tasks",
   "chat",
   "docs",
   "forms",
-  "bookings",
   "meetings",
   "calendar",
   "entities",
@@ -484,7 +483,6 @@ export const AUTHOR_SURFACES: Surface[] = [
   "chat",
   "docs",
   "forms",
-  "bookings",
   "meetings",
   "calendar",
   "entities",

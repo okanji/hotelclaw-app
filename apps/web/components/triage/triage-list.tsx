@@ -23,15 +23,18 @@ export function IntakeIcon({
   return (
     <Icon
       aria-label={intake.kind === "guest" ? "Guest chatbot" : intake.kind}
-      className={cn("size-3.5 shrink-0 text-faint-foreground", className)}
+      className={cn("i shrink-0", className)}
+      size={13}
+      strokeWidth={1.8}
+      style={{ color: "var(--g8-text-3)" }}
     />
   );
 }
 
 /**
- * The left pane — one row per pending item: title, then a quiet meta line
- * (team · where it came from) with the age right-aligned, Linear's inbox
- * row. The selected row sits on the pressed rung; hover is fill only.
+ * The left pane — one gr8r inbox row per pending item (src/pages/inbox.js):
+ * title, then a quiet meta line (where it came from · team) with the age
+ * right-aligned. The selected row sits on `--surface-2`; hover is fill only.
  */
 export function TriageList({
   items,
@@ -45,7 +48,7 @@ export function TriageList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <ul className="flex flex-col gap-px py-2 pr-2 pl-[calc(var(--page-gutter)-0.625rem)]" role="listbox" aria-label="Triage queue">
+    <ul role="listbox" aria-label="Triage queue" style={{ margin: 0, padding: 0, listStyle: "none" }}>
       {items.map((item) => {
         const selected = item.id === selectedId;
         const team = item.space_id ? spaceNames.get(item.space_id) : null;
@@ -54,31 +57,51 @@ export function TriageList({
             <button
               type="button"
               onClick={() => onSelect(item.id)}
-              className={cn(
-                "flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left outline-none focus-visible:shadow-focus",
-                selected ? "bg-accent-pressed" : "hover:bg-accent",
-              )}
+              className="col hover:bg-(--g8-surface-2) focus-visible:outline-none focus-visible:bg-(--g8-surface-2)"
+              style={{
+                width: "100%",
+                gap: 4,
+                padding: "12px var(--g8-gutter)",
+                borderBottom: "1px solid var(--g8-divider)",
+                textAlign: "left",
+                position: "relative",
+                background: selected ? "var(--g8-surface-2)" : undefined,
+              }}
             >
-              <span className="flex items-baseline gap-2">
+              {selected ? (
                 <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate text-sm font-medium",
-                    selected ? "text-foreground" : "text-secondary-ink",
-                  )}
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 8,
+                    bottom: 8,
+                    width: 2,
+                    borderRadius: 2,
+                    background: "var(--g8-accent)",
+                  }}
+                />
+              ) : null}
+              <span className="row" style={{ gap: 8, alignItems: "baseline" }}>
+                <span
+                  className={selected ? "trunc" : "trunc muted"}
+                  style={{ flex: 1, fontWeight: 500, fontSize: 13 }}
                 >
                   {item.title}
                 </span>
-                <span className="shrink-0 text-xs text-faint-foreground tabular-nums">
+                <span className="faint num" style={{ fontSize: 11.5, flexShrink: 0 }}>
                   {triageAge(item.created_at)}
                 </span>
               </span>
-              <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="row" style={{ gap: 6, fontSize: 11.5, color: "var(--g8-text-3)", minWidth: 0 }}>
                 <IntakeIcon intake={item.intake} />
-                <span className="truncate">{item.intake.label}</span>
+                <span className="trunc">{item.intake.label}</span>
                 {team ? (
                   <>
                     <span aria-hidden="true">·</span>
-                    <span className="shrink-0 truncate">{team}</span>
+                    <span className="trunc" style={{ flexShrink: 0 }}>
+                      {team}
+                    </span>
                   </>
                 ) : null}
               </span>

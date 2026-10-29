@@ -1,11 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Lato } from "next/font/google";
+import { Geist, Geist_Mono, Lato } from "next/font/google";
 import "./globals.css";
+import "./gr8r.css";
+import "./gr8r-ext.css";
 import "stream-chat-react/dist/css/index.css";
 import "./stream-chat-overrides.css";
 import { Toaster } from "@/components/ui/sonner";
 import { AccountSwitchNotice } from "@/components/shell/account-switch-notice";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AutoTooltips } from "@/components/ui/auto-tooltips";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
@@ -14,6 +17,14 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 // loaded UI face is itself a "designed template" tell. The old Inter
 // next/font wiring (`--font-sans-inter`) was removed on 2026-08-05; do not
 // reintroduce it. `font-mono` and the chat's Lato below are unaffected.
+// gr8r-studio port (2026-10-29): Geist is THE UI face (supersedes the
+// "no sans webfont" rule above — the user adopted gr8r's design system).
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -48,15 +59,16 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistMono.variable} ${lato.variable} h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} ${lato.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col overflow-hidden">
         <ThemeProvider>
           <QueryProvider>
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>
-          <Toaster richColors position="top-right" />
+          <Toaster richColors position="bottom-right" />
           <AccountSwitchNotice />
+          <AutoTooltips />
         </ThemeProvider>
       </body>
     </html>

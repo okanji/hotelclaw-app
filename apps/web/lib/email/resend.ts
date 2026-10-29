@@ -14,7 +14,7 @@ export function getResend(): Resend {
 }
 
 /**
- * Sender for all outbound email (invites, bookings, insight digests).
+ * Sender for all outbound email (invites, insight digests).
  *
  * `onboarding@resend.dev` is Resend's shared sender — it works without domain
  * verification BUT only delivers to the Resend account owner's own address;

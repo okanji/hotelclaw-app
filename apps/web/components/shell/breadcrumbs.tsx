@@ -20,52 +20,33 @@ export function Breadcrumbs({
   items: BreadcrumbItem[];
   className?: string;
 }) {
+  // gr8r `crumbs()` (shell/layout.js): ancestors in text-2 (colour-only
+  // hover), the current page `.cur` (text, 500), a faint `/` `.sep`.
   return (
-    <nav
-      aria-label="Breadcrumb"
-      className={cn(
-        "flex min-w-0 items-center gap-0.5 text-sm font-medium",
-        className,
-      )}
-    >
+    <nav aria-label="Breadcrumb" className={cn("crumbs trunc", className)}>
       {items.map((item, i) => {
         const isLast = i === items.length - 1;
         const inner = (
-          <span
-            className={cn(
-              "flex items-center gap-1.5 truncate",
-              isLast ? "text-foreground" : "text-secondary-ink",
-            )}
-          >
+          <>
             {item.icon ? (
-              <span className="flex size-4 shrink-0 items-center justify-center text-faint-foreground [&_svg]:size-4">
+              <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-3.5">
                 {item.icon}
               </span>
             ) : null}
-            <span className="truncate">{item.label}</span>
-          </span>
+            <span className="trunc">{item.label}</span>
+          </>
         );
-
         return (
-          <span
-            key={`${item.label}-${i}`}
-            className="flex min-w-0 items-center gap-0.5"
-          >
+          <span key={`${item.label}-${i}`} className="contents">
             {item.href && !isLast ? (
-              <Link
-                href={item.href}
-                className="flex min-w-0 items-center rounded-md px-1 py-0.5 transition-[background-color] outline-none hover:bg-accent focus-visible:shadow-focus"
-              >
+              <Link href={item.href} className="crumb">
                 {inner}
               </Link>
             ) : (
-              <span className="px-1 py-0.5">{inner}</span>
+              <span className={isLast ? "crumb cur" : "crumb"}>{inner}</span>
             )}
             {!isLast ? (
-              <span
-                aria-hidden="true"
-                className="shrink-0 text-faint-foreground select-none"
-              >
+              <span aria-hidden="true" className="sep">
                 /
               </span>
             ) : null}

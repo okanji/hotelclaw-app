@@ -6,7 +6,8 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
+import { G8StatusIcon } from "@/components/gr8r/my-tasks-glyphs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +17,8 @@ import {
 import {
   ArrowDownWideNarrow,
   CheckCheck,
-  ChevronRight,
   ChevronsRight,
-  MoreHorizontal,
+  Ellipsis,
   Plus,
   Sparkles,
   Workflow,
@@ -26,7 +26,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { moveTask, updateTask } from "./actions";
-import { COLUMN_HUE, PRIORITY_META, type Task } from "./kanban";
+import { PRIORITY_META, type Task } from "./kanban";
 import { cn } from "@/lib/utils";
 import { SortableTaskCard } from "./task-card";
 import { InlineAddCard } from "./inline-add-card";
@@ -72,6 +72,8 @@ type Props = {
   scopeSpaceId?: string | null;
   /** Active list scope (`?list=`), threaded to inline quick-add. */
   scopeListId?: string | null;
+  /** Project scope (the project page's board) — quick-adds join it. */
+  scopeProjectId?: string | null;
 };
 
 export function KanbanColumn({
@@ -92,6 +94,7 @@ export function KanbanColumn({
   onOpenFullCreate,
   scopeSpaceId,
   scopeListId,
+  scopeProjectId,
 }: Props) {
   const router = useRouter();
   const { setNodeRef } = useDroppable({ id: column.id });
@@ -191,74 +194,56 @@ export function KanbanColumn({
   }
   const overWip =
     column.wipLimit != null && taskIds.length > column.wipLimit;
-  const hue = COLUMN_HUE[column.color];
   const finished = isDoneColumn(column);
+  const glyph = (
+    <G8StatusIcon
+      category={column.category}
+      blocked={column.isBlocked}
+      color={column.color}
+    />
+  );
 
   if (collapsed) {
+    // gr8r `.bcol.collapsed`: the glyph + the name turned sideways. Still a
+    // droppable — `.over` washes it while a card hovers.
     return (
-      // No column background (notion-spec-v2 §6) — a collapsed group is just
-      // its pill turned sideways. The drop target is signalled by the warm
-      // pressed fill alone; no ring, no stroke.
-      <section
-        className={cn(
-          "flex h-full w-11 shrink-0 flex-col items-center rounded-md py-3 transition-colors",
-          isDropTarget && "bg-accent-pressed",
-        )}
+      <div
+        ref={setNodeRef}
+        className={cn("bcol collapsed", isDropTarget && "over")}
+        role="button"
+        tabIndex={0}
+        aria-label={`Expand ${column.label}`}
+        title="Expand"
+        onClick={() => onToggleCollapse(column.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleCollapse(column.id);
+          }
+        }}
       >
-        <button
-          type="button"
-          onClick={() => onToggleCollapse(column.id)}
-          aria-label={`Expand ${column.label} column`}
-          className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent"
-        >
-          <ChevronRight className="size-3.5" />
-        </button>
-        <div className="mt-3 flex flex-col items-center gap-2">
-          <span
-            className={cn(
-              "rounded-pill px-1 py-1.5 text-sm font-medium [writing-mode:vertical-rl]",
-              hue.pill,
-            )}
-            style={{ textOrientation: "mixed" }}
-          >
-            {column.label}
-          </span>
-          <span className="text-sm tabular-nums text-faint-foreground">
-            {taskIds.length}
-          </span>
-        </div>
-      </section>
+        {glyph}
+        <span className="vname">
+          {column.label}
+          <span className="faint">{taskIds.length}</span>
+        </span>
+      </div>
     );
   }
 
   return (
-    // **No column background.** Notion's board groups float their cards on the
-    // page plane; the grey well we used to paint here is the single loudest
-    // "generic kanban" tell (notion-spec-v2 §1.4/§6). The only fill this
-    // element ever takes is the transient drop-target wash.
+    // gr8r `.bcol` (src/views/board.js): sunken column, `.bcol-h` header
+    // (glyph · name · count · hover acts), `.bcol-b` card stack, `.addcard`.
     <section
-      className={cn(
-        "group/column flex h-full w-72 shrink-0 flex-col rounded-md",
-        "transition-colors",
-        isDropTarget && "bg-accent-pressed",
-      )}
+      className={cn("bcol", isDropTarget && "over")}
+      aria-label={column.label}
     >
-      {/* Group header = a tinted status PILL + a faint count. No icon glyph,
-          no primary-ink heading — the hue carries the state. */}
-      <header className="flex h-10 shrink-0 items-center gap-2 px-2">
-        <h3
-          className={cn(
-            "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
-            hue.pill,
-          )}
-        >
-          {column.label}
-        </h3>
+      <div className="bcol-h">
+        {glyph}
+        <span className="truncate">{column.label}</span>
         <span
-          className={cn(
-            "text-sm tabular-nums",
-            overWip ? "font-medium text-warning" : "text-faint-foreground",
-          )}
+          className="cnt num"
+          style={overWip ? { color: "var(--g8-amber)" } : undefined}
           title={
             overWip
               ? `Over the recommended limit of ${column.wipLimit}`
@@ -266,24 +251,30 @@ export function KanbanColumn({
           }
         >
           {taskIds.length}
-          {column.wipLimit != null ? (
-            <span className="text-faint-foreground">/{column.wipLimit}</span>
-          ) : null}
+          {column.wipLimit != null ? `/${column.wipLimit}` : null}
         </span>
 
-        <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity group-hover/column:opacity-100 focus-within:opacity-100">
+        <span className="acts">
+          <button
+            type="button"
+            className="ibtn ibtn-xs"
+            aria-label={`Add task to ${column.label}`}
+            title="Add task"
+            onClick={() => setAdding(true)}
+          >
+            <Gi icon={Plus} size={14} />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button
-                  size="icon"
-                  variant="ghost"
+                <button
+                  type="button"
+                  className="ibtn ibtn-xs"
                   aria-label={`${column.label} column options`}
-                  className="size-6 text-muted-foreground hover:bg-accent"
                 />
               }
             >
-              <MoreHorizontal className="size-3.5" />
+              <Gi icon={Ellipsis} size={14} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onToggleCollapse(column.id)}>
@@ -312,38 +303,17 @@ export function KanbanColumn({
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={`Add task to ${column.label}`}
-            onClick={() => setAdding(true)}
-            className="size-6 text-muted-foreground hover:bg-accent"
-          >
-            <Plus className="size-3.5" />
-          </Button>
-        </div>
-      </header>
+        </span>
+      </div>
 
       <div
         ref={setScrollRefs}
-        // BLOCK layout, not flex — load-bearing. Chrome ignores
-        // `contain-intrinsic-size` for a `content-visibility: auto` element
-        // that is a FLEX ITEM: the flex algorithm resolves the item's main
-        // size from its (skipped, therefore empty) content, so every
-        // offscreen card collapsed to 26px of padding and the column's
-        // scrollHeight was ~40% of the truth. Same markup in a block
-        // container reserves the full size correctly (verified side by side:
-        // block scrollHeight 7280 vs flex 1280 for identical children).
-        // Cards feed dnd-kit's droppable rects, and dnd-kit measures those
-        // once per drag — collapsed rects meant drops landed nowhere near
-        // the cursor. `space-y-2.5` replaces the old `gap-1.5`.
-        //
-        // `pt-1` is load-bearing, not decoration: this element scrolls, so it
-        // CLIPS, and a card's `shadow-card` ends in a 1px warm ring. With no
-        // top padding the first card in every column lost its top hairline
-        // (and the soft shadow above it) to the clip edge and read as
-        // beheaded.
-        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-2 pt-1 pb-2"
+        // `.bcol-b` with `is-block` (gr8r-ext.css): BLOCK layout, not flex —
+        // load-bearing. Chrome ignores `contain-intrinsic-size` for a
+        // `content-visibility: auto` element that is a FLEX ITEM, so every
+        // offscreen card collapsed to its padding and dnd-kit measured drop
+        // rects nowhere near the cursor. Siblings are spaced by margin.
+        className="bcol-b is-block"
       >
         {adding ? (
           <InlineAddCard
@@ -351,8 +321,13 @@ export function KanbanColumn({
             status={column.id}
             onCreated={onChanged}
             onClose={() => setAdding(false)}
+            onOpenFullCreate={() => {
+              setAdding(false);
+              onOpenFullCreate(column.id);
+            }}
             scopeSpaceId={scopeSpaceId}
             scopeListId={scopeListId}
+            scopeProjectId={scopeProjectId}
           />
         ) : null}
 
@@ -376,6 +351,7 @@ export function KanbanColumn({
                 dragActive={dragActive}
                 draggedByName={remoteDragMap.get(id) ?? null}
                 onChanged={onChanged}
+                doneTarget={doneTarget}
               />
             );
           })}
@@ -388,56 +364,30 @@ export function KanbanColumn({
             type="button"
             ref={sentinelRef}
             onClick={() => setVisibleCount((c) => c + COLUMN_PAGE)}
-            className="block w-full rounded-md py-2 text-center text-sm text-faint-foreground hover:text-foreground"
+            className="addcard"
+            style={{ justifyContent: "center" }}
           >
             {taskIds.length - visibleIds.length} more…
           </button>
         ) : null}
 
         {empty && !adding && isDropTarget ? (
-          <div className="mt-2 flex items-center justify-center rounded-md bg-accent px-3 py-5 text-center">
-            <p className="text-xs text-faint-foreground">Drop here</p>
+          <div className="empty-state sm">
+            <p>Drop here</p>
           </div>
         ) : null}
 
-        {/* Notion's inline "+ New page" row (notion-spec-v2 §6): always
-            visible, LABELLED, no fill at rest, and its hover wash is the
-            column's own hue. Not a filled grey pill with a bare glyph — that
-            read as a button parked in a well. */}
         {!adding ? (
           <button
             type="button"
+            className="addcard"
             onClick={() => setAdding(true)}
-            className={cn(
-              "mt-0.5 flex h-7 w-full items-center gap-1.5 rounded-md px-1.5",
-              "text-sm transition-colors",
-              hue.add,
-              "focus-visible:shadow-focus focus-visible:outline-none",
-            )}
           >
-            <Plus className="size-3.5 shrink-0" />
-            New task
+            <Gi icon={Plus} size={14} />
+            Add task
           </button>
         ) : null}
       </div>
-
-      {/* "More options" — opens the full dialog with description, priority,
-          and assignee fields. Visually subtle so it doesn't compete with the
-          inline add. */}
-      {adding ? (
-        <button
-          type="button"
-          onClick={() => {
-            setAdding(false);
-            onOpenFullCreate(column.id);
-          }}
-          className="mx-2 mb-2 inline-flex h-6 items-center gap-1.5 self-start rounded-md px-2 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <Sparkles className="size-3" />
-          Need more options? Open full editor
-        </button>
-      ) : null}
     </section>
   );
 }
-

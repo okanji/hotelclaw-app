@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, FileText, Folder, Sparkles, Square } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { STARTER_PROMPTS } from "@/lib/assistant/types";
 import { assistantProjectsQueryOptions } from "@/lib/query/assistant-queries";
 import { documentsTreeQueryOptions } from "@/lib/query/section-queries";
@@ -279,7 +279,7 @@ export function AssistantComposer({
   return (
     <form
       className={cn(
-        "relative rounded-card bg-card shadow-composer transition-shadow focus-within:shadow-composer-focus",
+        "g8-ai-composer",
         className,
       )}
       onSubmit={(e) => {
@@ -288,7 +288,7 @@ export function AssistantComposer({
       }}
     >
       {open && (
-        <div className="absolute inset-x-0 bottom-full z-20 mb-2 rounded-card bg-popover p-1 shadow-overlay">
+        <div className="pop">
           <div
             id={menuId}
             role="listbox"
@@ -296,13 +296,13 @@ export function AssistantComposer({
             className="max-h-64 overflow-y-auto"
           >
             {loading && rows.length === 0 ? (
-              <div className="flex h-8 items-center px-2 text-sm text-muted-foreground">
+              <div className="mi" aria-disabled="true" style={{ color: "var(--g8-text-3)" }}>
                 Loading documents…
               </div>
             ) : (
               grouped.map(({ section, rows: sectionRows }) => (
                 <div key={section}>
-                  <div className="px-2 pt-1.5 pb-1 text-xs font-medium text-muted-foreground">
+                  <div className="mh">
                     {section}
                   </div>
                   {sectionRows.map(({ row, index }) => (
@@ -318,19 +318,16 @@ export function AssistantComposer({
                       onMouseDown={(e) => e.preventDefault()}
                       onMouseEnter={() => setActive(index)}
                       onClick={() => pick(row)}
-                      className={cn(
-                        "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent",
-                        index === active && "bg-accent",
-                      )}
+                      className={index === active ? "mi hl" : "mi"}
                     >
                       {row.section === "Documents" ? (
-                        <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                        <Gi icon={FileText} size={14} />
                       ) : row.section === "Projects" ? (
-                        <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                        <Gi icon={Folder} size={14} />
                       ) : (
-                        <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
+                        <Gi icon={Sparkles} size={14} />
                       )}
-                      <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                      <span className="trunc">{row.label}</span>
                     </button>
                   ))}
                 </div>
@@ -405,32 +402,33 @@ export function AssistantComposer({
         }
         aria-autocomplete="list"
         className={cn(
-          "block max-h-80 w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-base leading-6",
-          "placeholder:text-faint-foreground focus-visible:outline-none disabled:opacity-60",
+          "block max-h-80 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 leading-6",
+          "focus-visible:outline-none disabled:opacity-60",
           size === "hero" && "min-h-22",
         )}
       />
-      <div className="flex items-center gap-2 px-2.5 pb-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">{trailing}</div>
+      <div className="row" style={{ gap: 8, padding: "0 8px 8px" }}>
+        <div className="row grow" style={{ minWidth: 0, gap: 6 }}>{trailing}</div>
         {busy && onStop ? (
-          <Button
+          <button
             type="button"
-            size="icon-sm"
-            variant="secondary"
+            className="ibtn ibtn-sm"
+            style={{ border: "1px solid var(--g8-border-strong)" }}
             onClick={onStop}
             aria-label="Stop generating"
           >
             <Square className="size-3.5 fill-current" />
-          </Button>
+          </button>
         ) : (
-          <Button
+          <button
             type="submit"
-            size="icon-sm"
+            className="btn btn-primary btn-sm"
+            style={{ width: "var(--g8-h-sm)", padding: 0 }}
             disabled={!canSend}
             aria-label="Send message"
           >
-            <ArrowUp className="size-4" />
-          </Button>
+            <Gi icon={ArrowUp} size={15} />
+          </button>
         )}
       </div>
     </form>

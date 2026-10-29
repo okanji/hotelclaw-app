@@ -8,7 +8,7 @@ import {
   entityTypesQueryOptions,
 } from "@/lib/query/workflow-queries";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { WfPage } from "./g8-bits";
 import { WorkflowsTabs } from "./workflows-tabs";
 import { EntitiesClient } from "@/app/p/[propertyId]/workflows/entities/entities-client";
 import { EntityTypeClient } from "@/app/p/[propertyId]/workflows/entities/[typeName]/entity-type-client";
@@ -23,15 +23,16 @@ export function WorkflowEntitiesList({ propertyId }: { propertyId: string }) {
           { label: "Workflows", icon: <Workflow />, href: `/p/${propertyId}/workflows` },
         ]}
       />
-      <WorkflowsTabs propertyId={propertyId} />
-      <div className="flex-1 overflow-y-auto">
-        <PageShell width="full" className="pt-10 pb-12">
-          <EntitiesClient
-            propertyId={propertyId}
-            initialTypes={types as Parameters<typeof EntitiesClient>[0]["initialTypes"]}
-          />
-        </PageShell>
-      </div>
+      <WfPage
+        title="Entities"
+        lede="Custom data types your workflows track, like rooms or guests."
+        tabs={<WorkflowsTabs propertyId={propertyId} />}
+      >
+        <EntitiesClient
+          propertyId={propertyId}
+          initialTypes={types as Parameters<typeof EntitiesClient>[0]["initialTypes"]}
+        />
+      </WfPage>
     </div>
   );
 }
@@ -57,8 +58,7 @@ export function WorkflowEntityTypeView({
           { label: type.display_name },
         ]}
       />
-      <div className="flex-1 overflow-y-auto">
-        <PageShell width="full" className="pt-10 pb-12">
+      <WfPage title={type.display_name} lede="Entity records">
           <EntityTypeClient
             propertyId={propertyId}
             type={{
@@ -69,8 +69,7 @@ export function WorkflowEntityTypeView({
             }}
             initialRows={rows as Parameters<typeof EntityTypeClient>[0]["initialRows"]}
           />
-        </PageShell>
-      </div>
+      </WfPage>
     </div>
   );
 }

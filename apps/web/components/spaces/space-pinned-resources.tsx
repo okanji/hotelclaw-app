@@ -96,74 +96,65 @@ export function SpacePinnedResources({
   );
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <h3 className="text-xs/[1] font-medium text-faint-foreground">
-          Resources
-        </h3>
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Resources</h2>
         {totalPinned > 0 ? (
-          // Count-badge recipe (beautiful-ui-style skill §3): counts are
-          // typographic objects, not bare text.
           <span
+            className="badge gray"
             title={`${totalPinned} of ${MAX_PINNED_RESOURCES} pins used`}
-            className="inline-flex h-5 items-center rounded-md bg-muted px-1.5 text-xs font-medium text-muted-foreground shadow-ring tabular-nums"
+            style={{ fontVariantNumeric: "tabular-nums" }}
           >
             {totalPinned}/{MAX_PINNED_RESOURCES}
           </span>
         ) : null}
+        <span className="sp" />
+        {totalDocs > pinnedIds.length && onViewAllDocs ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onViewAllDocs}>
+            All documents
+            <span className="faint" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {totalDocs}
+            </span>
+          </button>
+        ) : null}
       </div>
-
-      {/* Cards sit directly on the page — separation comes from each card's
-          own shadow-card ring, not a grey trough (the well read as a dark
-          slab, especially in dark mode). `-m-1.5 p-1.5` keeps shadow room
-          inside the scroll container so rings aren't clipped at the edge. */}
-      {pinnedCards.length === 0 && pinnedForms.length === 0 ? (
-        <div className="flex items-center gap-3">
-          <p className="min-w-0 flex-1 text-xs leading-snug text-pretty text-muted-foreground">
-            Pin key documents for quick access.
-          </p>
-          {picker}
-        </div>
-      ) : (
-        <div className="-m-1.5 flex gap-2 overflow-x-auto p-1.5">
-          {pinnedCards.map((doc, i) => (
-            <DocPinCard
-              key={doc.id}
-              doc={doc}
-              propertyId={propertyId}
-              accentDotClass={accent}
-              onUnpin={onUnpin}
-              showPresence={false}
-              size="compact"
-              index={i}
-            />
-          ))}
-          {pinnedForms.map((form, i) => (
-            <FormPinCard
-              key={form.id}
-              form={form}
-              propertyId={propertyId}
-              accentDotClass={accent}
-              onUnpin={onUnpinForm}
-              index={pinnedCards.length + i}
-            />
-          ))}
-          {picker}
-        </div>
-      )}
-
-      {totalDocs > pinnedIds.length && onViewAllDocs ? (
-        <button
-          type="button"
-          onClick={onViewAllDocs}
-          className="-mx-1.5 inline-flex h-7 items-center gap-1.5 self-start rounded-md px-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          All documents in this space
-          <span className="inline-flex h-5 items-center rounded-md bg-muted px-1.5 text-xs font-medium shadow-ring tabular-nums">
-            {totalDocs}
-          </span>
-        </button>
-      ) : null}
+      <div className="panel-b">
+        {pinnedCards.length === 0 && pinnedForms.length === 0 ? (
+          <div className="row" style={{ gap: 12 }}>
+            <span className="faint grow" style={{ fontSize: 12.5 }}>
+              Pin key documents and forms for quick access.
+            </span>
+            {picker}
+          </div>
+        ) : (
+          /* `-m-1.5 p-1.5` keeps the cards' shadow rings inside the scroller. */
+          <div className="-m-1.5 flex gap-2 overflow-x-auto p-1.5">
+            {pinnedCards.map((doc, i) => (
+              <DocPinCard
+                key={doc.id}
+                doc={doc}
+                propertyId={propertyId}
+                accentDotClass={accent}
+                onUnpin={onUnpin}
+                showPresence={false}
+                size="compact"
+                index={i}
+              />
+            ))}
+            {pinnedForms.map((form, i) => (
+              <FormPinCard
+                key={form.id}
+                form={form}
+                propertyId={propertyId}
+                accentDotClass={accent}
+                onUnpin={onUnpinForm}
+                index={pinnedCards.length + i}
+              />
+            ))}
+            {picker}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

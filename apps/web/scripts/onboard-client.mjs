@@ -37,7 +37,7 @@ const CLIENT_ZERO = {
       bot_id: "frontdesk",
       display_name: "Front Desk",
       model_tier: "standard",
-      tool_set: ["search_docs", "read_doc", "get_bookings", "get_booking", "create_task", "brain_query", "brain_get"],
+      tool_set: ["search_docs", "read_doc", "create_task", "brain_query", "brain_get"],
       persona_fallback: "You are the front-desk assistant for Zero Lodge. Be warm and concise; never invent data.",
     },
     {
@@ -144,7 +144,7 @@ async function main() {
     name: `${config.slug}-actions`,
     token_hash: createHash("sha256").update(token).digest("hex"),
     created_by: config.operatorUserId,
-    allowed_tools: ["list_tasks", "create_task", "get_bookings", "get_booking", "trigger_workflow", "get_workflow_status"],
+    allowed_tools: ["list_tasks", "create_task", "trigger_workflow", "get_workflow_status"],
   });
   step("actions-MCP key minted", `${token.slice(0, 12)}… (full key printed below ONCE)`);
 

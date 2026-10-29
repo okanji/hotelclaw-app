@@ -107,7 +107,7 @@ const { registry } = defineRegistry(chatUiCatalog, {
         // A rendered table is a distinct embedded object in the message
         // stream, so the card framing is warranted — kept light: soft radius,
         // opacity-based border, no shadow (house separation ladder).
-        <div className="overflow-hidden rounded-md bg-background">
+        <div className="overflow-hidden g8-chat-card rounded-md bg-background">
           {props.title ? (
             <div className="flex items-baseline justify-between gap-3 border-b border-border bg-muted px-4 py-2.5">
               <span className="text-sm font-medium text-foreground">
@@ -295,7 +295,7 @@ const { registry } = defineRegistry(chatUiCatalog, {
         // full-page action.
         const href = props.href;
         return (
-          <div className="group flex items-stretch overflow-hidden rounded-md bg-background">
+          <div className="group flex items-stretch overflow-hidden g8-chat-card rounded-md bg-background">
             <button
               type="button"
               title="Open in side panel"
@@ -329,12 +329,12 @@ const { registry } = defineRegistry(chatUiCatalog, {
       return props.href ? (
         <Link
           href={props.href}
-          className="block rounded-md bg-background p-3.5 transition-colors hover:bg-accent"
+          className="block g8-chat-card rounded-md bg-background p-3.5 transition-colors hover:bg-accent"
         >
           {body}
         </Link>
       ) : (
-        <div className="rounded-md bg-background p-3.5">
+        <div className="g8-chat-card rounded-md bg-background p-3.5">
           {body}
         </div>
       );
@@ -343,7 +343,7 @@ const { registry } = defineRegistry(chatUiCatalog, {
       const count = Children.count(children);
       const cols = count <= 2 ? 2 : count === 3 ? 3 : 4;
       return (
-        <StatGroup cols={cols} className="rounded-md bg-background p-3.5">
+        <StatGroup cols={cols} className="g8-chat-card rounded-md bg-background p-3.5">
           {children}
         </StatGroup>
       );

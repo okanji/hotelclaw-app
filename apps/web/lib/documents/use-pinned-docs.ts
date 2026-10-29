@@ -1,30 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useFavorites } from "@/lib/favorites/use-favorites";
 
 /**
- * Per-property memory of which documents the user has pinned, kept in
- * `localStorage`. Surfaced on the docs Home page as a "Pinned" section so the
- * docs the user cares about most stay one click away.
+ * Pinned documents = favorite documents (`favorites`, kind `document`,
+ * migration 0120). Same hook surface the docs Home "Pinned" section and the
+ * Home widgets always used, now server-side and per user, so a pin follows
+ * you across devices and shows on the Favorites page.
  *
- * v1 storage is client-only: pins live on this device and don't sync to
- * others. If we ever want cross-device pins, swap the implementation for a
- * `document_pins` table behind the same hook surface.
- *
- * A miss (first visit, cleared / disabled storage) is harmless — every read
- * and write tolerates failure, the Pinned section just stays empty.
+ * v1 kept pins in `localStorage` per device. The first mount on a device
+ * imports any such pins into the table once, then clears the local key.
  */
 
 const KEY_PREFIX = "hotelclaw:doc-pins:";
-const STORAGE_EVENT = "hotelclaw:doc-pins:changed";
 
-function storageKey(propertyId: string): string {
-  return `${KEY_PREFIX}${propertyId}`;
-}
-
-function read(propertyId: string): string[] {
+function readLegacy(propertyId: string): string[] {
   try {
-    const raw = window.localStorage.getItem(storageKey(propertyId));
+    const raw = window.localStorage.getItem(`${KEY_PREFIX}${propertyId}`);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed)
@@ -32,19 +27,6 @@ function read(propertyId: string): string[] {
       : [];
   } catch {
     return [];
-  }
-}
-
-function write(propertyId: string, ids: string[]): void {
-  try {
-    window.localStorage.setItem(storageKey(propertyId), JSON.stringify(ids));
-    // Broadcast to other hook instances in the same tab — the native
-    // `storage` event only fires across tabs, not within one.
-    window.dispatchEvent(
-      new CustomEvent(STORAGE_EVENT, { detail: { propertyId } }),
-    );
-  } catch {
-    // ignore quota / disabled storage
   }
 }
 
@@ -57,50 +39,40 @@ export type UsePinnedDocs = {
 };
 
 export function usePinnedDocs(propertyId: string): UsePinnedDocs {
-  // SSR-safe initial: empty on first render, then re-read from localStorage
-  // post-hydration. Reading window.localStorage during render would diverge
-  // server vs client and trigger a hydration mismatch.
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const qc = useQueryClient();
+  const { idsOf, isFavorite, toggle } = useFavorites(propertyId);
+  const pinnedIds = useMemo(() => idsOf("document"), [idsOf]);
 
+  // One-time import of this device's v1 localStorage pins.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPinnedIds(read(propertyId));
+    const legacy = readLegacy(propertyId);
+    if (!legacy.length) return;
+    const supabase = createClient();
+    void supabase
+      .from("favorites")
+      .upsert(
+        legacy.map((id) => ({ property_id: propertyId, kind: "document" as const, entity_id: id })),
+        { onConflict: "user_id,kind,entity_id", ignoreDuplicates: true },
+      )
+      .then(({ error }) => {
+        if (error) return; // keep the local pins; retry next mount
+        try {
+          window.localStorage.removeItem(`${KEY_PREFIX}${propertyId}`);
+        } catch {
+          // ignore
+        }
+        void qc.invalidateQueries({ queryKey: ["favorites", propertyId] });
+      });
+  }, [propertyId, qc]);
 
-    function onChange(e: Event) {
-      const detail = (e as CustomEvent<{ propertyId: string }>).detail;
-      if (detail?.propertyId !== propertyId) return;
-      setPinnedIds(read(propertyId));
-    }
-    function onStorage(e: StorageEvent) {
-      if (e.key !== storageKey(propertyId)) return;
-      setPinnedIds(read(propertyId));
-    }
-    window.addEventListener(STORAGE_EVENT, onChange);
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener(STORAGE_EVENT, onChange);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, [propertyId]);
-
+  const isPinned = useCallback((id: string) => isFavorite("document", id), [isFavorite]);
   const togglePin = useCallback(
     (id: string) => {
-      const current = read(propertyId);
-      const exists = current.includes(id);
-      const next = exists
-        ? current.filter((x) => x !== id)
-        : // Newest pin first — matches the Home rendering order.
-          [id, ...current];
-      write(propertyId, next);
-      setPinnedIds(next);
-      return !exists;
+      const next = !isFavorite("document", id);
+      void toggle("document", id);
+      return next;
     },
-    [propertyId],
-  );
-
-  const isPinned = useCallback(
-    (id: string) => pinnedIds.includes(id),
-    [pinnedIds],
+    [isFavorite, toggle],
   );
 
   return { pinnedIds, isPinned, togglePin };

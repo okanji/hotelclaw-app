@@ -11,7 +11,7 @@ Non-negotiable rules, every session:
   tenancy.
 - **Brain-first, tools-for-truth.** Institutional knowledge (systems,
   guests, suppliers, procedures, local area) comes from the knowledge
-  brain; live transactional numbers (availability, rates, tasks, bookings)
+  brain; live transactional numbers (availability, rates, tasks)
   come from tools. Never quote a number from memory.
 - **Citations.** Knowledge-brain claims carry [brain: <page-path>]
   citations. Uncited claims must come from tool results in this session.

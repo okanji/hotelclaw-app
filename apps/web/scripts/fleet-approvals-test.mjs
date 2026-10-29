@@ -1,4 +1,4 @@
-// Gated-tool probe: @bookings refund → row flips awaiting_approval with a
+// Gated-tool probe: @bookings comp night → row flips awaiting_approval with a
 // populated payload → resolve via the runPodDecisionTurn path (the Fleet
 // approvals mechanism) → row clears, outcome lands in the channel.
 import { createClient } from "@supabase/supabase-js";
@@ -15,27 +15,13 @@ const check = (name, cond, extra = "") => {
   if (!cond) failed = true;
 };
 
-// Seed a FRESH confirmed booking for the probe — refunding a long-dead
-// fixture (the M4-era cancelled BKG-WTMU02) makes the model reasonably ask
-// for clarification instead of calling the gated tool.
+// A fresh reference per run so the model treats it as a new request. The
+// probe used to refund a seeded `bookings` row; the booking-table tools were
+// removed with the Bookings feature (2026-10-29), so it now exercises the
+// other approval-gated money tool, comp_night (task-only, no booking read).
+// REQUIRES the `bookings` pod bot's tool allow-list to include comp_night
+// (Fleet → Pod bots → Bookings, or re-run scripts/seed-pod1.mjs).
 const probeRef = `BKG-PRB${Date.now().toString(36).slice(-4).toUpperCase()}`;
-const { data: anyBooking } = await supabase
-  .from("bookings").select("service_id").eq("property_id", WATAMU).limit(1).single();
-const { data: probeBooking } = await supabase
-  .from("bookings")
-  .insert({
-    property_id: WATAMU,
-    service_id: anyBooking.service_id,
-    reference: probeRef,
-    guest_name: "Probe Guest",
-    party_size: 2,
-    status: "confirmed",
-    source: "staff",
-    starts_at: new Date(Date.now() + 86_400_000).toISOString(),
-    ends_at: new Date(Date.now() + 90_000_000).toISOString(),
-  })
-  .select("id")
-  .single();
 
 // Clean slate for the probe channel (create it in Stream first).
 const stream = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY, process.env.STREAM_API_SECRET, { timeout: 15000 });
@@ -52,8 +38,8 @@ const trigger = (text) =>
     body: JSON.stringify({ propertyId: WATAMU, channelId: CH, senderId: OWNER, senderName: "Oamar", text }),
   }).then((r) => r.json());
 
-const t = await trigger(`@bookings Please refund booking ${probeRef} — the guest cancelled within policy.`);
-check("refund request handled", t.handled === true);
+const t = await trigger(`@bookings Please comp one night on stay ${probeRef} — the guest's room AC failed overnight.`);
+check("comp request handled", t.handled === true);
 
 // Wait for the turn to complete and the park to be stamped.
 let row = null;
@@ -70,8 +56,8 @@ for (let i = 0; i < 30; i++) {
 check("row stamped awaiting_approval", row?.status === "awaiting_approval", JSON.stringify(row).slice(0, 200));
 const requests = row?.pending_approval?.requests ?? [];
 check(
-  "pending payload has refund_booking",
-  requests.some((r) => r.toolName === "refund_booking"),
+  "pending payload has comp_night",
+  requests.some((r) => r.toolName === "comp_night"),
   JSON.stringify(row?.pending_approval ?? null).slice(0, 200),
 );
 
@@ -98,6 +84,5 @@ if (row?.status === "awaiting_approval") {
   if (last) console.log(`   ↳ ${String(last.text).slice(0, 140)}`);
 }
 
-if (probeBooking) await supabase.from("bookings").delete().eq("id", probeBooking.id);
 console.log(failed ? "\nGATED PROBE FAILED" : "\nGated-tool probe passed.");
 process.exit(failed ? 1 : 0);

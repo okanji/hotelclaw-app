@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Gi } from "@/components/gr8r/icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
 import { DocumentEditor } from "@/components/documents/document-editor";
@@ -9,7 +10,6 @@ import { SheetEditor } from "@/components/spreadsheet/sheet-editor";
 import { TaskRoom } from "@/components/tasks/task-room";
 import { TaskDetailSkeleton } from "@/components/tasks/task-detail-skeleton";
 import { tasksQueryOptions } from "@/lib/query/section-queries";
-import { Button } from "@/components/ui/button";
 import { useArtifactPanel } from "./artifact-panel-context";
 
 // The panel's own floor, and — more importantly — the conversation's floor.
@@ -129,7 +129,7 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
   return (
     <aside
       ref={asideRef}
-      className="relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background"
+      className="relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-(--g8-surface)"
       style={{ width: width != null ? width : DEFAULT_CSS_WIDTH }}
     >
       {/* Drag-to-resize handle on the panel's left edge. Wider hit area than
@@ -150,35 +150,41 @@ export function ArtifactSidePanel({ propertyId }: { propertyId: string }) {
         // doc below can't swallow the pointermove stream.
         <div className="absolute inset-0 z-[5] cursor-col-resize" />
       ) : null}
-      <div className="flex items-center gap-2 border-b px-4 py-2">
-        <p className="min-w-0 flex-1 truncate text-sm">
-          <span className="font-medium">{target.title}</span>
-          <span className="mx-1.5 text-muted-foreground">·</span>
-          <span className="text-muted-foreground">{typeLabel}</span>
+      {/* gr8r `.drawer-h`: 46px header, crumbs-style "title / type". */}
+      <div className="drawer-h">
+        <p className="crumbs trunc grow" style={{ margin: 0 }}>
+          <span className="crumb cur trunc">{target.title}</span>
+          <span aria-hidden="true" className="sep">
+            /
+          </span>
+          <span className="crumb">{typeLabel}</span>
         </p>
-        <Button
-          size="icon-sm"
-          variant="ghost"
+        <button
+          type="button"
+          className="ibtn ibtn-sm"
           onClick={toggleExpand}
           aria-label={expanded ? "Shrink panel" : "Expand panel"}
+          title={expanded ? "Shrink panel" : "Expand panel"}
         >
-          {expanded ? (
-            <Minimize2 data-slot="icon" />
-          ) : (
-            <Maximize2 data-slot="icon" />
-          )}
-        </Button>
+          <Gi icon={expanded ? Minimize2 : Maximize2} size={14} />
+        </button>
         <Link
           href={fullHref}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+          className="ibtn ibtn-sm"
           title="Open full page"
         >
-          <ExternalLink className="size-4" />
+          <Gi icon={ExternalLink} size={14} />
           <span className="sr-only">Open full page</span>
         </Link>
-        <Button size="icon-sm" variant="ghost" onClick={close} aria-label="Close panel">
-          <X data-slot="icon" />
-        </Button>
+        <button
+          type="button"
+          className="ibtn ibtn-sm"
+          onClick={close}
+          aria-label="Close panel"
+          title="Close panel"
+        >
+          <Gi icon={X} size={15} />
+        </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {target.kind === "task" ? (

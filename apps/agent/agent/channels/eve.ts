@@ -58,7 +58,11 @@ async function verifyMembership(
     .eq("property_id", propertyId)
     .eq("user_id", userId)
     .maybeSingle();
-  return data ?? null;
+  // Guests (0118) never reach the agent runtime: its tools act through the
+  // service client across the whole property, past every grant. Every
+  // authenticator funnels through here, so this one line is the gate.
+  if (!data || data.role === "guest") return null;
+  return data;
 }
 
 function principal(

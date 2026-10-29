@@ -12,10 +12,8 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/badge-glyphs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +22,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 import { EventDialog } from "@/components/calendar/event-dialog";
 import { useMeeting } from "@/lib/stream/meeting-context";
@@ -108,14 +105,26 @@ export function MeetingsIndex({
   const searching = query.trim().length > 0;
 
   const scheduleButton = (
-    <Button size="sm" onClick={() => setScheduleSlot(defaultSlot())}>
-      <CalendarPlus />
+    <button
+      type="button"
+      className="btn btn-primary btn-sm"
+      onClick={() => setScheduleSlot(defaultSlot())}
+    >
+      <Gi icon={CalendarPlus} size={14} />
       Schedule meeting
-    </Button>
+    </button>
   );
   const startButton = (
     <StartMeetingMenu channels={channels} onStarted={() => router.refresh()} />
   );
+
+  const counts = [
+    groups.live.length ? `${groups.live.length} live` : null,
+    `${groups.upcoming.length} upcoming`,
+    `${groups.past.length} past`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -123,50 +132,72 @@ export function MeetingsIndex({
         title="Meetings"
         icon={<Video />}
         actions={
-          <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 md:flex">{headerActions}</div>
-            {startButton}
-            {scheduleButton}
+          <div className="row" style={{ gap: 6 }}>
+            <div className="hide-m row" style={{ gap: 6 }}>
+              {headerActions}
+            </div>
           </div>
         }
       />
-      <div className="flex-1 overflow-y-auto pt-2 pb-12">
-        {/* One width for the page — search, groups, and empty states share it. */}
-        <PageShell width="full" className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-48 flex-1 sm:max-w-72">
-              <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-faint-foreground" />
-              <Input
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide" style={{ maxWidth: 1080 }}>
+          <div className="ph">
+            <div>
+              <h1>Meetings</h1>
+              <p>{meetings.length === 0 ? "Calls, schedules and AI notes" : counts}</p>
+            </div>
+            <div className="acts">
+              {startButton}
+              {scheduleButton}
+            </div>
+          </div>
+
+          <div className="row" style={{ marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
+            <div className="inwrap">
+              <Gi icon={Search} size={13} />
+              <input
+                className="input search-sm"
+                style={{ width: 280 }}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by title, #channel, or person"
                 aria-label="Search meetings"
-                className="pl-7"
               />
             </div>
           </div>
 
           {meetings.length === 0 ? (
-            <EmptyState
-              icon={Video}
-              title="No meetings yet"
-              action={
-                <div className="flex items-center gap-2">
+            <div className="panel">
+              <div className="empty-state">
+                <div className="glyph">
+                  <Gi icon={Video} />
+                </div>
+                <h3 className="es-h">No meetings yet</h3>
+                <p>
+                  Start a call in a channel now, or put one on the calendar. Recorded
+                  meetings get a transcript and AI notes here.
+                </p>
+                <div className="row" style={{ gap: 6 }}>
                   {startButton}
                   {scheduleButton}
                 </div>
-              }
-            >
-              Start a call in a channel now, or put one on the calendar. Recorded
-              meetings get a transcript and AI notes here.
-            </EmptyState>
+              </div>
+            </div>
           ) : searching && total === 0 ? (
-            <EmptyState icon={Search} title="No meetings match">
-              Nothing matches &ldquo;{query.trim()}&rdquo;. Try a title, a channel
-              name, or someone who spoke.
-            </EmptyState>
+            <div className="panel">
+              <div className="empty-state">
+                <div className="glyph">
+                  <Gi icon={Search} />
+                </div>
+                <h3 className="es-h">No meetings match</h3>
+                <p>
+                  Nothing matches &ldquo;{query.trim()}&rdquo;. Try a title, a channel
+                  name, or someone who spoke.
+                </p>
+              </div>
+            </div>
           ) : (
-            <>
+            <div className="col" style={{ gap: 18 }}>
               {groups.live.length > 0 ? (
                 <MeetingGroup label="Live" count={groups.live.length}>
                   {groups.live.map((m) => (
@@ -178,16 +209,17 @@ export function MeetingsIndex({
               {groups.upcoming.length > 0 || !searching ? (
                 <MeetingGroup label="Upcoming" count={groups.upcoming.length}>
                   {groups.upcoming.length === 0 ? (
-                    <p className="px-2 py-2 text-sm text-faint-foreground">
+                    <div className="panel-b faint" style={{ paddingTop: 12, fontSize: 13 }}>
                       Nothing scheduled.{" "}
                       <button
                         type="button"
-                        className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        className="muted"
+                        style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
                         onClick={() => setScheduleSlot(defaultSlot())}
                       >
                         Schedule a meeting
                       </button>
-                    </p>
+                    </div>
                   ) : (
                     groups.upcoming.map((m) => (
                       <MeetingRow key={m.id} propertyId={propertyId} m={m} now={now} />
@@ -203,7 +235,7 @@ export function MeetingsIndex({
                   ))}
                 </MeetingGroup>
               ) : null}
-            </>
+            </div>
           )}
 
           {scheduleSlot ? (
@@ -218,12 +250,13 @@ export function MeetingsIndex({
               onMutated={() => router.refresh()}
             />
           ) : null}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
 }
 
+/** gr8r `.day-h`-style group label over a `.panel` of `.nrow`s. */
 function MeetingGroup({
   label,
   count,
@@ -235,13 +268,15 @@ function MeetingGroup({
 }) {
   return (
     <section>
-      <h2 className="flex items-baseline gap-2 px-2 pb-1 text-xs leading-3 font-medium text-faint-foreground">
-        {label}
-        <span className="tabular-nums">{count}</span>
-      </h2>
-      <ul role="list" className="flex flex-col">
+      <div className="row" style={{ gap: 6, margin: "0 2px 8px" }}>
+        <span className="eyebrow">{label}</span>
+        <span className="faint" style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
+          {count}
+        </span>
+      </div>
+      <div className="panel" role="list" style={{ overflow: "hidden" }}>
         {children}
-      </ul>
+      </div>
     </section>
   );
 }
@@ -276,44 +311,50 @@ function MeetingRow({
       : null);
 
   return (
-    <li className="group relative flex items-center gap-3 rounded-md px-2 py-2 hover:bg-accent">
-      <DateTile iso={m.state.startAt} />
-      <div className="min-w-0 flex-1">
+    <div role="listitem" className="nrow" style={{ position: "relative", alignItems: "center" }}>
+      <DateTile iso={m.state.startAt} live={m.state.phase === "live"} />
+      <div className="grow" style={{ fontSize: 13 }}>
         <Link
           href={`/p/${propertyId}/meetings/${m.id}`}
-          className="block truncate text-sm font-medium text-foreground after:absolute after:inset-0 after:content-['']"
+          className="trunc after:absolute after:inset-0 after:content-['']"
+          style={{ display: "block", fontWeight: 500, color: "var(--g8-text)" }}
         >
           {m.title}
         </Link>
-        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-xs text-muted-foreground">
-          <span className="shrink-0 tabular-nums">{whenLabel(m.state, now)}</span>
+        <div
+          className="faint row trunc"
+          style={{ fontSize: 11.5, marginTop: 3, gap: 5, flexWrap: "nowrap" }}
+        >
+          <span style={{ flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+            {whenLabel(m.state, now)}
+          </span>
           {m.recurrence ? (
-            <span className="flex shrink-0 items-center gap-0.5" title="Repeats">
-              <Repeat className="size-3" />
+            <span className="row" style={{ gap: 2, flexShrink: 0 }} title="Repeats">
+              <Gi icon={Repeat} size={11} />
             </span>
           ) : null}
           {m.channel_name ? (
-            <span className="flex shrink-0 items-center gap-0.5">
-              · <Hash className="size-3" />
+            <span className="row" style={{ gap: 2, flexShrink: 0 }}>
+              · <Gi icon={Hash} size={11} />
               {m.channel_name}
             </span>
           ) : null}
-          {duration ? <span className="shrink-0">· {formatDuration(duration)}</span> : null}
+          {duration ? <span style={{ flexShrink: 0 }}>· {formatDuration(duration)}</span> : null}
           {people ? (
-            <span className="flex min-w-0 items-center gap-1 truncate">
-              · <Users className="size-3 shrink-0" />
-              <span className="truncate">{people}</span>
+            <span className="row trunc" style={{ gap: 3 }}>
+              · <Gi icon={Users} size={11} />
+              <span className="trunc">{people}</span>
             </span>
           ) : m.host_name ? (
-            <span className="truncate">· by {m.host_name}</span>
+            <span className="trunc">· by {m.host_name}</span>
           ) : null}
-        </p>
+        </div>
       </div>
       {/* Above the stretched link so the controls stay clickable. */}
-      <div className="relative z-10 flex shrink-0 items-center gap-2">
-        <span title={badge.hint}>
-          <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
-        </span>
+      <div className="row" style={{ position: "relative", zIndex: 1, gap: 8, flexShrink: 0 }}>
+        <G8Badge tone={badge.tone} title={badge.hint}>
+          {badge.label}
+        </G8Badge>
         {joinable ? (
           <JoinMeetingButton
             meetingId={m.id}
@@ -323,18 +364,48 @@ function MeetingRow({
           />
         ) : null}
       </div>
-    </li>
+    </div>
   );
 }
 
-function DateTile({ iso }: { iso: string }) {
+/** gr8r calendar-tile date chip (month eyebrow over the day number). */
+function DateTile({ iso, live }: { iso: string; live?: boolean }) {
   const d = new Date(iso);
   return (
-    <div className="flex size-9 shrink-0 flex-col items-center justify-center rounded-md bg-muted leading-none">
-      <span className="text-[10px] font-medium text-faint-foreground uppercase">
+    <div
+      className="col"
+      style={{
+        width: 36,
+        height: 36,
+        flexShrink: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "var(--g8-r-sm)",
+        border: "1px solid var(--g8-border)",
+        background: live ? "var(--g8-accent-soft)" : "var(--g8-surface-2)",
+        lineHeight: 1,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: live ? "var(--g8-accent)" : "var(--g8-text-3)",
+        }}
+      >
         {d.toLocaleDateString(undefined, { month: "short" })}
       </span>
-      <span className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
+      <span
+        style={{
+          marginTop: 2,
+          fontSize: 14,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+          color: "var(--g8-text)",
+        }}
+      >
         {d.getDate()}
       </span>
     </div>
@@ -361,10 +432,10 @@ function StartMeetingMenu({
       <DropdownMenuTrigger
         disabled={disabled}
         render={(props) => (
-          <Button
+          <button
             {...props}
-            size="sm"
-            variant="outline"
+            type="button"
+            className="btn btn-secondary btn-sm"
             title={
               !videoReady
                 ? "Video not ready yet"
@@ -373,10 +444,10 @@ function StartMeetingMenu({
                   : "Start a call now"
             }
           >
-            <Video />
+            <Gi icon={Video} size={14} />
             Start meeting
-            <ChevronDown className="size-3 text-faint-foreground" />
-          </Button>
+            <Gi icon={ChevronDown} size={12} className="faint" />
+          </button>
         )}
       />
       <DropdownMenuContent align="end" sideOffset={4} className="max-h-80 w-56 overflow-y-auto">

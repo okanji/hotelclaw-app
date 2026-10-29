@@ -4,8 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import {
   parseAgentConfig,
   type AgentConfig,
@@ -94,24 +92,30 @@ export function AgentDetail({
           { label: `${config.avatarEmoji || "🤖"} ${name || "Untitled agent"}` },
         ]}
         actions={
-          <div className="flex items-center gap-1.5">
+          <div className="row" style={{ gap: 6 }}>
             {status === "active" ? (
-              <StatusBadge tone="success">Active</StatusBadge>
+              <span className="badge green">
+                <span className="dot" />
+                Active
+              </span>
             ) : (
-              <StatusBadge tone="warning">Paused</StatusBadge>
+              <span className="badge amber">
+                <span className="dot" />
+                Paused
+              </span>
             )}
-            <Button variant="outline" size="sm" onClick={toggleStatus} disabled={saving}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={toggleStatus} disabled={saving}>
               {status === "active" ? "Pause" : "Activate"}
-            </Button>
-            <Button size="sm" onClick={save} disabled={saving || !dirty}>
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={saving || !dirty}>
               {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-            </Button>
+            </button>
           </div>
         }
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
-        <div className="min-h-0 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 overflow-y-auto" style={{ padding: "24px var(--g8-gutter, 24px) 48px" }}>
           <AgentEditor
             name={name}
             onNameChange={(v) => {
@@ -124,10 +128,10 @@ export function AgentDetail({
           />
           {/* Sections separate by WHITESPACE — a full-width rule between two
               stacked panels reads as a seam (notion-spec-v2 §1). */}
-          <div className="h-10" />
+          <div style={{ height: 24 }} />
           <ResolvedConfig config={config} status={status} />
         </div>
-        <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
+        <div className="min-h-0 border-t lg:border-t-0 lg:border-l" style={{ borderColor: "var(--g8-border)", background: "var(--g8-surface)" }}>
           <AgentChat
             propertyId={agent.property_id}
             target={{ agentId: agent.id }}

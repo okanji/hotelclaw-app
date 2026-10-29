@@ -2,21 +2,29 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { Chip as ChipBase } from "@/components/ui/chip";
-import { Eyebrow as EyebrowBase } from "@/components/ui/eyebrow";
 import {
-  GuestBigInput,
-  GuestError,
-  GuestGhostButton as GhostButton,
-  GuestHint,
-  GuestInput,
-  GuestPrimaryButton as PrimaryButton,
-  GuestQuestion as Question,
-  GuestSelect,
-} from "@/components/guest/ui";
+  ArrowLeft,
+  ArrowRight,
+  BedDouble,
+  Check as CheckIcon,
+  CircleCheck,
+  Coffee,
+  Hotel,
+  Plus,
+  Sparkles,
+  TreePalm,
+  UtensilsCrossed,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { Gi } from "@/components/gr8r/icon";
+import {
+  AuthAlert,
+  AuthCardMark,
+  AuthShell,
+  FieldErr,
+} from "@/components/auth/auth-shell";
 import {
   departmentFamily,
   isSameDepartment,
@@ -32,7 +40,6 @@ import {
   PlanSchema,
   colorAt,
   defaultDeptIcon,
-  starterBookingServices,
   type OnboardingAnswersInput,
   type OnboardingPlan,
 } from "@/lib/onboarding/plan";
@@ -53,31 +60,79 @@ import { ReviewPlan, buildReviewSections } from "./review-plan";
  * property_profiles with everything selected.
  */
 
-// Palette + primitives come from the guest design system: `guest-*` tokens in
-// globals.css and the kit in components/guest/ui.tsx. The wizard pins the
-// guest tone on the shared Chip/Eyebrow once here so call sites stay terse.
+// gr8r-studio's onboarding (src/pages/auth.js `renderOnboarding`): the auth
+// frame, one `.auth-card.onb` per step with the `.steps` progress ticks,
+// single-choice `.opt` cards, `.seg` for short scales, and a Back / Continue
+// `.row` at the bottom. Multi-select chip rows (teams, role suggestions) are
+// `.onb-pick` buttons (gr8r-ext.css) — gr8r's wizard has no multi-select.
 
-function Chip(props: React.ComponentProps<typeof ChipBase>) {
-  return <ChipBase tone="guest" {...props} />;
-}
-
-function Eyebrow({
+/** A toggle chip: btn-secondary btn-sm, `.on` = gr8r's `.opt.on` look. */
+function Pick({
+  selected,
   className,
   ...props
-}: React.ComponentProps<typeof EyebrowBase>) {
-  return <EyebrowBase tone="guest" className={cn("mb-3", className)} {...props} />;
+}: React.ComponentProps<"button"> & { selected: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      className={`btn btn-secondary btn-sm onb-pick${selected ? " on" : ""}${className ? ` ${className}` : ""}`}
+      {...props}
+    />
+  );
 }
+
+/** gr8r's `nav()` — Back (ghost) left, extra actions + Continue right. */
+function StepNav({
+  onBack,
+  extra,
+  next = "Continue",
+  disabled,
+}: {
+  onBack?: () => void;
+  extra?: React.ReactNode;
+  next?: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="row" style={{ marginTop: 6 }}>
+      {onBack ? (
+        <button type="button" className="btn btn-ghost" onClick={onBack}>
+          <Gi icon={ArrowLeft} size={14} />
+          Back
+        </button>
+      ) : null}
+      <span className="sp" />
+      {extra}
+      <button type="submit" className="btn btn-primary btn-lg" disabled={disabled}>
+        {next}
+        <Gi icon={ArrowRight} size={15} />
+      </button>
+    </div>
+  );
+}
+
+const FORM_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 16,
+};
 
 // ─── Step data ──────────────────────────────────────────────────────────────
 
-const PROPERTY_TYPES = [
-  { id: "hotel", label: "Hotel" },
-  { id: "resort", label: "Resort" },
-  { id: "hostel", label: "Hostel" },
-  { id: "restaurant", label: "Restaurant" },
-  { id: "cafe-bar", label: "Café or bar" },
-  { id: "other", label: "Other" },
-] as const;
+const PROPERTY_TYPES: readonly {
+  id: string;
+  label: string;
+  blurb: string;
+  icon: LucideIcon;
+}[] = [
+  { id: "hotel", label: "Hotel", blurb: "Rooms & guest services", icon: Hotel },
+  { id: "resort", label: "Resort", blurb: "Stays, dining & leisure", icon: TreePalm },
+  { id: "hostel", label: "Hostel", blurb: "Beds & shared spaces", icon: BedDouble },
+  { id: "restaurant", label: "Restaurant", blurb: "Tables & kitchen", icon: UtensilsCrossed },
+  { id: "cafe-bar", label: "Café or bar", blurb: "Counter, bar & kitchen", icon: Coffee },
+  { id: "other", label: "Other", blurb: "Something else", icon: Sparkles },
+];
 
 const TEAM_SIZES = ["Just me", "2–4", "5–10", "11–20", "21+"] as const;
 
@@ -151,7 +206,7 @@ const PRIORITY_OPTIONS = [
 // Operations that follow with near-certainty from the property type — used to
 // pre-seed the "What do you run" step so we don't ask a restaurant whether it
 // runs a restaurant. Deliberately only tautologies: a wrong preselection here
-// creates real artifacts downstream (booking services, chatbot actions), so
+// creates real artifacts downstream (chatbot actions, forms), so
 // anything merely LIKELY (hotel → restaurant, sales dept → events venue) stays
 // an unticked chip for the user to confirm.
 const OPS_BY_TYPE: Record<string, string[]> = {
@@ -481,438 +536,457 @@ export function OnboardingWizard({
   }, [step, answers]);
 
   const propertyName = answers.propertyName.trim() || "your property";
+  const removeDept = (name: string) =>
+    set(
+      "departments",
+      answers.departments.filter((x) => x.name !== name),
+    );
 
   return (
-    <div className="flex min-h-svh flex-col bg-guest-bg text-guest-ink">
-      {/* Progress bar */}
-      <div className="fixed inset-x-0 top-0 z-10 h-1 bg-guest-line-soft">
+    <AuthShell
+      topRight={
+        // Escape hatch — only when adding an ADDITIONAL property (first-run
+        // has nowhere to return to, so the user must complete it).
+        addingProperty && returnTo ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => router.push(returnTo)}
+          >
+            Exit setup
+          </button>
+        ) : null
+      }
+    >
+      <div
+        key={step}
+        className="auth-card onb fx-step"
+        // Every step but the last asks ONE question in gr8r's 560px card.
+        // The review is an inventory of ~40 artifacts, so it gets the width
+        // to lay them out two-up instead of one long ribbon.
+        style={{ maxWidth: step === TOTAL_STEPS - 1 ? 760 : 560 }}
+      >
         <div
-          className="h-full w-(--progress) bg-guest-accent transition-[width] duration-500 ease-out"
-          style={
-            {
-              "--progress": `${((step + 1) / TOTAL_STEPS) * 100}%`,
-            } as React.CSSProperties
-          }
-        />
-      </div>
-
-      {/* Escape hatch — only when adding an ADDITIONAL property (first-run has
-          nowhere to return to, so the user must complete it). */}
-      {addingProperty && returnTo && (
-        <button
-          type="button"
-          onClick={() => router.push(returnTo)}
-          className="fixed right-5 top-5 z-10 rounded-full px-3 py-1.5 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink"
+          className="steps"
+          aria-label={`Step ${step + 1} of ${TOTAL_STEPS}`}
         >
-          Cancel
-        </button>
-      )}
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+            <i
+              key={i}
+              className={
+                [i <= step ? "on" : "", i === step ? "cur" : ""]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+            />
+          ))}
+        </div>
+        <div className="faint" style={{ textAlign: "center", fontSize: 12 }}>
+          {firstName && step === 0 ? `Hi ${firstName} · ` : ""}Step {step + 1}{" "}
+          of {TOTAL_STEPS}
+        </div>
 
-      {/* `m-auto`, NOT `items-center`. Flex centering overflows a too-tall
-          child EQUALLY in both directions, and the part that overflows above
-          the container's top edge cannot be scrolled to — the review step
-          (step 7) grew past the viewport and its top was unreachable. Auto
-          margins center the same way but collapse to zero rather than going
-          negative, so a tall step just scrolls. */}
-      <main className="flex flex-1 flex-col justify-center px-6 py-16">
-        <div
-          key={step}
-          className={cn(
-            "m-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
-            // Every step but the last asks ONE question, and a narrow column
-            // is what makes that feel like a conversation. The review is a
-            // different kind of screen — an inventory of ~40 artifacts — so it
-            // gets the width to lay them out two-up instead of in one long
-            // ribbon the user has to scroll past.
-            step === TOTAL_STEPS - 1 ? "max-w-3xl" : "max-w-xl",
-          )}
-        >
-          {step === 0 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!canContinue) return;
-                startEnrichment(answers.website);
-                next();
-              }}
-            >
-              <Eyebrow>
-                {firstName ? `Hi ${firstName} · ` : ""}Step 1 of {TOTAL_STEPS}
-              </Eyebrow>
-              <Question>What&rsquo;s your property called?</Question>
-              <GuestHint>
-                This becomes your team&rsquo;s workspace. You can rename it any
-                time.
-              </GuestHint>
-              <GuestBigInput
+        {step === 0 && (
+          <form
+            style={FORM_STYLE}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canContinue) return;
+              startEnrichment(answers.website);
+              next();
+            }}
+          >
+            <h1>What&rsquo;s your property called?</h1>
+            <p className="sub">
+              This becomes your team&rsquo;s workspace. You can rename it any
+              time.
+            </p>
+            <div className="field">
+              <label className="label" htmlFor="o-name">
+                Property name
+              </label>
+              <input
+                id="o-name"
+                className="input input-lg"
                 autoFocus
                 value={answers.propertyName}
                 onChange={(e) => set("propertyName", e.target.value)}
                 placeholder="The Grand Hotel"
                 maxLength={120}
-                className="mt-10"
               />
-              <div className="mt-6">
-                <span className="mb-1.5 block text-xs text-guest-ink-faint">
-                  Website (optional) — we&rsquo;ll read it and prefill what we
-                  can
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="o-website">
+                Website <span className="faint">(optional)</span>
+              </label>
+              <input
+                id="o-website"
+                className="input input-lg"
+                type="text"
+                inputMode="url"
+                value={answers.website}
+                onChange={(e) => set("website", e.target.value)}
+                // Blur beats the debounce when they tab straight out.
+                onBlur={() => startEnrichment(answers.website)}
+                placeholder="thegrandhotel.com"
+                maxLength={200}
+              />
+              {/* Say what's happening. Answers quietly appearing two steps
+                  later reads as a glitch unless the reading was visible. */}
+              {enrichState === "idle" ? (
+                <span className="hint">
+                  We&rsquo;ll read it and prefill what we can.
                 </span>
-                <GuestInput
-                  type="text"
-                  inputMode="url"
-                  value={answers.website}
-                  onChange={(e) => set("website", e.target.value)}
-                  // Blur beats the debounce when they tab straight out.
-                  onBlur={() => startEnrichment(answers.website)}
-                  placeholder="thegrandhotel.com"
-                  maxLength={200}
-                  className="w-full max-w-sm"
-                />
-                {/* Say what's happening. Answers quietly appearing two steps
-                    later reads as a glitch unless the reading was visible. */}
-                {enrichState !== "idle" ? (
-                  <p
-                    aria-live="polite"
-                    className="mt-2 text-xs text-guest-ink-faint"
-                  >
-                    {enrichState === "loading"
-                      ? "Reading your site…"
-                      : enrichState === "done"
-                        ? "Read your site — we've prefilled what we could."
-                        : "Couldn't read that site. No problem — carry on."}
-                  </p>
-                ) : null}
-              </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
-                <span className="text-xs text-guest-ink-faint">
-                  press Enter ↵
+              ) : (
+                <span
+                  aria-live="polite"
+                  className="hint"
+                  style={
+                    enrichState === "done"
+                      ? {
+                          color: "var(--g8-green)",
+                          display: "flex",
+                          gap: 4,
+                          alignItems: "center",
+                        }
+                      : undefined
+                  }
+                >
+                  {enrichState === "done" ? (
+                    <Gi icon={CheckIcon} size={12} />
+                  ) : null}
+                  {enrichState === "loading"
+                    ? "Reading your site…"
+                    : enrichState === "done"
+                      ? "Read your site — we've prefilled what we could."
+                      : "Couldn't read that site. No problem — carry on."}
                 </span>
-              </div>
-            </form>
-          )}
+              )}
+            </div>
+            <StepNav disabled={!canContinue} />
+          </form>
+        )}
 
-          {step === 1 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!canContinue) return;
-                applyDeptPreset();
-                next();
-              }}
-            >
-              <Eyebrow>Step 2 of {TOTAL_STEPS}</Eyebrow>
-              <Question>What kind of place is {propertyName}?</Question>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {PROPERTY_TYPES.map((t) => (
-                  <Chip
+        {step === 1 && (
+          <form
+            style={FORM_STYLE}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canContinue) return;
+              applyDeptPreset();
+              next();
+            }}
+          >
+            <h1>What kind of place is {propertyName}?</h1>
+            <p className="sub">
+              We&rsquo;ll tailor teams, channels and starter docs to fit.
+            </p>
+            <div className="opts" role="radiogroup" aria-label="Property type">
+              {PROPERTY_TYPES.map((t) => {
+                const on = answers.propertyType === t.id;
+                return (
+                  <button
                     key={t.id}
-                    selected={answers.propertyType === t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={on ? "opt on" : "opt"}
                     onClick={() => set("propertyType", t.id)}
                   >
-                    {t.label}
-                  </Chip>
-                ))}
-              </div>
-              <Eyebrow className="mt-10 mb-0">
+                    <Gi icon={t.icon} size={18} />
+                    <b>{t.label}</b>
+                    <span>{t.blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="field">
+              <span className="label">
                 And how big is the management team?
-              </Eyebrow>
-              <div className="mt-3 flex flex-wrap gap-2">
+              </span>
+              <div
+                className="seg"
+                role="radiogroup"
+                aria-label="Team size"
+                style={{ width: "fit-content", maxWidth: "100%", flexWrap: "wrap" }}
+              >
                 {TEAM_SIZES.map((s) => (
-                  <Chip
+                  <button
                     key={s}
-                    selected={answers.teamSize === s}
+                    type="button"
+                    role="radio"
+                    aria-checked={answers.teamSize === s}
+                    className={answers.teamSize === s ? "on" : undefined}
                     onClick={() => set("teamSize", s)}
                   >
                     {s}
-                  </Chip>
+                  </button>
                 ))}
               </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
-                <GhostButton onClick={back}>Back</GhostButton>
-              </div>
-            </form>
-          )}
+            </div>
+            <StepNav onBack={back} disabled={!canContinue} />
+          </form>
+        )}
 
-          {step === 2 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (canContinue) next();
-              }}
-            >
-              <Eyebrow>Step 3 of {TOTAL_STEPS}</Eyebrow>
-              <Question>Which teams run {propertyName}?</Question>
-              <GuestHint>
-                Each one gets its own space and channel. We&rsquo;ve
-                pre-selected the usual suspects — tap to remove, or add your
-                own.
-              </GuestHint>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {answers.departments.map((d) =>
-                  renamingDept === d.name ? (
-                    <GuestInput
-                      key={d.name}
-                      autoFocus
-                      value={renameDraft}
-                      onChange={(e) => setRenameDraft(e.target.value)}
-                      onBlur={() => commitRename(d.name)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          commitRename(d.name);
-                        }
-                        if (e.key === "Escape") setRenamingDept(null);
-                      }}
-                      maxLength={60}
-                      className="h-9 w-44"
-                    />
-                  ) : (
-                    <Chip
-                      key={d.name}
-                      selected
+        {step === 2 && (
+          <form
+            style={FORM_STYLE}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canContinue) next();
+            }}
+          >
+            <h1>Which teams run {propertyName}?</h1>
+            <p className="sub">
+              Each one gets its own space and channel. We&rsquo;ve
+              pre-selected the usual suspects — click one to rename it, × to
+              remove, or add your own.
+            </p>
+            <div className="onb-picks">
+              {answers.departments.map((d) =>
+                renamingDept === d.name ? (
+                  <input
+                    key={d.name}
+                    className="input"
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onBlur={() => commitRename(d.name)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitRename(d.name);
+                      }
+                      if (e.key === "Escape") setRenamingDept(null);
+                    }}
+                    maxLength={60}
+                    aria-label={`Rename ${d.name}`}
+                    style={{ width: 176, height: "var(--g8-h-sm)" }}
+                  />
+                ) : (
+                  <span
+                    key={d.name}
+                    className="btn btn-secondary btn-sm onb-pick on"
+                    style={{ paddingRight: 3, gap: 4 }}
+                  >
+                    <button
+                      type="button"
                       title="Click to rename"
+                      className="row"
+                      style={{ gap: 6 }}
                       onClick={() => {
                         setRenamingDept(d.name);
                         setRenameDraft(d.name);
                       }}
                     >
-                      <span className="mr-1.5">{d.icon}</span>
+                      <span aria-hidden>{d.icon}</span>
                       {d.name}
-                      <X
-                        className="ml-2 inline size-3.5 opacity-50 hover:opacity-100"
-                        aria-hidden
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          set(
-                            "departments",
-                            answers.departments.filter(
-                              (x) => x.name !== d.name,
-                            ),
-                          );
-                        }}
-                      />
-                    </Chip>
-                  ),
-                )}
-              </div>
-              {deptSuggestions.length > 0 ? (
-                <div className="mt-4">
-                  <p className="mb-2 text-xs text-guest-ink-faint">
-                    More to toggle on
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {deptSuggestions.map((name) => (
-                      <Chip
-                        key={name}
-                        selected={false}
-                        onClick={() =>
-                          set("departments", [
-                            ...answers.departments,
-                            {
-                              name,
-                              icon: defaultDeptIcon(name),
-                              color: colorAt(answers.departments.length),
-                            },
-                          ])
-                        }
-                      >
-                        <span className="mr-1.5">{defaultDeptIcon(name)}</span>
-                        {name}
-                      </Chip>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className="mt-5 flex items-center gap-2">
-                <GuestInput
-                  value={deptDraft}
-                  onChange={(e) => setDeptDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const name = deptDraft.trim();
-                      if (!name) return;
-                      // Same family check as the suggestion list: typing
-                      // "Reception" when Front Office already exists should
-                      // no-op rather than create a duplicate team with its
-                      // own space and channel.
-                      if (
-                        answers.departments.some((d) =>
-                          isSameDepartment(d.name, name),
-                        ) ||
-                        answers.departments.length >= 12
-                      ) {
-                        setDeptDraft("");
-                        return;
+                    </button>
+                    <button
+                      type="button"
+                      className="ibtn ibtn-xs"
+                      aria-label={`Remove ${d.name}`}
+                      onClick={() => removeDept(d.name)}
+                    >
+                      <Gi icon={X} size={12} />
+                    </button>
+                  </span>
+                ),
+              )}
+            </div>
+            {deptSuggestions.length > 0 ? (
+              <div className="field">
+                <span className="label">More to toggle on</span>
+                <div className="onb-picks">
+                  {deptSuggestions.map((name) => (
+                    <Pick
+                      key={name}
+                      selected={false}
+                      onClick={() =>
+                        set("departments", [
+                          ...answers.departments,
+                          {
+                            name,
+                            icon: defaultDeptIcon(name),
+                            color: colorAt(answers.departments.length),
+                          },
+                        ])
                       }
-                      set("departments", [
-                        ...answers.departments,
-                        {
-                          name,
-                          icon: defaultDeptIcon(name),
-                          color: colorAt(answers.departments.length),
-                        },
-                      ]);
+                    >
+                      <span aria-hidden>{defaultDeptIcon(name)}</span>
+                      {name}
+                    </Pick>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="field">
+              <label className="label" htmlFor="o-dept">
+                Add your own
+              </label>
+              <input
+                id="o-dept"
+                className="input"
+                value={deptDraft}
+                onChange={(e) => setDeptDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const name = deptDraft.trim();
+                    if (!name) return;
+                    // Same family check as the suggestion list: typing
+                    // "Reception" when Front Office already exists should
+                    // no-op rather than create a duplicate team with its
+                    // own space and channel.
+                    if (
+                      answers.departments.some((d) =>
+                        isSameDepartment(d.name, name),
+                      ) ||
+                      answers.departments.length >= 12
+                    ) {
                       setDeptDraft("");
+                      return;
                     }
-                  }}
-                  placeholder="Add your own…"
-                  maxLength={60}
-                  className="h-10 flex-1"
-                />
-                <span className="text-xs text-guest-ink-faint">
-                  Enter to add
-                </span>
-              </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton disabled={!canContinue}>Continue</PrimaryButton>
-                <GhostButton onClick={back}>Back</GhostButton>
-              </div>
-            </form>
-          )}
+                    set("departments", [
+                      ...answers.departments,
+                      {
+                        name,
+                        icon: defaultDeptIcon(name),
+                        color: colorAt(answers.departments.length),
+                      },
+                    ]);
+                    setDeptDraft("");
+                  }
+                }}
+                placeholder="e.g. Security"
+                maxLength={60}
+              />
+              <span className="hint">Press Enter to add.</span>
+            </div>
+            <StepNav onBack={back} disabled={!canContinue} />
+          </form>
+        )}
 
-          {step === 3 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                applyOpsPreset();
-                next();
-              }}
-            >
-              <Eyebrow>Step 4 of {TOTAL_STEPS}</Eyebrow>
-              <Question>And what&rsquo;s your role?</Question>
-              <GuestBigInput
+        {step === 3 && (
+          <form
+            style={FORM_STYLE}
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyOpsPreset();
+              next();
+            }}
+          >
+            <h1>And what&rsquo;s your role?</h1>
+            <p className="sub">
+              So the assistant and your reports speak to the right person.
+            </p>
+            <div className="field">
+              <label className="label" htmlFor="o-role">
+                Your role
+              </label>
+              <input
+                id="o-role"
+                className="input input-lg"
                 autoFocus
                 value={answers.roleTitle}
                 onChange={(e) => set("roleTitle", e.target.value)}
                 placeholder="General Manager"
                 maxLength={80}
-                className="mt-8"
               />
-              <div className="mt-4 flex flex-wrap gap-2">
-                {ROLE_SUGGESTIONS.map((r) => (
-                  <Chip
-                    key={r}
-                    selected={answers.roleTitle === r}
-                    onClick={() => set("roleTitle", r)}
-                    className="px-3 py-1.5 text-xs"
-                  >
-                    {r}
-                  </Chip>
-                ))}
-              </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton>Continue</PrimaryButton>
-                <GhostButton onClick={back}>Back</GhostButton>
-              </div>
-            </form>
-          )}
+            </div>
+            <div className="onb-picks">
+              {ROLE_SUGGESTIONS.map((r) => (
+                <Pick
+                  key={r}
+                  selected={answers.roleTitle === r}
+                  onClick={() => set("roleTitle", r)}
+                >
+                  {r}
+                </Pick>
+              ))}
+            </div>
+            <StepNav onBack={back} />
+          </form>
+        )}
 
-          {step === 4 && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                next();
-              }}
-            >
-              <Eyebrow>Step 5 of {TOTAL_STEPS}</Eyebrow>
-              <Question>What do you run at {propertyName}?</Question>
-              <GuestHint>
-                We&rsquo;ve ticked what you&rsquo;ve already told us — add
-                anything else. We&rsquo;ll set up booking, ordering, and the
-                right forms for each.
-              </GuestHint>
-              {/* Cards, not chips. A chip can only carry a label, and the
-                  label alone ("Rentals") doesn't tell you what ticking it
-                  DOES. At 17 options they're grouped, because an
-                  undifferentiated wall of seventeen is worse than eight. */}
-              <div className="mt-8 space-y-6">
-                {OPERATION_GROUPS.map(({ group, options }) => (
-                  <div key={group}>
-                    <p className="mb-2 text-xs text-guest-ink-faint">{group}</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {options.map((o) => {
-                        const on = answers.operations.includes(o.id);
-                        return (
-                          <button
-                            key={o.id}
-                            type="button"
-                            role="checkbox"
-                            aria-checked={on}
-                            onClick={() =>
-                              set(
-                                "operations",
-                                on
-                                  ? answers.operations.filter((x) => x !== o.id)
-                                  : [...answers.operations, o.id],
-                              )
-                            }
-                            className={cn(
-                              "flex items-start gap-2.5 rounded-2xl border p-3 text-left transition-colors",
-                              on
-                                ? "border-guest-accent bg-guest-accent/10"
-                                : "border-guest-line bg-guest-card hover:border-guest-line-strong",
-                            )}
-                          >
-                            <span aria-hidden className="mt-px text-base leading-5">
-                              {o.emoji}
-                            </span>
-                            <span className="min-w-0">
-                              <span
-                                className={cn(
-                                  "block text-sm",
-                                  on
-                                    ? "text-guest-accent-ink"
-                                    : "text-guest-ink",
-                                )}
-                              >
-                                {o.label}
-                              </span>
-                              <span className="mt-0.5 block text-xs leading-snug text-pretty text-guest-ink-faint">
-                                {o.blurb}
-                              </span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+        {step === 4 && (
+          <form
+            style={FORM_STYLE}
+            onSubmit={(e) => {
+              e.preventDefault();
+              next();
+            }}
+          >
+            <h1>What do you run at {propertyName}?</h1>
+            <p className="sub">
+              We&rsquo;ve ticked what you&rsquo;ve already told us — add
+              anything else. We&rsquo;ll set up ordering and the
+              right forms for each.
+            </p>
+            {/* gr8r `.opt` cards, not chips: the label alone ("Rentals")
+                doesn't tell you what ticking it DOES. Grouped, because an
+                undifferentiated wall of seventeen is worse than eight. */}
+            {OPERATION_GROUPS.map(({ group, options }) => (
+              <div key={group} className="field">
+                <span className="label">{group}</span>
+                <div className="opts two">
+                  {options.map((o) => {
+                    const on = answers.operations.includes(o.id);
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        className={on ? "opt on" : "opt"}
+                        onClick={() =>
+                          set(
+                            "operations",
+                            on
+                              ? answers.operations.filter((x) => x !== o.id)
+                              : [...answers.operations, o.id],
+                          )
+                        }
+                      >
+                        <span aria-hidden className="em">
+                          {o.emoji}
+                        </span>
+                        <b>{o.label}</b>
+                        <span>{o.blurb}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="mt-10 flex items-center gap-3">
-                <PrimaryButton>Continue</PrimaryButton>
-                <GhostButton onClick={back}>Back</GhostButton>
-              </div>
-            </form>
-          )}
+            ))}
+            <StepNav onBack={back} />
+          </form>
+        )}
 
-          {step === 5 && (
-            <InviteStep
-              propertyName={propertyName}
-              departments={answers.departments.map((d) => d.name)}
-              invites={answers.invites}
-              onChange={(invites) => set("invites", invites)}
-              onContinue={next}
-              onSkip={() => {
-                set("invites", []);
-                next();
-              }}
-              onBack={back}
-            />
-          )}
+        {step === 5 && (
+          <InviteStep
+            propertyName={propertyName}
+            departments={answers.departments.map((d) => d.name)}
+            invites={answers.invites}
+            onChange={(invites) => set("invites", invites)}
+            onContinue={next}
+            onSkip={() => {
+              set("invites", []);
+              next();
+            }}
+            onBack={back}
+          />
+        )}
 
-          {step === 6 && (
-            <BuildStep
-              answers={answers}
-              onDone={(propertyId) => router.push(`/p/${propertyId}/home`)}
-              onBack={back}
-            />
-          )}
-        </div>
-      </main>
-    </div>
+        {step === 6 && (
+          <BuildStep
+            answers={answers}
+            onDone={(propertyId) => router.push(`/p/${propertyId}/home`)}
+            onBack={back}
+          />
+        )}
+      </div>
+    </AuthShell>
   );
 }
 
@@ -952,6 +1026,7 @@ function InviteStep({
 
   return (
     <form
+      style={FORM_STYLE}
       onSubmit={(e) => {
         e.preventDefault();
         if (hasPartial) return;
@@ -967,63 +1042,85 @@ function InviteStep({
         onContinue();
       }}
     >
-      <Eyebrow>Step 6 of {TOTAL_STEPS}</Eyebrow>
-      <Question>Bring the {propertyName} team along?</Question>
-      <GuestHint>You can always invite people later from Settings.</GuestHint>
-      <div className="mt-8 space-y-4">
+      <h1>Bring the {propertyName} team along?</h1>
+      <p className="sub">
+        They&rsquo;ll get an email invite. You can always invite people later
+        from Members.
+      </p>
+      <div className="col" style={{ gap: 10 }}>
         {rows.map((row, i) => (
           <div
             key={i}
-            className="relative rounded-2xl border border-guest-line bg-guest-card/60 p-4 sm:p-5"
+            className="panel"
+            style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12 }}
           >
-            {rows.length > 1 ? (
-              <button
-                type="button"
-                aria-label="Remove"
-                onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-                className="absolute right-4 top-4 text-sm text-guest-ink-faint transition-colors hover:text-guest-ink"
-              >
-                ×
-              </button>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+            <div className="row">
+              <span className="label" style={{ margin: 0 }}>
+                Teammate {i + 1}
+              </span>
+              <span className="sp" />
+              {rows.length > 1 ? (
+                <button
+                  type="button"
+                  className="ibtn ibtn-sm"
+                  aria-label={`Remove teammate ${i + 1}`}
+                  onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
+                >
+                  <Gi icon={X} size={14} />
+                </button>
+              ) : null}
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <div className="field">
+                <label className="label" htmlFor={`inv-name-${i}`}>
                   Name
-                </span>
-                <GuestInput
+                </label>
+                <input
+                  id={`inv-name-${i}`}
+                  className="input"
                   value={row.name ?? ""}
                   onChange={(e) => update(i, { name: e.target.value })}
                   placeholder="Alex Rivera"
-                  className="w-full"
                 />
               </div>
-              <div>
-                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+              <div className="field">
+                <label className="label" htmlFor={`inv-email-${i}`}>
                   Email
-                </span>
-                <GuestInput
+                </label>
+                <input
+                  id={`inv-email-${i}`}
+                  className={
+                    row.email.trim() !== "" && !EMAIL_RE.test(row.email.trim())
+                      ? "input is-error"
+                      : "input"
+                  }
                   type="email"
                   value={row.email}
                   onChange={(e) => update(i, { email: e.target.value })}
                   placeholder="teammate@example.com"
-                  className="w-full"
                 />
               </div>
               {/* Team comes BEFORE job title: the team narrows what the title
                   can sensibly be, so asking in the other order makes the
                   title's suggestions arrive too late to help. */}
               {departments.length > 0 ? (
-                <div>
-                  <span className="mb-1.5 block text-xs text-guest-ink-faint">
+                <div className="field">
+                  <label className="label" htmlFor={`inv-team-${i}`}>
                     Team
-                  </span>
-                  <GuestSelect
+                  </label>
+                  <select
+                    id={`inv-team-${i}`}
+                    className="select"
                     value={row.department ?? ""}
                     onChange={(e) =>
                       update(i, { department: e.target.value || undefined })
                     }
-                    aria-label="Team"
                   >
                     {/* Not "No team yet" — for a GM or an owner this IS the
                         answer, not a blank. See LEADERSHIP_TITLES. */}
@@ -1033,19 +1130,20 @@ function InviteStep({
                         {d}
                       </option>
                     ))}
-                  </GuestSelect>
+                  </select>
                 </div>
               ) : null}
-              <div>
-                <span className="mb-1.5 block text-xs text-guest-ink-faint">
+              <div className="field">
+                <label className="label" htmlFor={`inv-title-${i}`}>
                   Job title
-                </span>
-                <GuestInput
+                </label>
+                <input
+                  id={`inv-title-${i}`}
+                  className="input"
                   list={`invite-titles-${i}`}
                   value={row.title ?? ""}
                   onChange={(e) => update(i, { title: e.target.value })}
                   placeholder={titlesForDepartment(row.department)[0]}
-                  className="w-full"
                 />
                 {/* Per-row datalist: the options depend on this row's team, so
                     a single shared list would offer chefs to receptionists. */}
@@ -1056,59 +1154,64 @@ function InviteStep({
                 </datalist>
               </div>
             </div>
-
-            <div className="mt-3">
-              <span className="mb-1.5 block text-xs text-guest-ink-faint">
-                Access
-              </span>
-              <div className="inline-flex h-11 items-center rounded-full border border-guest-line bg-guest-card p-1">
+            <div className="field">
+              <span className="label">Access</span>
+              <div
+                className="seg"
+                role="radiogroup"
+                aria-label="Access"
+                style={{ width: "fit-content" }}
+              >
                 {(["manager", "staff"] as const).map((role) => (
                   <button
                     key={role}
                     type="button"
+                    role="radio"
+                    aria-checked={row.role === role}
+                    className={row.role === role ? "on" : undefined}
+                    style={{ textTransform: "capitalize" }}
                     onClick={() => update(i, { role })}
-                    className={cn(
-                      "rounded-full px-4 py-1.5 text-xs capitalize transition-colors",
-                      row.role === role
-                        ? "bg-guest-accent/10 text-guest-accent-ink"
-                        : "text-guest-ink-faint hover:text-guest-ink",
-                    )}
                   >
                     {role}
                   </button>
                 ))}
               </div>
+              <span className="hint">
+                {row.role === "manager"
+                  ? "Managers can change settings, automations, and see reports."
+                  : "Staff can chat, work on tasks, and fill forms — no admin settings."}
+              </span>
             </div>
-            <p className="mt-3 text-xs text-guest-ink-faint">
-              {row.role === "manager"
-                ? "Managers can change settings, automations, and see reports."
-                : "Staff can chat, work on tasks, and fill forms — no admin settings."}
-            </p>
           </div>
         ))}
       </div>
       <button
         type="button"
+        className="btn btn-ghost btn-sm"
+        style={{ alignSelf: "flex-start" }}
         onClick={() => onChange([...rows, { email: "", role: "staff" }])}
         disabled={rows.length >= 20}
-        className="mt-4 rounded-full border border-dashed border-guest-line px-4 py-2 text-sm text-guest-ink-faint transition-colors hover:border-guest-ink-faint hover:text-guest-ink disabled:opacity-40"
       >
-        + Add another person
+        <Gi icon={Plus} size={13} />
+        Add another person
       </button>
       {hasPartial ? (
-        <GuestError className="mt-3">
-          One of those emails doesn&rsquo;t look right.
-        </GuestError>
+        <FieldErr>One of those emails doesn&rsquo;t look right.</FieldErr>
       ) : null}
-      <div className="mt-10 flex items-center gap-3">
-        <PrimaryButton disabled={hasPartial}>
-          {validRows.length > 0
+      <StepNav
+        onBack={onBack}
+        disabled={hasPartial}
+        extra={
+          <button type="button" className="btn btn-ghost" onClick={onSkip}>
+            Skip for now
+          </button>
+        }
+        next={
+          validRows.length > 0
             ? `Invite ${validRows.length} & finish`
-            : "Continue"}
-        </PrimaryButton>
-        <GhostButton onClick={onSkip}>Skip for now</GhostButton>
-        <GhostButton onClick={onBack}>Back</GhostButton>
-      </div>
+            : "Continue"
+        }
+      />
     </form>
   );
 }
@@ -1165,14 +1268,6 @@ function planChecklist(plan: OnboardingPlan | null, answers: Answers): string[] 
       `${plan.docs.length} starter SOP doc${plan.docs.length === 1 ? "" : "s"}${
         written > 0 ? ` (${written} arriving fully written)` : ""
       } — ${plan.docs.map((d) => d.title).join(", ")}`,
-    );
-  }
-  const bookingSvcs = starterBookingServices(answers.operations);
-  if (bookingSvcs.length > 0) {
-    lines.push(
-      `${bookingSvcs.length} bookable service${bookingSvcs.length === 1 ? "" : "s"} — ${bookingSvcs
-        .map((s) => s.name)
-        .join(", ")}`,
     );
   }
   lines.push(
@@ -1319,32 +1414,41 @@ function BuildStep({
       : { sections: [], summary: [] };
 
   if (phase === "done") {
+    // gr8r's "Your workspace is ready" beat.
     return (
-      <div className="animate-in fade-in zoom-in-95 text-center duration-500">
-        <Eyebrow>All set</Eyebrow>
-        <Question className="text-4xl sm:text-5xl">
-          Welcome to {propertyName}
-        </Question>
-        <GuestHint className="mt-4">
-          Taking you to your new workspace…
-        </GuestHint>
-      </div>
+      <>
+        <AuthCardMark
+          icon={CircleCheck}
+          size={48}
+          color="var(--g8-green)"
+          className="ready-badge"
+        />
+        <h1>Welcome to {propertyName}</h1>
+        <p className="sub">Taking you to your new workspace…</p>
+      </>
     );
   }
 
   if (phase === "error") {
     return (
-      <div className="animate-in fade-in duration-300">
-        <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
-        <Question>That didn&rsquo;t work — let&rsquo;s try again.</Question>
-        <GuestError>{error}</GuestError>
-        <div className="mt-8 flex items-center gap-3">
-          <PrimaryButton type="button" onClick={() => setAttempt((a) => a + 1)}>
+      <>
+        <h1>That didn&rsquo;t work — let&rsquo;s try again.</h1>
+        {error ? <AuthAlert>{error}</AuthAlert> : null}
+        <div className="row" style={{ marginTop: 6 }}>
+          <button type="button" className="btn btn-ghost" onClick={onBack}>
+            <Gi icon={ArrowLeft} size={14} />
+            Back to edit answers
+          </button>
+          <span className="sp" />
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setAttempt((a) => a + 1)}
+          >
             Retry setup
-          </PrimaryButton>
-          <GhostButton onClick={onBack}>Back to edit answers</GhostButton>
+          </button>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -1352,71 +1456,110 @@ function BuildStep({
   // created. Nothing has been seeded yet at this point.
   if (phase === "review") {
     return (
-      <div className="animate-in fade-in duration-300">
-        <Eyebrow>Step 7 of {TOTAL_STEPS} · Review</Eyebrow>
-        <Question>Here&rsquo;s what we&rsquo;ll set up for {propertyName}</Question>
-        <GuestHint>
+      <>
+        <h1>Here&rsquo;s what we&rsquo;ll set up for {propertyName}</h1>
+        <p className="sub">
           Nothing&rsquo;s been created yet — have a look, then build it. You can
           reshape any of this later.
-        </GuestHint>
+        </p>
         <ReviewPlan sections={review.sections} summary={review.summary} />
-        <div className="mt-10 flex items-center gap-3">
-          <PrimaryButton type="button" onClick={runBuild}>
+        <div className="row" style={{ marginTop: 6 }}>
+          <button type="button" className="btn btn-ghost" onClick={onBack}>
+            <Gi icon={ArrowLeft} size={14} />
+            Back
+          </button>
+          <span className="sp" />
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={runBuild}
+          >
             Build my workspace
-          </PrimaryButton>
-          <GhostButton onClick={onBack}>Back</GhostButton>
+            <Gi icon={ArrowRight} size={15} />
+          </button>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div>
-      <Eyebrow>Step 7 of {TOTAL_STEPS}</Eyebrow>
-      <Question>Setting up {propertyName}…</Question>
-      <GuestHint>
+    <>
+      <h1>Setting up {propertyName}…</h1>
+      <p className="sub">
         {phase === "planning"
           ? "Designing your workspace around how you run things…"
           : "Almost there — building it now."}
-      </GuestHint>
-      <ul role="list" className="mt-10 space-y-3">
+      </p>
+      {/* gr8r's "ready" panel: one `.ready-row` per artifact, ticking in. */}
+      <ul role="list" className="panel" style={{ margin: 0, padding: 0 }}>
         {phase === "planning" ? (
-          <li className="flex items-center gap-3 text-sm text-guest-ink-soft">
-            <Spinner />
+          <BuildRow done={false}>
             Thinking through {answers.departments.length} departments and{" "}
             {answers.priorities.length || "your"} priorities…
-          </li>
+          </BuildRow>
         ) : (
-          lines.slice(0, Math.max(shownCount, 1)).map((line, i) => (
-            <li
-              key={line}
-              className="flex items-center gap-3 text-sm animate-in fade-in slide-in-from-bottom-1 duration-300"
-            >
-              {i < shownCount - 1 || shownCount > lines.length ? (
-                <Check />
-              ) : (
-                <Spinner />
-              )}
-              <span>{line}</span>
-            </li>
-          ))
+          lines
+            .slice(0, Math.max(shownCount, 1))
+            .map((line, i) => (
+              <BuildRow
+                key={line}
+                first={i === 0}
+                done={i < shownCount - 1 || shownCount > lines.length}
+              >
+                {line}
+              </BuildRow>
+            ))
         )}
       </ul>
-    </div>
+    </>
+  );
+}
+
+function BuildRow({
+  done,
+  first = true,
+  children,
+}: {
+  done: boolean;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <li
+      className="row ready-row"
+      style={{
+        listStyle: "none",
+        padding: "12px 14px",
+        gap: 12,
+        borderTop: first ? undefined : "1px solid var(--g8-divider)",
+      }}
+    >
+      <span className="grow" style={{ minWidth: 0 }}>
+        {children}
+      </span>
+      {done ? (
+        <span
+          className="ok"
+          style={{ color: "var(--g8-green)", display: "inline-flex" }}
+        >
+          <Gi icon={CheckIcon} size={15} />
+        </span>
+      ) : (
+        <Spinner />
+      )}
+    </li>
   );
 }
 
 function Spinner() {
   return (
-    <span className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-guest-line border-t-guest-accent" />
+    <span
+      aria-hidden
+      className="inline-block size-3.5 shrink-0 animate-spin rounded-full border-2"
+      style={{
+        borderColor: "var(--g8-border-strong)",
+        borderTopColor: "var(--g8-accent)",
+      }}
+    />
   );
 }
-
-function Check() {
-  return (
-    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-guest-accent text-[10px] text-white">
-      ✓
-    </span>
-  );
-}
-

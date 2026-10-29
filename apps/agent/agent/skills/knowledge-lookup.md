@@ -26,7 +26,7 @@ instructions.
   with different wording or for older history. Your notes about the
   person you're talking to live in `person__search`.
 - **Live records**: `search_tasks` (all statuses, incl. done),
-  `list_meetings` (past + future), `list_bookings`, `list_forms` +
+  `list_meetings` (past + future), `list_forms` +
   `get_form_response_summaries`, `guest_conversation_insights`,
   `search_chat_messages`, `get_org_chart`.
 - **Management surfaces** (only if the requester is an owner/manager — the
@@ -73,8 +73,8 @@ finish, so the next conversation starts from it instead of re-deriving it.
 
 - Remember findings, not transcripts. One to three specific sentences,
   with a `source` (who/where/when).
-- Skip anything the app already owns authoritatively (task state, booking
-  rows, document bodies — `search_documents` already finds those).
+- Skip anything the app already owns authoritatively (task state,
+  document bodies — `search_documents` already finds those).
 - Skip chit-chat, and skip things you are not yet confident of.
 - `pinned: true` is for standing facts worth seeing EVERY turn (which unit
   is the backup freezer, who signs off refunds) — a handful per property,

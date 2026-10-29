@@ -96,7 +96,7 @@ export function BotPanelConversation({
     <MessageScrollerProvider autoScroll>
       <MessageScroller className={cn("min-h-0", className)}>
         <MessageScrollerViewport>
-          <MessageScrollerContent aria-busy={working} className="gap-3 px-3 py-3">
+          <MessageScrollerContent aria-busy={working} className="gap-3 px-3.5 py-3.5">
             {messages.length === 0 && !working ? (
               <MessageScrollerItem messageId="empty">{empty ?? null}</MessageScrollerItem>
             ) : null}
@@ -109,7 +109,7 @@ export function BotPanelConversation({
                     <Message align="end">
                       <MessageContent>
                         <Bubble align="end" variant="muted">
-                          <BubbleContent className="text-sm whitespace-pre-wrap">
+                          <BubbleContent className="text-[length:var(--g8-fs,0.875rem)] leading-[1.5] whitespace-pre-wrap">
                             {messageText(message)}
                           </BubbleContent>
                         </Bubble>
@@ -173,7 +173,7 @@ function PanelTurn({
           <TurnTrace steps={steps} live={live && !text} activity={activity} />
         ) : null}
         {text ? (
-          <Markdown isAnimating={live} className="text-sm leading-6">
+          <Markdown isAnimating={live} className="text-[length:var(--g8-fs,0.875rem)] leading-[1.6]">
             {text}
           </Markdown>
         ) : null}

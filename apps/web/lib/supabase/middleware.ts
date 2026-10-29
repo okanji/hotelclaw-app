@@ -3,6 +3,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db/types";
 
+/** The /p/<pid>/<section> segments a guest may open (0118). */
+const GUEST_SECTIONS = new Set([
+  "tasks",
+  "my-tasks",
+  "documents",
+  "chat",
+  "dms",
+  "threads",
+  "inbox",
+  // The notification inbox's real route (+ gr8r's Notifications /
+  // Favorites pages) — all personal, RLS-scoped reads.
+  "activity",
+  "notifications",
+  "favorites",
+  "spaces",
+]);
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -70,8 +87,6 @@ export async function updateSession(request: NextRequest) {
     // Guest chatbot pages — anonymous hotel guests, identified by the bot's
     // unguessable slug + an HMAC session token, never a Supabase session.
     pathname.startsWith("/g/") ||
-    // Public booking pages (/book/<property-slug> + signed manage links).
-    pathname.startsWith("/book/") ||
     // Eve agent runtime routes (apps/agent via withEve). Auth happens inside
     // eve's channel AuthFn (Supabase session verification), not here — the
     // middleware must not redirect its JSON/NDJSON endpoints to /login.
@@ -104,7 +119,7 @@ export async function updateSession(request: NextRequest) {
     const propertyId = propertyMatch[1];
     const { data: membership } = await supabase
       .from("memberships")
-      .select("property_id")
+      .select("property_id, role")
       .eq("property_id", propertyId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -113,6 +128,22 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
       return NextResponse.redirect(url);
+    }
+
+    // Guests (0118) work only on what was shared with them: the shared work
+    // surfaces below. Every other section (home, insights, workflows,
+    // agents, assistant, forms, calendar, projects, meetings,
+    // triage, cycles, search, archive…) sends them to their tasks. ONE
+    // fail-closed allowlist — a new section is hidden from guests until
+    // someone adds it here on purpose. RLS still trims what each page shows.
+    if (membership.role === "guest") {
+      const section = pathname.split("/")[3] ?? "";
+      if (!GUEST_SECTIONS.has(section)) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/p/${propertyId}/my-tasks`;
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

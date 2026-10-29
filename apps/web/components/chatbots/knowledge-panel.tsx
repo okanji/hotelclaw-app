@@ -16,12 +16,6 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -37,8 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ChatbotKnowledgeKind, ChatbotKnowledgeStatus } from "@/lib/db/types";
-import { NativeSelect } from "@/components/ui/native-select";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Gi } from "@/components/gr8r/icon";
 import {
   addKnowledgeSource,
   deleteKnowledgeSource,
@@ -70,7 +63,7 @@ const KIND_ICONS = {
 } as const;
 
 /** Source-type entry points, surfaced directly in the "Add source" menu so
- *  the document path isn't buried inside a <NativeSelect>. */
+ *  the document path isn't buried inside a native select. */
 const SOURCE_KINDS: {
   kind: ChatbotKnowledgeKind;
   label: string;
@@ -136,20 +129,20 @@ export function KnowledgePanel({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">Knowledge base</p>
-          <p className="text-xs text-muted-foreground">
+    <div className="stack" style={{ gap: 14 }}>
+      <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
+        <div className="grow">
+          <h2 className="sec">Knowledge base</h2>
+          <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
             Menus, policies, hours, FAQs — what the bot answers from.
             {totalChars > 0
               ? ` ${Math.round(totalChars / 1000)}k characters across ${sources.length} source${sources.length === 1 ? "" : "s"}.`
               : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="row" style={{ gap: 6 }}>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+            <DropdownMenuTrigger render={<button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" />}>
               <Plus data-slot="icon" />
               Add source
               <ChevronDown data-slot="icon" className="text-muted-foreground" />
@@ -168,7 +161,7 @@ export function KnowledgePanel({
                     <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <span className="flex flex-col gap-0.5">
                       <span className="text-sm">{label}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="hint">
                         {noDocs ? "No documents in this workspace yet" : hint}
                       </span>
                     </span>
@@ -177,24 +170,31 @@ export function KnowledgePanel({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            size="sm"
+          <button className="btn btn-primary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
             onClick={train}
             disabled={training || sources.length === 0}
           >
             <RefreshCw data-slot="icon" className={training ? "animate-spin" : undefined} />
             {training ? "Training…" : pendingCount > 0 ? `Train (${pendingCount} new)` : "Retrain"}
-          </Button>
+          </button>
         </div>
       </div>
 
       {sources.length === 0 ? (
-        <EmptyState icon={BookOpen} title="Nothing trained yet">
-          Paste your menu, link a policy doc, or add Q&amp;A pairs — then hit
-          Train and test a question in the console.
-        </EmptyState>
+        <div className="panel">
+          <div className="empty-state">
+            <div className="glyph">
+              <Gi icon={BookOpen} />
+            </div>
+            <p className="es-h">Nothing trained yet</p>
+            <p>
+              Paste your menu, link a policy doc, or add Q&amp;A pairs — then hit
+              Train and test a question in the console.
+            </p>
+          </div>
+        </div>
       ) : (
-        <ul role="list" className="divide-y divide-border">
+        <ul role="list" className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {sources.map((source) => (
             <SourceRow
               key={source.id}
@@ -211,7 +211,7 @@ export function KnowledgePanel({
       )}
 
       {lastTrainedAt ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="hint" style={{ margin: 0 }}>
           Last trained{" "}
           {new Date(lastTrainedAt).toLocaleString(undefined, {
             month: "short",
@@ -369,8 +369,8 @@ function SourceRow({
   }
 
   return (
-    <li>
-      <div className="flex items-center gap-2 px-2 py-1.5 transition-colors hover:bg-accent">
+    <li style={{ borderTop: "1px solid var(--g8-divider)" }} className="first:border-t-0!">
+      <div className="nrow" style={{ alignItems: "center", gap: 8, padding: "4px 8px", cursor: "default" }}>
         <button
           type="button"
           aria-expanded={expanded}
@@ -380,8 +380,8 @@ function SourceRow({
           <SourceStatusMark status={source.status} training={training} />
           <Icon className="size-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm">{source.title}</span>
-            <span className="block truncate text-xs text-muted-foreground">
+            <span className="block truncate" style={{ fontWeight: 500 }}>{source.title}</span>
+            <span className="block truncate muted" style={{ fontSize: 12 }}>
               {source.kind === "qa"
                 ? source.question
                 : source.kind === "url"
@@ -390,11 +390,17 @@ function SourceRow({
             </span>
           </span>
           {source.status === "trained" ? (
-            <StatusBadge tone="success">Trained</StatusBadge>
+            <span className="badge green">
+              <span className="dot" />
+              Trained
+            </span>
           ) : source.status === "failed" ? (
-            <StatusBadge tone="danger">Failed</StatusBadge>
+            <span className="badge red">
+              <span className="dot" />
+              Failed
+            </span>
           ) : (
-            <Badge variant="secondary">Not trained</Badge>
+            <span className="badge gray">Not trained</span>
           )}
           <ChevronDown
             aria-hidden
@@ -403,15 +409,15 @@ function SourceRow({
             }`}
           />
         </button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
+        <button
+          type="button"
+          className="ibtn ibtn-sm"
           aria-label="Delete source"
           onClick={remove}
           disabled={deleting}
         >
           <Trash2 className="size-3.5" />
-        </Button>
+        </button>
       </div>
 
       {/* Expandable detail — the TaskRows dropdown grammar. */}
@@ -441,13 +447,11 @@ function SourceRow({
                 <p className="text-xs text-destructive">{source.error}</p>
               ) : null}
               <div className="pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                   onClick={() => setDialogOpen(true)}
                 >
                   {editable ? "Edit source" : "View snapshot"}
-                </Button>
+                </button>
               </div>
             </div>
           </div>
@@ -525,7 +529,7 @@ function SourceDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="g8 g8-port sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{editable ? "Edit source" : "Source preview"}</DialogTitle>
           <DialogDescription>
@@ -541,8 +545,8 @@ function SourceDetailDialog({
           <form onSubmit={save} className="space-y-4">
             {source.kind === "qa" ? (
               <div className="space-y-2">
-                <Label htmlFor="edit-question">Question</Label>
-                <Input
+                <label className="label" htmlFor="edit-question">Question</label>
+                <input className="input"
                   id="edit-question"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -550,8 +554,8 @@ function SourceDetailDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
+                <label className="label" htmlFor="edit-title">Title</label>
+                <input className="input"
                   id="edit-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -559,42 +563,41 @@ function SourceDetailDialog({
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="edit-content">
+              <label className="label" htmlFor="edit-content">
                 {source.kind === "qa" ? "Exact answer" : "Content"}
-              </Label>
-              <Textarea
+              </label>
+              <textarea className="textarea"
                 id="edit-content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={source.kind === "qa" ? 4 : 10}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="hint">
                 {content.trim().length} characters
               </p>
             </div>
             <DialogFooter>
-              <Button
+              <button className="btn btn-ghost [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                 type="button"
-                variant="ghost"
                 onClick={() => onOpenChange(false)}
                 disabled={pending}
               >
                 Cancel
-              </Button>
-              <Button type="submit" disabled={pending || !valid || !dirty}>
+              </button>
+              <button className="btn btn-primary [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" type="submit" disabled={pending || !valid || !dirty}>
                 {pending ? "Saving…" : "Save changes"}
-              </Button>
+              </button>
             </DialogFooter>
           </form>
         ) : (
           <div className="space-y-4">
             <div className="space-y-1">
-              <Label>Title</Label>
+              <label className="label">Title</label>
               <p className="text-sm">{source.title}</p>
             </div>
             {source.url ? (
               <div className="space-y-1">
-                <Label>Source URL</Label>
+                <label className="label">Source URL</label>
                 <a
                   href={source.url}
                   target="_blank"
@@ -606,9 +609,9 @@ function SourceDetailDialog({
               </div>
             ) : null}
             <div className="space-y-1">
-              <Label>
+              <label className="label">
                 {source.last_trained_at ? "Last trained snapshot" : "Snapshot"}
-              </Label>
+              </label>
               {source.content ? (
                 <div className="max-h-72 overflow-y-auto whitespace-pre-line rounded-md bg-muted p-3 text-sm">
                   {source.content}
@@ -620,9 +623,9 @@ function SourceDetailDialog({
               )}
             </div>
             <DialogFooter>
-              <Button type="button" onClick={() => onOpenChange(false)}>
+              <button className="btn btn-primary [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" type="button" onClick={() => onOpenChange(false)}>
                 Close
-              </Button>
+              </button>
             </DialogFooter>
           </div>
         )}
@@ -717,7 +720,7 @@ function AddSourceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="g8 g8-port sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add a knowledge source</DialogTitle>
           <DialogDescription>
@@ -726,8 +729,8 @@ function AddSourceDialog({
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="source-kind">Type</Label>
-            <NativeSelect
+            <label className="label" htmlFor="source-kind">Type</label>
+            <select className="select"
               id="source-kind"
               value={kind}
               onChange={(e) => setKindOverride(e.target.value as ChatbotKnowledgeKind)}
@@ -736,13 +739,13 @@ function AddSourceDialog({
               <option value="qa">Q&amp;A pair — exact answer to one question</option>
               <option value="document">Document — link a doc from this workspace</option>
               <option value="url">Web page — fetch a public URL</option>
-            </NativeSelect>
+            </select>
           </div>
 
           {kind !== "qa" ? (
             <div className="space-y-2">
-              <Label htmlFor="source-title">Title</Label>
-              <Input
+              <label className="label" htmlFor="source-title">Title</label>
+              <input className="input"
                 id="source-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -755,8 +758,8 @@ function AddSourceDialog({
 
           {kind === "text" ? (
             <div className="space-y-2">
-              <Label htmlFor="source-content">Content</Label>
-              <Textarea
+              <label className="label" htmlFor="source-content">Content</label>
+              <textarea className="textarea"
                 id="source-content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -769,8 +772,8 @@ function AddSourceDialog({
           {kind === "qa" ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="source-question">Question</Label>
-                <Input
+                <label className="label" htmlFor="source-question">Question</label>
+                <input className="input"
                   id="source-question"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -778,8 +781,8 @@ function AddSourceDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="source-answer">Exact answer</Label>
-                <Textarea
+                <label className="label" htmlFor="source-answer">Exact answer</label>
+                <textarea className="textarea"
                   id="source-answer"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
@@ -792,8 +795,8 @@ function AddSourceDialog({
 
           {kind === "document" ? (
             <div className="space-y-2">
-              <Label htmlFor="source-document">Document</Label>
-              <NativeSelect
+              <label className="label" htmlFor="source-document">Document</label>
+              <select className="select"
                 id="source-document"
                 value={documentId}
                 onChange={(e) => setDocumentId(e.target.value)}
@@ -804,8 +807,8 @@ function AddSourceDialog({
                     {d.title}
                   </option>
                 ))}
-              </NativeSelect>
-              <p className="text-xs text-muted-foreground">
+              </select>
+              <p className="hint">
                 A snapshot is taken at train time — retrain after editing the doc.
               </p>
             </div>
@@ -813,8 +816,8 @@ function AddSourceDialog({
 
           {kind === "url" ? (
             <div className="space-y-2">
-              <Label htmlFor="source-url">URL</Label>
-              <Input
+              <label className="label" htmlFor="source-url">URL</label>
+              <input className="input"
                 id="source-url"
                 type="url"
                 value={url}
@@ -825,17 +828,16 @@ function AddSourceDialog({
           ) : null}
 
           <DialogFooter>
-            <Button
+            <button className="btn btn-ghost [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
               type="button"
-              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
               Cancel
-            </Button>
-            <Button type="submit" disabled={pending || !valid}>
+            </button>
+            <button className="btn btn-primary [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" type="submit" disabled={pending || !valid}>
               {pending ? "Adding…" : "Add source"}
-            </Button>
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>

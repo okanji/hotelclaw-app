@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Breadcrumbs, type BreadcrumbItem } from "./breadcrumbs";
+import { TopbarActions } from "./topbar-actions";
 
 /**
  * The app topbar. Notion's is **44px tall and completely transparent** — no
@@ -39,43 +40,40 @@ export function PageHeader({
   actions?: React.ReactNode;
   className?: string;
 }) {
+  // gr8r `renderTopbar()` (shell/layout.js): `.topbar` (46px, surface,
+  // hairline bottom, content on the gutter) › `.crumbs` › spacer › page
+  // actions › search / bell / New (`TopbarActions`).
   return (
     <header
       className={cn(
-        "flex h-11 shrink-0 items-center justify-between gap-2 px-(--page-gutter)",
+        "topbar",
         // Leave room for LeftShell's fixed » (top-2 left-2, 30px) while the
-        // desktop sidebar is collapsed — LeftShell's root carries
-        // `data-sidebar-open` only while it is attached.
+        // desktop sidebar is collapsed — its root carries
+        // `data-sidebar-open` only while attached.
         "md:[body:not(:has([data-sidebar-open]))_&]:pl-11",
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        {start ? (
-          start
-        ) : breadcrumbs ? (
-          <Breadcrumbs items={breadcrumbs} />
-        ) : (
-          <>
+      {start ? (
+        <div className="crumbs trunc">{start}</div>
+      ) : breadcrumbs ? (
+        <Breadcrumbs items={breadcrumbs} />
+      ) : (
+        <nav className="crumbs trunc" aria-label="Breadcrumb">
+          <h1 className="crumb cur">
             {icon ? (
-              <span className="flex size-5 shrink-0 items-center justify-center text-faint-foreground [&_svg]:size-4">
+              <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-3.5">
                 {icon}
               </span>
             ) : null}
-            <h1 className="truncate text-sm font-medium text-foreground">
-              {title}
-            </h1>
-          </>
-        )}
-        {meta ? (
-          <span className="hidden shrink-0 truncate text-sm text-faint-foreground sm:inline">
-            {meta}
-          </span>
-        ) : null}
-      </div>
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
-      ) : null}
+            <span className="trunc">{title}</span>
+          </h1>
+        </nav>
+      )}
+      {meta ? <span className="faint hide-m trunc" style={{ fontSize: "var(--g8-fs-sm)" }}>{meta}</span> : null}
+      <span className="sp" />
+      {actions ? <div className="row" style={{ gap: 2 }}>{actions}</div> : null}
+      <TopbarActions />
     </header>
   );
 }

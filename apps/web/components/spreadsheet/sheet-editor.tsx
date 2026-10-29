@@ -142,8 +142,9 @@ function SheetInner({
   if (!ready && !showTimeoutSkeleton) return <SheetSkeleton />;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-card">
-      <div className="flex h-11 shrink-0 items-center gap-1 px-6">
+    <div className="g8-doc flex h-full min-h-0 flex-col">
+      {/* gr8r `.topbar`: `.crumbs` trail, then last-edited + presence. */}
+      <header className="topbar g8-doc-top md:[body:not(:has([data-sidebar-open]))_&]:pl-11">
         {/* The native shell hides its stack header on this screen — the
             embed-only chevron (hidden elsewhere) is its way back. */}
         <EmbedBackButton />
@@ -152,21 +153,20 @@ function SheetInner({
           ancestors={ancestors}
           currentTitle={initialTitle}
         />
-      </div>
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-2">
+        <span className="sp" />
+        <DocumentLastEdited
+          propertyId={propertyId}
+          lastEditedBy={lastEditedBy}
+          updatedAt={updatedAt}
+          className="faint num g8-doc-edited hide-m"
+        />
+        <DocumentRoomAvatarStack max={5} size={24} />
+      </header>
+      <div className="g8-doc-tb row" style={{ flexShrink: 0, padding: "8px var(--g8-gutter)" }}>
         <SheetTitleBar
           documentId={documentId}
           initialTitle={initialTitle}
         />
-        <div className="flex items-center gap-3">
-          <DocumentLastEdited
-            propertyId={propertyId}
-            lastEditedBy={lastEditedBy}
-            updatedAt={updatedAt}
-            className="hidden text-sm text-faint-foreground tabular-nums sm:block"
-          />
-          <DocumentRoomAvatarStack max={5} size={28} />
-        </div>
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         <SheetSurface documentId={documentId} />

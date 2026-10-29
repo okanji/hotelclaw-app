@@ -5,10 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
 import { Copy, Download, ExternalLink, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Chip } from "@/components/ui/chip";
 import {
   regenerateChatbotSlug,
@@ -83,10 +79,10 @@ export function DeployPanel({
   }
 
   return (
-    <section className="space-y-4 rounded-lg p-4 shadow-ring">
+    <section className="panel space-y-4 p-4">
       <div>
-        <p className="text-sm font-medium">Share with guests</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="label">Share with guests</p>
+        <p className="hint">
           {status === "published"
             ? "Print the QR for rooms and tables, or put the link in pre-arrival messages."
             : "The guest page returns 404 until the bot is published."}
@@ -96,56 +92,52 @@ export function DeployPanel({
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex-1 space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Guest link</Label>
+            <label className="label">Guest link</label>
             <div className="flex gap-2">
-              <Input readOnly value={guestUrl} className="font-mono text-xs" />
-              <Button variant="outline" size="icon" aria-label="Copy link" onClick={copy}>
+              <input readOnly value={guestUrl} className="input font-mono text-xs" />
+              <button className="btn btn-secondary px-0 w-[var(--g8-h-md)] [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" aria-label="Copy link" onClick={copy}>
                 <Copy className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
+              </button>
+              <button className="btn btn-secondary px-0 w-[var(--g8-h-md)] [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                 aria-label="Open guest page"
                 onClick={() => window.open(guestUrl, "_blank")}
               >
                 <ExternalLink className="size-4" />
-              </Button>
+              </button>
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="qr-room" className="text-xs">
+            <label htmlFor="qr-room" className="label">
               Room / table number (optional)
-            </Label>
-            <Input
+            </label>
+            <input
               id="qr-room"
               value={room}
               onChange={(e) => setRoom(e.target.value)}
               placeholder="204"
-              className="w-32"
+              className="input w-32"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="hint">
               Encoded in the QR so the bot already knows where the guest is.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
+          <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
             onClick={regenerate}
             disabled={regenerating}
           >
             <RefreshCw data-slot="icon" className={regenerating ? "animate-spin" : undefined} />
             Regenerate link
-          </Button>
+          </button>
         </div>
 
         <div className="flex flex-col items-center gap-2">
           <div ref={qrRef} className="rounded-lg bg-white p-3">
             <QRCode value={guestUrl} size={132} />
           </div>
-          <Button variant="ghost" size="sm" onClick={downloadQr}>
+          <button className="btn btn-ghost btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={downloadQr}>
             <Download data-slot="icon" />
             Download SVG
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -217,8 +209,8 @@ function ChannelDeploySection({
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <div>
-        <p className="text-sm font-medium">Deploy into staff channels</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="label">Deploy into staff channels</p>
+        <p className="hint">
           In these channels the team assistant answers with THIS bot&apos;s
           persona, knowledge base, and API actions (plus the usual workspace
           tools). One bot per channel.
@@ -239,13 +231,13 @@ function ChannelDeploySection({
           );
         })}
         {channels.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No channels yet.</p>
+          <p className="hint">No channels yet.</p>
         ) : null}
       </div>
       {dirty ? (
-        <Button size="sm" onClick={save} disabled={saving}>
+        <button className="btn btn-primary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save channel deployments"}
-        </Button>
+        </button>
       ) : null}
     </div>
   );
@@ -290,18 +282,16 @@ function EmbedSection({
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <div>
-        <p className="text-sm font-medium">Embed on your website</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="label">Embed on your website</p>
+        <p className="hint">
           A floating chat bubble on your own site. Paste the snippet before
           <code className="mx-1 font-mono">&lt;/body&gt;</code>— it only works
           on the domains you list below.
         </p>
       </div>
       <div className="flex gap-2">
-        <Input readOnly value={snippet} className="font-mono text-xs" />
-        <Button
-          variant="outline"
-          size="icon"
+        <input readOnly value={snippet} className="input font-mono text-xs" />
+        <button className="btn btn-secondary px-0 w-[var(--g8-h-md)] [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
           aria-label="Copy embed snippet"
           onClick={() =>
             void navigator.clipboard
@@ -310,20 +300,20 @@ function EmbedSection({
           }
         >
           <Copy className="size-4" />
-        </Button>
+        </button>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="embed-domains" className="text-xs">
+        <label htmlFor="embed-domains" className="label">
           Allowed website domains (one per line — empty disables embedding)
-        </Label>
-        <Textarea
+        </label>
+        <textarea
           id="embed-domains"
           value={domains}
           onChange={(e) => setDomains(e.target.value)}
           onBlur={saveDomains}
           rows={2}
           placeholder={"https://yourhotel.com\nhttps://www.yourhotel.com"}
-          className="font-mono text-xs"
+          className="textarea font-mono text-xs"
         />
       </div>
     </div>
@@ -361,22 +351,22 @@ function TwilioSection({
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <div>
-        <p className="text-sm font-medium">WhatsApp / SMS (via Twilio)</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="label">WhatsApp / SMS (via Twilio)</p>
+        <p className="hint">
           Guests text this bot directly. Enter your Twilio number (E.164, or
           <code className="mx-1 font-mono">whatsapp:+1…</code>for WhatsApp) and
           point its incoming-message webhook at
           <code className="mx-1 font-mono">{origin}/api/guest/channels/twilio</code>.
         </p>
       </div>
-      <Input
+      <input
         value={number}
         onChange={(e) => setNumber(e.target.value)}
         onBlur={saveNumber}
         name="twilioNumber"
         aria-label="Twilio number"
         placeholder="whatsapp:+14155550100"
-        className="w-72 font-mono text-xs"
+        className="input w-72 font-mono text-xs"
       />
     </div>
   );

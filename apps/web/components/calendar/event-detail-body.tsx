@@ -5,7 +5,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { deleteMeeting } from "@/lib/calendar/actions";
 import {
-  BookingDetails,
   DetailsTitleContext,
   ExternalDetails,
   MeetingDetails,
@@ -85,8 +84,6 @@ export function EventDetailBody({
           onMutated={onMutated}
           onClose={onClose}
         />
-      ) : event.source === "booking" ? (
-        <BookingDetails event={event} propertyId={propertyId} />
       ) : (
         <ExternalDetails event={event} />
       )}

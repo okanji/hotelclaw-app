@@ -28,9 +28,9 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        // Plain low-alpha scrim. The blur lives on the PANEL, not here
-        // (notion-spec-v2 §5) — see SheetContent's `backdrop-blur-modal`.
-        "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0",
+        // gr8r scrim (`.drawer-scrim.full` / `.scrim`): `--overlay` fill,
+        // 0.18s fade.
+        "fixed inset-0 z-50 bg-(--overlay) transition-opacity duration-180 data-ending-style:opacity-0 data-starting-style:opacity-0",
         className
       )}
       {...props}
@@ -71,15 +71,12 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          // MODAL TIER (notion-spec-v2 §5), edge-anchored. A sheet IS a modal
-          // that happens to be pinned to one edge, so it gets the modal
-          // surface — translucent `bg-modal-bg` over a 40px backdrop blur plus
-          // the deep modal shadow — and the 20px modal radius on its two
-          // FLOATING corners only (the pinned edge stays square, since a
-          // radius against the viewport edge reads as a rendering bug). No
-          // `border-*` on any side. Entrance is an 8px slide (was 40px, a
-          // stock-library swoop).
-          "fixed z-50 flex flex-col gap-4 bg-modal-bg bg-clip-padding text-sm text-foreground shadow-modal backdrop-blur-modal transition duration-150 ease-in-out data-[side=bottom]:rounded-t-modal data-[side=left]:rounded-r-modal data-[side=right]:rounded-l-modal data-[side=top]:rounded-b-modal data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:data-ending-style:translate-y-2 data-[side=bottom]:data-starting-style:translate-y-2 data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:data-ending-style:-translate-x-2 data-[side=left]:data-starting-style:-translate-x-2 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:data-ending-style:translate-x-2 data-[side=right]:data-starting-style:translate-x-2 data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:data-ending-style:-translate-y-2 data-[side=top]:data-starting-style:-translate-y-2",
+          // gr8r `.drawer` (overlays.css, SPEC §5.2), edge-anchored: solid
+          // surface, square corners, a 1px border on the INNER edge only and
+          // the drawer's soft directional shadow (-18px 0 40px -24px, alpha
+          // .25 — mirrored per side). Entrance = drawerIn: 48px slide + fade
+          // over 0.34s on the drawer ease.
+          "fixed z-50 flex flex-col gap-4 bg-surface bg-clip-padding text-[13.5px] text-foreground transition-[opacity,translate] duration-340 ease-(--ease-drawer) data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:shadow-[0_-18px_40px_-24px_rgb(0_0_0/0.25)] data-[side=bottom]:data-ending-style:translate-y-12 data-[side=bottom]:data-starting-style:translate-y-12 data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:shadow-[18px_0_40px_-24px_rgb(0_0_0/0.25)] data-[side=left]:data-ending-style:-translate-x-12 data-[side=left]:data-starting-style:-translate-x-12 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:shadow-[-18px_0_40px_-24px_rgb(0_0_0/0.25)] data-[side=right]:data-ending-style:translate-x-12 data-[side=right]:data-starting-style:translate-x-12 data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:shadow-[0_18px_40px_-24px_rgb(0_0_0/0.25)] data-[side=top]:data-ending-style:-translate-y-12 data-[side=top]:data-starting-style:-translate-y-12",
           sheetSideWidth[size],
           className
         )}
@@ -132,8 +129,8 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
     <SheetPrimitive.Title
       data-slot="sheet-title"
       className={cn(
-        // 16px / weight 600, one type voice (no separate heading family).
-        "text-base font-semibold text-foreground",
+        // gr8r overlay title: 14.5px / 600.
+        "text-[14.5px] font-semibold text-foreground",
         className
       )}
       {...props}
@@ -148,7 +145,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-[12.5px] text-muted-foreground", className)}
       {...props}
     />
   )

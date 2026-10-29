@@ -5,20 +5,18 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Bot, Undo2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
 import { cn } from "@/lib/utils";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
   ChatbotMessageRole,
 } from "@/lib/db/types";
-import { OutcomeBadge } from "./conversations-list";
+import { OutcomeBadge, WithStaffBadge } from "./conversations-list";
 import { ChatMarkdown } from "./chat-markdown";
 import { ChatCards } from "./chat-cards";
 import { sendStaffReply, setConversationState } from "./actions";
 import { ChatBubble, ToolCallList } from "./chat/primitives";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 export type TranscriptMessage = {
@@ -156,40 +154,51 @@ export function ConversationTranscript({
               : guestLabel,
           },
         ]}
-        meta={[conversation.guest_phone, conversation.guest_email]
-          .filter(Boolean)
-          .join(" · ") || undefined}
-        actions={
-          <div className="flex items-center gap-1.5">
-            {status === "human" ? (
-              <StatusBadge tone="info">With staff</StatusBadge>
-            ) : null}
-            <OutcomeBadge outcome={conversation.outcome} />
-            {status === "human" ? (
-              <Button
-                variant="outline"
-                size="sm"
+      />
+      <div className="page flex min-h-0 w-full flex-1 flex-col" style={{ paddingBottom: 24 }}>
+        <div className="ph">
+          <div style={{ minWidth: 0 }}>
+            <h1>
+              {conversation.room_number
+                ? `${guestLabel} · Room ${conversation.room_number}`
+                : guestLabel}
+            </h1>
+            <p className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              {status === "human" ? <WithStaffBadge /> : null}
+              <OutcomeBadge outcome={conversation.outcome} />
+              <span className="muted">
+                {[botName, conversation.guest_phone, conversation.guest_email]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </p>
+          </div>
+          {status === "human" ? (
+            <div className="acts">
+              <button
+                type="button"
+                className="btn btn-secondary"
                 onClick={returnToBot}
                 disabled={flipping}
               >
-                <Bot data-slot="icon" />
+                <Gi icon={Bot} size={14} />
                 Return to bot
-              </Button>
-            ) : null}
-          </div>
-        }
-      />
-      <PageShell className="flex min-h-0 flex-1 flex-col pb-6">
+              </button>
+            </div>
+          ) : null}
+        </div>
 
         <div
           ref={listRef}
-          className="flex-1 space-y-2.5 overflow-y-auto rounded-lg bg-muted p-4"
+          className="panel flex-1 space-y-2.5 overflow-y-auto p-4"
+          style={{ background: "var(--g8-surface-2)" }}
         >
           {messages.map((m) =>
             m.role === "system" ? (
               <p
                 key={m.id}
-                className="mx-auto max-w-[48ch] py-1 text-center text-xs text-muted-foreground"
+                className="faint mx-auto max-w-[48ch] py-1 text-center"
+                style={{ fontSize: 12 }}
               >
                 {m.content}
               </p>
@@ -209,9 +218,10 @@ export function ConversationTranscript({
                   <div className="max-w-[80%]">
                     <p
                       className={cn(
-                        "mb-0.5 text-xs text-muted-foreground",
+                        "faint mb-0.5",
                         m.role === "guest" ? "ml-1 text-left" : "mr-1 text-right",
                       )}
+                      style={{ fontSize: 12 }}
                     >
                       {m.role === "guest"
                         ? guestLabel
@@ -251,13 +261,13 @@ export function ConversationTranscript({
             ),
           )}
           {messages.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No messages yet.
-            </p>
+            <div className="empty-state sm">
+              <p>No messages yet.</p>
+            </div>
           ) : null}
         </div>
 
-        <form onSubmit={reply} className="mt-3 flex items-end gap-2">
+        <form onSubmit={reply} className="row" style={{ marginTop: 12, alignItems: "flex-end" }}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -274,20 +284,22 @@ export function ConversationTranscript({
             }
             rows={2}
             disabled={sending}
-            className="flex-1 resize-none rounded-md bg-background px-3 py-2 text-sm text-foreground shadow-composer transition-[box-shadow] placeholder:text-muted-foreground focus:outline-none focus-visible:shadow-composer-focus"
+            aria-label="Reply to the guest"
+            className="textarea grow"
+            style={{ resize: "none" }}
           />
-          <Button type="submit" disabled={sending || !input.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={sending || !input.trim()}>
             {sending ? "Sending…" : status === "human" ? "Reply" : "Take over"}
-          </Button>
+          </button>
         </form>
         {status === "bot" ? (
-          <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-            <Undo2 className="size-3" />
+          <p className="hint row" style={{ margin: "6px 0 0", gap: 5 }}>
+            <Gi icon={Undo2} size={12} />
             Sending a reply mutes the assistant until you return the
             conversation to it.
           </p>
         ) : null}
-      </PageShell>
+      </div>
     </div>
   );
 }

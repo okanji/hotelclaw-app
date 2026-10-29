@@ -18,7 +18,6 @@ import {
 import { marked } from "marked";
 import { renameDocument } from "./actions";
 import { setPendingImport } from "@/lib/documents/pending-generation";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TintIcon, type TintTone } from "@/components/ui/tint-card";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import { createDocument } from "./actions";
 import { createForm } from "@/components/forms/actions";
 import {
@@ -57,7 +55,8 @@ type Tile = {
   label: string;
   sub: string;
   icon: LucideIcon;
-  tone: TintTone;
+  /** gr8r hue var fed to `.ftype` as `--g8-c`. */
+  tone: string;
 };
 
 const TILES: Tile[] = [
@@ -66,35 +65,35 @@ const TILES: Tile[] = [
     label: "Document",
     sub: "Rich text & sub-pages",
     icon: FileText,
-    tone: "lavender",
+    tone: "var(--g8-accent)",
   },
   {
     id: "sheet",
     label: "Spreadsheet",
     sub: "Cells & formulas",
     icon: Table2,
-    tone: "blue",
+    tone: "var(--g8-blue)",
   },
   {
     id: "form",
     label: "Form",
     sub: "Questions & responses",
     icon: ClipboardList,
-    tone: "honey",
+    tone: "var(--g8-amber)",
   },
   {
     id: "generate",
     label: "Generate",
     sub: "Draft with AI",
     icon: Sparkles,
-    tone: "coral",
+    tone: "var(--g8-red)",
   },
   {
     id: "import",
     label: "Import",
     sub: "Markdown, HTML, text",
     icon: Upload,
-    tone: "sage",
+    tone: "var(--g8-green)",
   },
 ];
 
@@ -323,15 +322,17 @@ export function NewDocumentMenu({
       <ImportFileInput inputRef={fileInputRef} onChange={onFileChange} />
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button size="sm" disabled={busy !== null} />}
+          render={
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={busy !== null}
+            />
+          }
         >
-          {busy ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <Plus />
-          )}
+          <Gi icon={busy ? Loader2 : Plus} size={13} className={busy ? "animate-spin" : undefined} />
           New
-          <ChevronDown className="opacity-70" />
+          <Gi icon={ChevronDown} size={12} />
         </DropdownMenuTrigger>
         {/* Wide enough that the trailing hint never wraps — at `min-w-52` the
             two-word labels and the hints collided mid-item. */}
@@ -374,10 +375,9 @@ export function QuickCreateRow({
   );
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="pgrid g8-create-grid">
       <ImportFileInput inputRef={fileInputRef} onChange={onFileChange} />
       {TILES.map((t) => {
-        const Icon = t.icon;
         const isBusy = busy === t.id;
         return (
           <button
@@ -388,28 +388,22 @@ export function QuickCreateRow({
             aria-label={
               t.id === "generate" ? "Generate a document with AI" : `Create ${t.label.toLowerCase()}`
             }
-            className={cn(
-              "flex min-w-0 items-center gap-3 rounded-card bg-card p-3 text-left shadow-card transition-colors",
-              "hover:bg-accent",
-              "focus-visible:outline-none focus-visible:shadow-focus",
-              "disabled:cursor-not-allowed disabled:opacity-60",
-            )}
+            className="pcard"
+            style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}
           >
-            <TintIcon tone={t.tone}>
-              {isBusy ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Icon strokeWidth={1.5} />
-              )}
-            </TintIcon>
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-foreground">
-                {t.label}
-              </div>
-              <div className="truncate text-xs text-faint-foreground">
+            <span className="ftype" style={{ "--g8-c": t.tone } as React.CSSProperties}>
+              <Gi
+                icon={isBusy ? Loader2 : t.icon}
+                size={14}
+                className={isBusy ? "animate-spin" : undefined}
+              />
+            </span>
+            <span className="grow" style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 500 }}>{t.label}</span>
+              <span className="faint trunc" style={{ display: "block", fontSize: 12 }}>
                 {t.sub}
-              </div>
-            </div>
+              </span>
+            </span>
           </button>
         );
       })}

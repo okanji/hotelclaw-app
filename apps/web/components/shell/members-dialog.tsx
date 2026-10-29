@@ -1,5 +1,6 @@
 "use client";
 
+import { GuestAccessDialog } from "@/components/members/guest-access-dialog";
 import { useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -28,7 +29,6 @@ import {
 } from "@/lib/query/section-queries";
 import { removeMember, updateMemberRole } from "@/lib/members/actions";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/db/types";
 import { FULL_ROLES, type FullRole } from "@/lib/auth/roles";
 
 type Props = {
@@ -49,9 +49,10 @@ const ROLE_META: Record<string, { label: string; tone: RoleTone }> = {
   owner: { label: "Owner", tone: "violet" },
   manager: { label: "Manager", tone: "info" },
   staff: { label: "Staff", tone: "neutral" },
+  guest: { label: "Guest", tone: "warning" },
 };
 
-const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2 };
+const RANK: Record<string, number> = { owner: 0, manager: 1, staff: 2, guest: 3 };
 
 /** Order the role picker offers. Most-privileged first, matching the badge sort. */
 // The role picker — guests are managed through the guest-access dialog
@@ -150,7 +151,9 @@ function MemberRow({
 }) {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const isGuestRow = member.role === "guest";
 
   const role = ROLE_META[member.role] ?? {
     label: member.role,
@@ -236,7 +239,26 @@ function MemberRow({
         </div>
       ) : (
         <>
-          {manageable ? (
+          {manageable && isGuestRow ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => setAccessOpen(true)}
+              >
+                Access
+              </Button>
+              <StatusBadge tone={role.tone}>{role.label}</StatusBadge>
+              <GuestAccessDialog
+                propertyId={propertyId}
+                guest={{ id: member.id, name: member.name }}
+                open={accessOpen}
+                onOpenChange={setAccessOpen}
+              />
+            </>
+          ) : manageable ? (
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

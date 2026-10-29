@@ -96,7 +96,8 @@ export async function gatherCatchUp(
     } else if (e.event_type === "task.status_changed" && e.to === "blocked") {
       payload.blocked += 1;
       what = "blocked";
-    } else if (e.event_type === "task.assigned" && e.assignee === userId) {
+    } else if (e.event_type === "task.assigned" && (e.to ?? e.assignee) === userId) {
+      // 0115: one event per person added — `to` is who joined.
       payload.assignedToMe += 1;
       what = "assigned to you";
     }

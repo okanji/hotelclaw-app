@@ -12,15 +12,27 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
-import { ChevronLeft, ChevronRight, MessageSquareText, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquareText,
+  Plus,
+} from "lucide-react";
+import { PageHeader } from "@/components/shell/page-header";
+import { Gi } from "@/components/gr8r/icon";
+import { memberHue } from "@/components/gr8r/home-glyphs";
+import {
+  SOURCE_G8,
+  SOURCE_LABEL,
+  g8c,
+} from "@/components/gr8r/calendar-glyphs";
 import { toast } from "sonner";
 import {
   useBroadcastEvent,
   useEventListener,
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
-import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
   addDays,
@@ -68,6 +80,8 @@ import { CalendarAiPanel } from "./calendar-ai-panel";
 import { CalendarAiKnowledge } from "./calendar-ai-knowledge";
 import { CalendarAiTools } from "./calendar-ai-tools";
 import type { CalendarEvent, TaskEvent } from "@/lib/calendar/types";
+
+const LEGEND = ["meeting", "task"] as const;
 
 const VIEW_LABEL: Record<CalendarView, string> = {
   day: "Day",
@@ -238,27 +252,12 @@ export function CalendarRoom({
     return out;
   }, [tasksQuery.data, range.from, range.to]);
 
-  // Deterministic per-user colour palette — keyed on a hash of the id so
-  // the same user gets the same colour across renders, sessions, and
-  // teammates' screens. Avoids "Alice is teal here but blue on Bob's
-  // calendar" confusion.
+  // Deterministic per-user colour — gr8r's `memberHue` (a `--g8-*` palette
+  // token keyed on a hash of the id), the same colour the team panel's
+  // swatch and the grid's free/busy lanes draw, on every teammate's screen.
   const userColors = useMemo(() => {
-    const palette = [
-      "ef4444",
-      "f97316",
-      "eab308",
-      "22c55e",
-      "06b6d4",
-      "3b82f6",
-      "8b5cf6",
-      "ec4899",
-    ];
     const map = new Map<string, string>();
-    for (const m of membersQuery.data ?? []) {
-      let h = 0;
-      for (const ch of m.id) h = (h * 31 + ch.charCodeAt(0)) | 0;
-      map.set(m.id, palette[Math.abs(h) % palette.length]);
-    }
+    for (const m of membersQuery.data ?? []) map.set(m.id, memberHue(m.id));
     return map;
   }, [membersQuery.data]);
 
@@ -397,9 +396,6 @@ export function CalendarRoom({
       if (e.source === "task") {
         return !hiddenSources.has("internal:tasks");
       }
-      if (e.source === "booking") {
-        return !hiddenSources.has("internal:bookings");
-      }
       return !hiddenSources.has(e.calendar_id);
     });
   }, [eventsQuery.data, deadlineEvents, hiddenSources]);
@@ -431,90 +427,101 @@ export function CalendarRoom({
         setOverGrid(false);
       }}
     >
-    {/* `relative overflow-x-clip` anchors the slide-in AI panel to this
-        surface and clips it when translated off — without it, the panel's
-        absolute positioning resolved against a wider ancestor and its
-        closed state peeked back into the viewport as a stray strip. */}
+    {/* gr8r `pageWsCalendar()`: the topbar (`PageHeader`), then a flush
+        `.page` with the `.ph` header (title + lede + actions) and the
+        calendar's `.toolbar` (Today · ‹ › · range · legend · view `.seg`).
+        `relative overflow-x-clip` anchors the slide-in AI panel to this
+        surface and clips it when translated off. */}
     <section className="relative flex h-full min-h-0 flex-1 flex-col overflow-x-clip">
-      {/* Topbar: transparent, no fill, no bottom rule — the grid's own
-          all-day band is the first line on the page (notion-spec §4). */}
-      <header className="flex h-11 shrink-0 items-center justify-between gap-3 px-(--page-gutter)">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+      <PageHeader title="Calendar" icon={<CalendarDays />} />
+      <div className="page flush min-h-0 flex-1">
+        <div className="ph">
+          <div>
+            <h1>Calendar</h1>
+            <p>Meetings, deadlines and your connected calendars.</p>
+          </div>
+          <div className="acts">
+            <CalendarPresenceBar />
+            <AutomationsButton propertyId={propertyId} feature="calendar" />
+            <button
+              type="button"
+              className={aiOpen ? "btn btn-secondary on" : "btn btn-secondary"}
+              aria-pressed={aiOpen}
+              onClick={() => setAiOpen((v) => !v)}
+            >
+              <Gi icon={MessageSquareText} size={14} />
+              Ask Claude
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                const start = new Date();
+                const end = new Date(start.getTime() + 60 * 60_000);
+                setDialog({ mode: "create", start, end });
+              }}
+            >
+              <Gi icon={Plus} size={14} />
+              New event
+            </button>
+          </div>
+        </div>
+
+        <div className="toolbar" role="toolbar" aria-label="Calendar" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
             onClick={() => setFocusDate(new Date())}
           >
             Today
-          </Button>
-          <div className="flex">
-            <Button
-              variant="ghost"
-              size="icon-sm"
+          </button>
+          <div className="row" style={{ gap: 0 }}>
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
               onClick={() => shiftFocus(-1)}
               aria-label={`Previous ${view}`}
             >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
+              <Gi icon={ChevronLeft} size={16} />
+            </button>
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
               onClick={() => shiftFocus(1)}
               aria-label={`Next ${view}`}
             >
-              <ChevronRight className="size-4" />
-            </Button>
+              <Gi icon={ChevronRight} size={16} />
+            </button>
           </div>
-          <h1 className="text-base leading-6 font-semibold tabular-nums">
+          <h2 className="cal-title" aria-live="polite">
             {formatRange(view, focusDate)}
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <ToggleGroup
-            value={[view]}
-            onValueChange={(v) => {
-              const next = (v as CalendarView[])[0];
-              if (next) setView(next);
-            }}
-            variant="outline"
-            size="sm"
-            spacing={0}
-            aria-label="Calendar view"
-          >
+          </h2>
+          <span className="sp" />
+          <span className="cal-legend hide-m" aria-hidden>
+            {LEGEND.map((k) => (
+              <span key={k}>
+                <span className="pdot" style={g8c(SOURCE_G8[k])} />
+                {SOURCE_LABEL[k]}
+              </span>
+            ))}
+          </span>
+          <div className="seg" role="tablist" aria-label="Calendar view">
             {CALENDAR_VIEWS.map((v) => (
-              <ToggleGroupItem
+              <button
                 key={v}
-                value={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                className={view === v ? "on" : ""}
                 title={`${VIEW_LABEL[v]} view (${v[0].toUpperCase()})`}
+                onClick={() => setView(v)}
               >
                 {VIEW_LABEL[v]}
-              </ToggleGroupItem>
+              </button>
             ))}
-          </ToggleGroup>
+          </div>
           <CalendarSourcesMenu propertyId={propertyId} />
-          <CalendarPresenceBar />
-          <AutomationsButton propertyId={propertyId} feature="calendar" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAiOpen((v) => !v)}
-          >
-            <MessageSquareText className="size-4" />
-            Ask Claude
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              const start = new Date();
-              const end = new Date(start.getTime() + 60 * 60_000);
-              setDialog({ mode: "create", start, end });
-            }}
-          >
-            <Plus className="size-4" />
-            New event
-          </Button>
         </div>
-      </header>
 
       <div className="flex min-h-0 flex-1">
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
@@ -532,6 +539,14 @@ export function CalendarRoom({
               focusDate={focusDate}
               events={events}
               onSelectDay={(d) => setFocusDate(d)}
+              onOpenDay={(d) => {
+                setFocusDate(d);
+                setView("day");
+              }}
+              onCreateOnDay={(d) => {
+                const start = addMinutes(startOfDay(d), 9 * 60);
+                setDialog({ mode: "create", start, end: addMinutes(start, 60) });
+              }}
               onSelectEvent={(event) => setDialog({ mode: "edit", event })}
             />
           ) : (
@@ -552,23 +567,20 @@ export function CalendarRoom({
               onMutated={() => broadcast({ type: "calendar-invalidate" })}
             />
           )}
-          {/* Peer cursors overlaying the grid. Positioned absolute inside
-              this `relative` wrapper so they line up with the time grid
-              regardless of how the rails on the right compress it. */}
+          {/* Peer cursors overlaying the grid. */}
           <PresenceCursors />
         </div>
         {/* Right rail — unscheduled tasks fill the column, team availability
-            stays pinned at the bottom instead of being pushed off-screen by
-            a long task list. The wrapper owns the single dividing rule (and
-            hides itself when both panels render null) so an empty panel
-            never leaves an unstyled gap in the column. */}
-        <div className="hidden min-h-0 shrink-0 flex-col border-l border-border lg:has-[aside]:flex">
+            stays pinned at the bottom. The wrapper hides itself when both
+            panels render null. */}
+        <div className="cal-rail hidden lg:has-[section]:flex">
           <TaskScheduleRail propertyId={propertyId} />
           <TeamOverlayPanel
             propertyId={propertyId}
             currentUserId={currentUserId}
           />
         </div>
+      </div>
       </div>
 
       {dialog ? (
@@ -615,7 +627,7 @@ export function CalendarRoom({
         // `over` flicker to null and the drop silently no-op.
         <div
           className={cn(
-            "transition-opacity duration-100",
+            "g8 cal-ghost transition-opacity duration-100",
             overGrid && "opacity-0",
           )}
         >

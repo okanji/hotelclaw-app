@@ -9,6 +9,7 @@ import {
 } from "stream-chat-react";
 import type { Thread, ThreadState } from "stream-chat";
 import { Hash, Lock, MessageSquare, MessageSquareText } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { JumpToLatestOverride } from "../jump-to-latest";
 import { SlackThread } from "./slack-thread";
 
@@ -33,28 +34,45 @@ export function ThreadsFeed() {
     ready: s.ready,
   }));
 
-  if (!ready && threads.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading threads…
-      </div>
-    );
-  }
+  if (!ready && threads.length === 0) return <ThreadsLoading />;
 
   if (threads.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-        <MessageSquareText className="size-8 opacity-50" />
-        <p className="text-sm">No threads yet.</p>
-        <p className="text-xs">Replies to channel messages show up here.</p>
+      <div className="panel">
+        <div className="empty-state">
+          <div className="glyph">
+            <Gi icon={MessageSquareText} size={20} />
+          </div>
+          <h2 className="es-h">No threads yet</h2>
+          <p>Replies to channel messages show up here.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="threads-feed flex w-full flex-col divide-y divide-border">
+    <div className="threads-feed stack">
       {threads.map((thread) => (
         <ThreadCard key={thread.id} thread={thread} />
+      ))}
+    </div>
+  );
+}
+
+/** gr8r `.panel` shimmer cards while the ThreadManager loads. */
+export function ThreadsLoading() {
+  return (
+    <div className="stack" aria-busy="true">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="panel">
+          <div className="panel-h">
+            <span className="sk" style={{ width: 120, height: 11 }} />
+          </div>
+          <div className="panel-b" style={{ display: "grid", gap: 8 }}>
+            <span className="sk" style={{ width: "60%", height: 11 }} />
+            <span className="sk" style={{ width: "80%", height: 11 }} />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -94,23 +112,24 @@ function ThreadCardContent() {
   const Icon = isMessaging ? MessageSquare : isPrivate ? Lock : Hash;
 
   return (
-    <article className="flex w-full flex-col px-8 py-6">
-      <header className="mb-3 flex items-center gap-1.5 text-xs font-medium text-faint-foreground">
-        <Icon className="size-3" />
-        <span className="font-semibold">{channelName}</span>
+    <article className="panel" style={{ overflow: "hidden" }}>
+      <header className="panel-h" style={{ borderBottom: "1px solid var(--g8-divider)" }}>
+        <Gi icon={Icon} size={14} />
+        <h2 className="trunc">{channelName}</h2>
         {replyCount > 0 ? (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>
+          <span className="acts">
+            <span className="badge gray">
               {replyCount} {replyCount === 1 ? "reply" : "replies"}
             </span>
-          </>
+          </span>
         ) : null}
       </header>
       {/* SlackThread renders the parent + replies flat — same MessageList,
           parent at index 0, no nested ThreadHead treatment. That's the
           whole point of the threads feed: a flat conversation per card. */}
-      <SlackThread hideHeader flatMessages />
+      <div style={{ paddingBlock: 6 }}>
+        <SlackThread hideHeader flatMessages />
+      </div>
     </article>
   );
 }

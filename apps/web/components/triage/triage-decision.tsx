@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { Kbd } from "@/components/ui/kbd";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,14 +60,16 @@ export function TriageDecision({
   onDecline: (note: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="row" style={{ gap: 6 }}>
       <Popover open={declineOpen} onOpenChange={onDeclineOpenChange}>
         <PopoverTrigger
-          render={<Button variant="outline" size="sm" disabled={busy} />}
+          render={
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} />
+          }
         >
-          <X />
+          <Gi icon={X} size={13} />
           Decline
-          <Kbd className="ml-0.5">2</Kbd>
+          <span className="kbd">2</span>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80">
           <DeclineForm
@@ -78,12 +81,23 @@ export function TriageDecision({
       </Popover>
 
       <Popover open={acceptOpen} onOpenChange={onAcceptOpenChange}>
-        <PopoverTrigger render={<Button size="sm" disabled={busy} />}>
-          <Check />
+        <PopoverTrigger
+          render={
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} />
+          }
+        >
+          <Gi icon={Check} size={13} />
           Accept
-          <Kbd className="ml-0.5 bg-primary-foreground/15 text-primary-foreground">
+          <span
+            className="kbd"
+            style={{
+              background: "color-mix(in srgb, var(--g8-on-accent) 18%, transparent)",
+              color: "var(--g8-on-accent)",
+              borderColor: "transparent",
+            }}
+          >
             1
-          </Kbd>
+          </span>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80">
           <AcceptForm

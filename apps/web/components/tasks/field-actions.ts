@@ -2,7 +2,8 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import type { CustomFieldOption, Database } from "@/lib/db/types";
+import type { Database } from "@/lib/db/types";
+import { setTaskFieldValueFor } from "@/lib/tasks/field-write";
 
 // Server actions for task custom fields (migration 0080). All writes go
 // through the user's RLS client — custom fields are ordinary member data,
@@ -11,12 +12,31 @@ import type { CustomFieldOption, Database } from "@/lib/db/types";
 
 const FieldTypes = [
   "text",
+  "long_text",
   "number",
+  "currency",
   "select",
   "multi_select",
   "date",
   "checkbox",
+  "url",
+  "email",
+  "phone",
+  "people",
+  "files",
+  "relation",
+  "progress",
 ] as const;
+
+/** Per-type settings (0116) — unknown keys are dropped. */
+const ConfigZ = z
+  .object({
+    code: z.string().regex(/^[A-Z]{3}$/).optional(),
+    precision: z.number().int().min(0).max(4).optional(),
+    multiple: z.boolean().optional(),
+    target_list_id: z.string().uuid().nullable().optional(),
+  })
+  .strip();
 
 /** Field types whose value is picked from `options`. */
 const CHOICE_TYPES = ["select", "multi_select"] as const;
@@ -38,6 +58,7 @@ const CreateFieldSchema = z.object({
   type: z.enum(FieldTypes),
   // ClickUp caps dropdown/label fields at 500 options; same ceiling here.
   options: z.array(OptionZ).max(500).default([]),
+  config: ConfigZ.default({}),
   spaceId: z.string().uuid().nullable().optional(),
 });
 
@@ -82,6 +103,7 @@ export async function createCustomField(
       name: parsed.data.name.trim(),
       type: parsed.data.type,
       options: parsed.data.options,
+      config: parsed.data.config,
       space_id: parsed.data.spaceId ?? null,
       created_by: user.id,
     })
@@ -95,6 +117,7 @@ const UpdateFieldSchema = z.object({
   fieldId: z.string().uuid(),
   name: z.string().min(1).max(60).optional(),
   options: z.array(OptionZ).max(500).optional(),
+  config: ConfigZ.optional(),
   archived: z.boolean().optional(),
 });
 
@@ -135,6 +158,7 @@ export async function updateCustomField(
   const patch: Database["public"]["Tables"]["custom_fields"]["Update"] = {};
   if (parsed.data.name !== undefined) patch.name = parsed.data.name.trim();
   if (parsed.data.options !== undefined) patch.options = parsed.data.options;
+  if (parsed.data.config !== undefined) patch.config = parsed.data.config;
   if (parsed.data.archived !== undefined) {
     patch.archived_at = parsed.data.archived ? new Date().toISOString() : null;
   }
@@ -154,11 +178,11 @@ const SetValueSchema = z.object({
   propertyId: z.string().uuid(),
   taskId: z.string().uuid(),
   fieldId: z.string().uuid(),
-  // null clears the value (deletes the row). An array is a multi_select
-  // (label) value — the option ids that are ticked.
+  // null clears the value (deletes the row). Arrays carry option ids
+  // (labels), member ids (people) or task ids (relation).
   value: z
     .union([
-      z.string().max(500),
+      z.string().max(5000),
       z.number(),
       z.boolean(),
       z.array(z.string().max(60)).max(500),
@@ -166,6 +190,11 @@ const SetValueSchema = z.object({
     .nullable(),
 });
 
+/**
+ * The UI's write — validation, coercion, the property / team / list fences
+ * and the upsert-or-clear all live in `setTaskFieldValueFor`, shared with
+ * workflows, the AI tool and forms (0116).
+ */
 export async function setTaskFieldValue(
   input: z.input<typeof SetValueSchema>,
 ): Promise<{ ok: true } | { error: string }> {
@@ -178,85 +207,11 @@ export async function setTaskFieldValue(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in" };
 
-  // Tenancy: the field and the task must both belong to the claimed property
-  // (RLS guarantees membership; this guards cross-property id mixing).
-  const [{ data: field }, { data: task }] = await Promise.all([
-    supabase
-      .from("custom_fields")
-      .select("id, type, options, space_id")
-      .eq("id", parsed.data.fieldId)
-      .eq("property_id", parsed.data.propertyId)
-      .maybeSingle(),
-    supabase
-      .from("tasks")
-      .select("id, space_id")
-      .eq("id", parsed.data.taskId)
-      .eq("property_id", parsed.data.propertyId)
-      .maybeSingle(),
-  ]);
-  if (!field || !task) return { error: "Not found" };
-
-  // Scope: a team-scoped field only applies to that team's tasks. The task
-  // sidebar already filters by scope; this closes the list-cell / bulk-edit
-  // / API paths that previously accepted any field on any task.
-  if (field.space_id && field.space_id !== task.space_id) {
-    return { error: "This field is scoped to a different team" };
-  }
-
-  // An emptied label field is a cleared field — drop the row rather than
-  // storing `[]`, so "Empty" filters and the trigger's from/to stay honest.
-  const incoming =
-    Array.isArray(parsed.data.value) && parsed.data.value.length === 0
-      ? null
-      : parsed.data.value;
-
-  if (incoming === null) {
-    const { error } = await supabase
-      .from("task_field_values")
-      .delete()
-      .eq("task_id", parsed.data.taskId)
-      .eq("field_id", parsed.data.fieldId);
-    if (error) return { error: error.message };
-    return { ok: true };
-  }
-
-  // Type-check the value against the field definition.
-  const options = field.options as CustomFieldOption[];
-  const v = incoming;
-  const ok =
-    (field.type === "text" && typeof v === "string") ||
-    (field.type === "number" && typeof v === "number" && Number.isFinite(v)) ||
-    (field.type === "checkbox" && typeof v === "boolean") ||
-    (field.type === "date" &&
-      typeof v === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(v)) ||
-    (field.type === "select" &&
-      typeof v === "string" &&
-      options.some((o) => o.id === v)) ||
-    // Every ticked id must still exist on the definition — an option deleted
-    // from the field can't be re-applied to a task.
-    (field.type === "multi_select" &&
-      Array.isArray(v) &&
-      v.every((id) => options.some((o) => o.id === id)));
-  if (!ok) return { error: "Value doesn't match the field type" };
-
-  // Store label ids in definition order and de-duplicated, so the stored
-  // array is canonical — the trigger's `is not distinct from` no-op check
-  // compares arrays element-wise, and a reordered array is not a change.
-  const stored = Array.isArray(v)
-    ? options.filter((o) => v.includes(o.id)).map((o) => o.id)
-    : v;
-
-  const { error } = await supabase.from("task_field_values").upsert(
-    {
-      task_id: parsed.data.taskId,
-      field_id: parsed.data.fieldId,
-      property_id: parsed.data.propertyId,
-      value: stored,
-      updated_by: user.id,
-    },
-    { onConflict: "task_id,field_id" },
-  );
-  if (error) return { error: error.message };
-  return { ok: true };
+  const res = await setTaskFieldValueFor(supabase, user.id, {
+    propertyId: parsed.data.propertyId,
+    taskId: parsed.data.taskId,
+    field: parsed.data.fieldId,
+    value: parsed.data.value,
+  });
+  return "error" in res ? res : { ok: true };
 }

@@ -1,15 +1,24 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { assigneeSummary } from "@/lib/tasks/assignee-label";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   BellOff,
-  CalendarPlus,
+  Calendar,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronRight,
+  CircleDot,
   ClipboardCopy,
   ExternalLink,
   FileText,
@@ -21,16 +30,15 @@ import {
   Paperclip,
   Plus,
   Repeat,
+  SignalHigh,
   SquarePlus,
   Star,
   Tag,
   Trash2,
-  UserRound,
+  User,
   Workflow,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,21 +46,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { PRIORITY_META } from "./kanban";
-import { describeStatus, type ColumnDef } from "@/lib/tasks/statuses";
-import { NoPriorityGlyph, PriorityBars, StatusIcon } from "./task-icons";
+import { describeStatus, isDone, type ColumnDef } from "@/lib/tasks/statuses";
+import { StatusIcon } from "./task-icons";
 import { TaskProjectSpacePicker } from "./task-project-space-picker";
 import { TaskCustomFields } from "./task-custom-fields";
 import { RECURRENCE_LABEL } from "./task-detail-inline-properties";
 import { TaskPlanningChips } from "@/components/cycles/task-planning-chips";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
 import type { EntityColor } from "@/lib/db/types";
-
-/** Catalog accent dots for label chips. */
-
 import { taskDetailMetaQueryOptions } from "@/lib/query/section-queries";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
 import { taskHref } from "@/lib/tasks/task-href";
@@ -61,25 +64,35 @@ import type {
   TaskDetailRemovers,
 } from "./task-detail-mutations";
 import type { TaskDetailMeta } from "@/lib/tasks/task-detail-meta";
-import type {
-  TaskPriority,
-  TaskRecurrence,
-  TaskStatus,
-} from "@/lib/db/types";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import type { TaskPriority, TaskRecurrence } from "@/lib/db/types";
 import {
   AssigneeMenuContent,
   DueDatePopoverContent,
   PriorityMenuContent,
   StatusMenuContent,
   type StatusRowFields,
-  initials,
 } from "./task-property-menus";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, ProgBar } from "@/components/gr8r/home-glyphs";
+import {
+  G8PriorityIcon,
+  G8StatusIcon,
+  PRIORITY_NAME,
+  cVar,
+  g8Color,
+} from "@/components/gr8r/my-tasks-glyphs";
 
 type Member = { id: string; name: string | null; avatarUrl: string | null };
 
-function formatDueLabel(iso: string | null) {
-  if (!iso) return "Due date";
+/**
+ * The task's utility rail, in gr8r's vocabulary: properties as the drawer's
+ * `.kv` label / value grid (`dt` icon + label, `dd` a `.pillbtn`), then
+ * gr8r `.dsec`-headed groups whose rows are `.sitem`s. Docked beside the
+ * task at ≥@4xl/task on the full page; a floating drawer otherwise.
+ */
+
+export function formatDueLabel(iso: string | null) {
+  if (!iso) return "Set date";
   const d = new Date(iso);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -88,10 +101,24 @@ function formatDueLabel(iso: string | null) {
   const diffDays = Math.round(
     (dueDay.getTime() - today.getTime()) / 86_400_000,
   );
-  if (diffDays === 0) return "Due today";
-  if (diffDays === 1) return "Due tomorrow";
-  if (diffDays === -1) return "Due yesterday";
-  return `Due ${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays === -1) return "Yesterday";
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+/** True when a due date's DAY is before today. */
+export function isOverdueDay(iso: string | null): boolean {
+  if (!iso) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() < today.getTime();
 }
 
 function formatRelative(iso: string) {
@@ -118,6 +145,9 @@ export function TaskDetailSidebar({
   priority,
   assigneeId,
   assignee,
+  assigneeIds,
+  assigneeInfos,
+  onAssigneesChange,
   dueAt,
   members,
   meta,
@@ -149,6 +179,10 @@ export function TaskDetailSidebar({
   priority: TaskPriority;
   assigneeId: string | null;
   assignee: { name: string; avatar?: string } | undefined;
+  /** Multi-assignee (0115): when given, the picker ticks people in and out. */
+  assigneeIds?: string[];
+  assigneeInfos?: Record<string, { name: string; avatar?: string }>;
+  onAssigneesChange?: (ids: string[]) => void;
   dueAt: string | null;
   members: Member[];
   meta: TaskDetailMeta | undefined;
@@ -174,70 +208,80 @@ export function TaskDetailSidebar({
   const labelColor = (name: string): EntityColor =>
     labelCatalog.find((l) => l.name.toLowerCase() === name.toLowerCase())
       ?.color ?? "slate";
+  const labels = meta?.labels ?? [];
   return (
     <aside
       className={cn(
-        "flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border",
+        "g8-trail flex w-[300px] shrink-0 flex-col overflow-y-auto",
         className,
       )}
+      aria-label="Task details"
     >
-      <SidebarSection title="Properties" defaultOpen>
-        <StatusPicker
-          status={status}
-          options={statusOptions}
-          row={statusRow}
-          onSelect={onStatusChange}
-        />
-        <PriorityPicker priority={priority} onSelect={onPriorityChange} />
-        <AssigneePicker
-          assignee={assignee}
-          assigneeId={assigneeId}
-          members={members}
-          onSelect={onAssigneeChange}
-        />
-        <DueDatePicker dueAt={dueAt} onChange={onDueAtChange} />
-        {onRecurrenceChange ? (
-          <RecurrencePicker
-            recurrence={recurrence}
-            onSelect={onRecurrenceChange}
+      <RailSection title="Properties" defaultOpen>
+        <dl className="kv g8-trail-kv">
+          <StatusPicker
+            status={status}
+            options={statusOptions}
+            row={statusRow}
+            onSelect={onStatusChange}
           />
-        ) : null}
-        <TaskProjectSpacePicker propertyId={propertyId} taskId={taskId} />
-        {/* Estimate / Cycle / Milestone (0111) — after project, since the
-            milestone choices come from the task's project. */}
-        <TaskPlanningChips
-          propertyId={propertyId}
-          taskId={taskId}
-          variant="row"
-        />
-        {(meta?.labels ?? []).map((label) => (
-          <MetaChipRow
-            key={label}
-            icon={
-              <span
-                className={cn(
-                  "size-2.5 rounded-full",
-                  LABEL_DOT[labelColor(label)],
-                )}
+          <PriorityPicker priority={priority} onSelect={onPriorityChange} />
+          <AssigneePicker
+            assignee={assignee}
+            assigneeId={assigneeId}
+            members={members}
+            onSelect={onAssigneeChange}
+            assigneeIds={assigneeIds}
+            assigneeInfos={assigneeInfos}
+            onAssigneesChange={onAssigneesChange}
+          />
+          <DueDatePicker dueAt={dueAt} onChange={onDueAtChange} />
+          {onRecurrenceChange ? (
+            <RecurrencePicker
+              recurrence={recurrence}
+              onSelect={onRecurrenceChange}
+            />
+          ) : null}
+          <dt>
+            <Gi icon={Tag} size={14} />
+            Labels
+          </dt>
+          <dd>
+            {labels.map((label) => (
+              <LabelChip
+                key={label}
+                label={label}
+                color={labelColor(label)}
+                onRemove={() => removers.removeLabel(label)}
               />
-            }
-            label={label}
-            onRemove={() => removers.removeLabel(label)}
+            ))}
+            <button
+              type="button"
+              className="pillbtn empty"
+              onClick={openers.addLabel}
+              aria-label="Add label"
+            >
+              {labels.length ? <Gi icon={Plus} size={13} /> : <><Gi icon={Tag} size={13} />Add labels</>}
+            </button>
+          </dd>
+        </dl>
+        {/* Project / team / list, then Estimate / Cycle / Milestone (0111) —
+            full-width rows (the milestone choices come from the project). */}
+        <div className="g8-trail-rows">
+          <TaskProjectSpacePicker propertyId={propertyId} taskId={taskId} />
+          <TaskPlanningChips
+            propertyId={propertyId}
+            taskId={taskId}
+            variant="row"
           />
-        ))}
-        <SidebarActionRow
-          icon={<Tag className="size-3.5" />}
-          label="Add label"
-          muted={!(meta?.labels.length ?? 0)}
-          onClick={openers.addLabel}
-        />
-      </SidebarSection>
+        </div>
+      </RailSection>
 
-      <SidebarSection title="Fields" defaultOpen>
+      <RailSection title="Fields" defaultOpen>
         <TaskCustomFields propertyId={propertyId} taskId={taskId} />
-      </SidebarSection>
+      </RailSection>
 
-      <SidebarSection title="Links & attachments" defaultOpen>
+      <RailSection title="Links & attachments" defaultOpen>
         {(meta?.links ?? []).map((link) => (
           <LinkRow
             key={link.id}
@@ -255,7 +299,8 @@ export function TaskDetailSidebar({
             onRemove={() => removers.unlinkDocument(doc.id)}
           />
         ))}
-        {(meta?.attachments ?? []).map((file) => (
+        {/* Slot files (0116) render in their Files field, not here. */}
+        {(meta?.attachments ?? []).filter((f) => !f.fieldId).map((file) => (
           <AttachmentRow
             key={file.id}
             fileName={file.fileName}
@@ -263,132 +308,95 @@ export function TaskDetailSidebar({
             onRemove={() => removers.removeAttachment(file.id)}
           />
         ))}
-        <SidebarActionRow
-          icon={<Link2 className="size-3.5" />}
-          label="Add link"
-          onClick={openers.addLink}
-        />
-        <SidebarActionRow
-          icon={<FileText className="size-3.5" />}
+        <ActionRow icon={Link2} label="Add link" onClick={openers.addLink} />
+        <ActionRow
+          icon={FileText}
           label="Add document"
           onClick={openers.addDocument}
         />
-        <SidebarActionRow
-          icon={<Paperclip className="size-3.5" />}
+        <ActionRow
+          icon={Paperclip}
           label="Attach file"
           onClick={openers.attachFile}
         />
-      </SidebarSection>
+      </RailSection>
 
-      <SidebarSection title="Relations" defaultOpen>
+      <RailSection title="Relations" defaultOpen>
         {(meta?.relatedTasks ?? []).map((rel) => (
           <RelatedTaskRow
             key={rel.id}
             propertyId={propertyId}
             taskId={rel.id}
             title={rel.title}
-            status={rel.status as TaskStatus}
+            status={rel.status}
             relation={rel.relation}
             onRemove={() => removers.removeRelation(rel.relationId)}
           />
         ))}
-        <SidebarActionRow
-          icon={<SquarePlus className="size-3.5" />}
+        <ActionRow
+          icon={SquarePlus}
           label="Create related"
           onClick={openers.createRelated}
         />
-        <SidebarActionRow
-          icon={<Plus className="size-3.5" />}
-          label="Add sub-issues"
-          onClick={onAddSubIssue}
+        <ActionRow icon={Plus} label="Add sub-issues" onClick={onAddSubIssue} />
+        <MarkAsPicker
+          status={status}
+          options={statusOptions}
+          onSelect={onStatusChange}
         />
-        <MarkAsPicker status={status} options={statusOptions} onSelect={onStatusChange} />
-      </SidebarSection>
+      </RailSection>
 
-      <SidebarSection title="Actions" defaultOpen>
-        <SidebarActionRow
-          icon={<ClipboardCopy className="size-3.5" />}
-          label="Copy title"
-          onClick={onCopyTitle}
-        />
+      <RailSection title="Actions" defaultOpen>
+        <ActionRow icon={ClipboardCopy} label="Copy title" onClick={onCopyTitle} />
         {onCopyId ? (
-          <SidebarActionRow
-            icon={<Hash className="size-3.5" />}
-            label="Copy ID"
-            onClick={onCopyId}
-          />
+          <ActionRow icon={Hash} label="Copy ID" onClick={onCopyId} />
         ) : null}
-        <SidebarActionRow
-          icon={<Link2 className="size-3.5" />}
-          label="Copy link"
-          onClick={onCopyLink}
-        />
-        <SidebarActionRow
-          icon={
-            <Star
-              className={cn(
-                "size-3.5",
-                meta?.favorited && "fill-warning text-warning",
-              )}
-            />
-          }
+        <ActionRow icon={Link2} label="Copy link" onClick={onCopyLink} />
+        <ActionRow
+          icon={Star}
           label={meta?.favorited ? "Favorited" : "Favorite"}
+          on={meta?.favorited}
           onClick={removers.toggleFavorite}
         />
-        <SidebarActionRow
-          icon={<CalendarPlus className="size-3.5" />}
+        <ActionRow
+          icon={CalendarClock}
           label={
             meta?.reminders.length
               ? `Remind ${formatRelative(meta.reminders[0]!.remindAt)}`
               : "Remind me"
           }
-          muted={!meta?.reminders.length}
           onClick={openers.remindMe}
         />
-        <SidebarActionRow
-          icon={
-            meta?.muted ? (
-              <BellOff className="size-3.5" />
-            ) : (
-              <Bell className="size-3.5" />
-            )
-          }
+        <ActionRow
+          icon={meta?.muted ? BellOff : Bell}
           label={meta?.muted ? "Unsubscribed" : "Unsubscribe"}
           onClick={removers.toggleMute}
         />
-        <SidebarActionRow
-          icon={<OctagonAlert className="size-3.5" />}
-          label="Escalate…"
-          onClick={onEscalate}
-        />
-        <SidebarActionRow
-          icon={<Workflow className="size-3.5" />}
+        <ActionRow icon={OctagonAlert} label="Escalate…" onClick={onEscalate} />
+        <ActionRow
+          icon={Workflow}
           label="Automate from this task…"
           onClick={onAutomate}
         />
-      </SidebarSection>
+      </RailSection>
 
       <TaskAutomationsSection propertyId={propertyId} />
 
-      <SidebarSection title="More" defaultOpen={false}>
-        <SidebarActionRow
-          icon={<History className="size-3.5" />}
+      <RailSection title="More" defaultOpen={false}>
+        <ActionRow
+          icon={History}
           label="Show description history"
           muted={!meta?.descriptionRevisions.length}
           onClick={openers.showHistory}
         />
-        <SidebarActionRow
-          icon={<Trash2 className="size-3.5" />}
-          label="Delete"
-          destructive
-          onClick={onDelete}
-        />
-      </SidebarSection>
+        <ActionRow icon={Trash2} label="Delete" destructive onClick={onDelete} />
+      </RailSection>
     </aside>
   );
 }
 
-function SidebarSection({
+/** A collapsible rail group under a gr8r `.dsec-h` heading. */
+function RailSection({
   title,
   defaultOpen = true,
   children,
@@ -399,61 +407,35 @@ function SidebarSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border py-1.5">
+    <section className="g8-trail-sec">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1 px-3 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="dsec-h g8-trail-h"
+        aria-expanded={open}
       >
-        {open ? (
-          <ChevronDown className="size-3.5 opacity-70" />
-        ) : (
-          <ChevronRight className="size-3.5 opacity-70" />
-        )}
-        {title}
+        <h3>{title}</h3>
+        <Gi icon={open ? ChevronDown : ChevronRight} size={13} />
       </button>
-      {open ? (
-        <div className="flex flex-col gap-px px-1 pb-1">{children}</div>
-      ) : null}
-    </div>
+      {open ? <div className="g8-trail-body">{children}</div> : null}
+    </section>
   );
 }
 
-function SidebarPropertyRow({
-  icon,
-  label,
-  muted,
-}: {
-  icon: ReactNode;
-  label: string;
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm",
-        muted ? "text-muted-foreground" : "text-foreground",
-      )}
-    >
-      <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
-        {icon}
-      </span>
-      <span className="truncate">{label}</span>
-    </div>
-  );
-}
-
-function SidebarActionRow({
+function ActionRow({
   icon,
   label,
   muted,
   destructive,
+  on,
   onClick,
 }: {
-  icon: ReactNode;
+  icon: typeof Plus;
   label: string;
   muted?: boolean;
   destructive?: boolean;
+  /** A toggled-on state (favorited) — tints the icon amber, gr8r's star. */
+  on?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -461,45 +443,73 @@ function SidebarActionRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-        "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
-        destructive
-          ? "text-destructive hover:bg-destructive/10 hover:text-destructive"
-          : muted
-            ? "text-muted-foreground hover:text-foreground"
-            : "text-foreground",
+        "sitem",
+        muted && "g8-muted",
+        destructive && "g8-danger",
+        on && "g8-on-star",
       )}
+      aria-pressed={on === undefined ? undefined : on}
     >
-      <span className="flex w-4 shrink-0 items-center justify-center">{icon}</span>
-      <span className="truncate">{label}</span>
+      <Gi icon={icon} size={15} />
+      <span className="trunc">{label}</span>
     </button>
   );
 }
 
-function MetaChipRow({
-  icon,
+function LabelChip({
   label,
+  color,
   onRemove,
 }: {
-  icon: ReactNode;
   label: string;
+  color: EntityColor;
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-      <span className="flex w-4 shrink-0 items-center justify-center text-muted-foreground">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+    <span className="lbl g8-lbl-x">
+      <i style={cVar(g8Color(color))} />
+      {label}
       <button
         type="button"
         aria-label={`Remove ${label}`}
         onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+        className="g8-lbl-rm"
       >
-        <X className="size-3" />
+        <Gi icon={X} size={11} />
       </button>
+    </span>
+  );
+}
+
+/** One resource row: icon, the link, hover-revealed actions. */
+function ResourceRow({
+  icon,
+  children,
+  actions,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  actions: ReactNode;
+}) {
+  return (
+    <div className="sitem g8-res-row">
+      {icon}
+      <span className="grow trunc">{children}</span>
+      <span className="g8-res-acts">{actions}</span>
     </div>
+  );
+}
+
+function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="ibtn ibtn-xs"
+    >
+      <Gi icon={X} size={12} />
+    </button>
   );
 }
 
@@ -513,34 +523,27 @@ function LinkRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-      <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="min-w-0 flex-1 truncate hover:underline"
-      >
+    <ResourceRow
+      icon={<Gi icon={Link2} size={15} />}
+      actions={
+        <>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open link"
+            className="ibtn ibtn-xs"
+          >
+            <Gi icon={ExternalLink} size={12} />
+          </a>
+          <RemoveBtn label="Remove link" onClick={onRemove} />
+        </>
+      }
+    >
+      <a href={url} target="_blank" rel="noopener noreferrer" className="g8-ul">
         {title || url}
       </a>
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Open link"
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-      >
-        <ExternalLink className="size-3" />
-      </a>
-      <button
-        type="button"
-        aria-label="Remove link"
-        onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-      >
-        <X className="size-3" />
-      </button>
-    </div>
+    </ResourceRow>
   );
 }
 
@@ -556,23 +559,14 @@ function DocumentRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-      <Link
-        href={`/p/${propertyId}/docs/${documentId}`}
-        className="min-w-0 flex-1 truncate hover:underline"
-      >
+    <ResourceRow
+      icon={<Gi icon={FileText} size={15} />}
+      actions={<RemoveBtn label="Unlink document" onClick={onRemove} />}
+    >
+      <Link href={`/p/${propertyId}/docs/${documentId}`} className="g8-ul">
         {title}
       </Link>
-      <button
-        type="button"
-        aria-label="Unlink document"
-        onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-      >
-        <X className="size-3" />
-      </button>
-    </div>
+    </ResourceRow>
   );
 }
 
@@ -586,29 +580,18 @@ function AttachmentRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-      <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+    <ResourceRow
+      icon={<Gi icon={Paperclip} size={15} />}
+      actions={<RemoveBtn label="Remove attachment" onClick={onRemove} />}
+    >
       {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="min-w-0 flex-1 truncate hover:underline"
-        >
+        <a href={url} target="_blank" rel="noopener noreferrer" className="g8-ul">
           {fileName}
         </a>
       ) : (
-        <span className="min-w-0 flex-1 truncate">{fileName}</span>
+        fileName
       )}
-      <button
-        type="button"
-        aria-label="Remove attachment"
-        onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-      >
-        <X className="size-3" />
-      </button>
-    </div>
+    </ResourceRow>
   );
 }
 
@@ -623,40 +606,29 @@ function RelatedTaskRow({
   propertyId: string;
   taskId: string;
   title: string;
-  status: TaskStatus;
+  status: string;
   relation?: "related" | "blocks" | "blocked_by";
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-      <StatusIcon status={status} className="size-3.5 shrink-0" />
-      <Link
-        href={taskHref(propertyId, taskId)}
-        className="min-w-0 flex-1 truncate hover:underline"
-      >
+    <ResourceRow
+      icon={<StatusIcon status={status} className="size-3.5 shrink-0" />}
+      actions={<RemoveBtn label="Remove relation" onClick={onRemove} />}
+    >
+      <Link href={taskHref(propertyId, taskId)} className="g8-ul">
         {title}
       </Link>
       {relation !== "related" ? (
         <span
           className={cn(
-            "shrink-0 rounded-md px-1.5 py-px text-xs font-medium",
-            relation === "blocked_by"
-              ? "bg-destructive/10 text-destructive"
-              : "bg-muted text-muted-foreground",
+            "g8-rel-tag",
+            relation === "blocked_by" && "danger",
           )}
         >
           {relation === "blocked_by" ? "Blocked by" : "Blocks"}
         </span>
       ) : null}
-      <button
-        type="button"
-        aria-label="Remove relation"
-        onClick={onRemove}
-        className="inline-flex size-5 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-      >
-        <X className="size-3" />
-      </button>
-    </div>
+    </ResourceRow>
   );
 }
 
@@ -673,29 +645,34 @@ function StatusPicker({
 }) {
   const view = describeStatus(options ?? [], status, row);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={
-                <StatusIcon
+    <>
+      <dt>
+        <Gi icon={CircleDot} size={14} />
+        Status
+      </dt>
+      <dd>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button type="button" className="pillbtn">
+                <G8StatusIcon
                   category={view.category}
                   blocked={view.isBlocked}
                   color={view.color}
-                  className="size-3.5"
                 />
-              }
-              label={view.label}
-            />
-          </button>
-        }
-      />
-      <StatusMenuContent align="end" options={options} current={status} onSelect={onSelect} />
-    </DropdownMenu>
+                <span className="trunc">{view.label}</span>
+              </button>
+            }
+          />
+          <StatusMenuContent
+            align="end"
+            options={options}
+            current={status}
+            onSelect={onSelect}
+          />
+        </DropdownMenu>
+      </dd>
+    </>
   );
 }
 
@@ -706,34 +683,27 @@ function PriorityPicker({
   priority: TaskPriority;
   onSelect: (priority: TaskPriority) => void;
 }) {
+  const none = priority === "none";
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={
-                priority === "none" ? (
-                  <NoPriorityGlyph variant="inline" />
-                ) : (
-                  <PriorityBars priority={priority} />
-                )
-              }
-              label={
-                priority === "none"
-                  ? "Set priority"
-                  : PRIORITY_META[priority].label
-              }
-              muted={priority === "none"}
-            />
-          </button>
-        }
-      />
-      <PriorityMenuContent align="end" onSelect={onSelect} />
-    </DropdownMenu>
+    <>
+      <dt>
+        <Gi icon={SignalHigh} size={14} />
+        Priority
+      </dt>
+      <dd>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button type="button" className={cn("pillbtn", none && "empty")}>
+                <G8PriorityIcon priority={priority} />
+                {none ? "Set priority" : PRIORITY_NAME[priority]}
+              </button>
+            }
+          />
+          <PriorityMenuContent align="end" onSelect={onSelect} />
+        </DropdownMenu>
+      </dd>
+    </>
   );
 }
 
@@ -742,43 +712,60 @@ function AssigneePicker({
   assigneeId,
   members,
   onSelect,
+  assigneeIds,
+  assigneeInfos,
+  onAssigneesChange,
 }: {
   assignee: { name: string; avatar?: string } | undefined;
   assigneeId: string | null;
   members: Member[];
   onSelect: (id: string | null) => void;
+  assigneeIds?: string[];
+  assigneeInfos?: Record<string, { name: string; avatar?: string }>;
+  onAssigneesChange?: (ids: string[]) => void;
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={
-                assignee ? (
-                  <Avatar size="sm" className="size-4">
-                    {assignee.avatar ? (
-                      <AvatarImage src={assignee.avatar} alt={assignee.name} />
-                    ) : null}
-                    <AvatarFallback className="bg-muted text-xs">
-                      {initials(assignee.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <UserRound className="size-3.5" />
-                )
-              }
-              label={assignee?.name ?? "Assign"}
-              muted={!assigneeId}
-            />
-          </button>
-        }
-      />
-      <AssigneeMenuContent align="end" members={members} onSelect={onSelect} />
-    </DropdownMenu>
+    <>
+      <dt>
+        <Gi icon={User} size={14} />
+        Assignee
+      </dt>
+      <dd>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className={cn("pillbtn", !assigneeId && "empty")}
+              >
+                {/* One avatar (the primary); the label carries "+N". */}
+                <Av
+                  member={
+                    assigneeId && assignee
+                      ? {
+                          id: assigneeId,
+                          name: assignee.name,
+                          avatarUrl: assignee.avatar,
+                        }
+                      : null
+                  }
+                />
+                <span className="trunc">
+                  {assigneeSummary(assigneeIds, assigneeInfos, assignee?.name)}
+                </span>
+              </button>
+            }
+          />
+          <AssigneeMenuContent
+            align="end"
+            members={members}
+            onSelect={onSelect}
+            selectedIds={onAssigneesChange ? (assigneeIds ?? []) : undefined}
+            onChange={onAssigneesChange}
+          />
+        </DropdownMenu>
+      </dd>
+    </>
   );
 }
 
@@ -790,23 +777,32 @@ function DueDatePicker({
   onChange: (iso: string | null) => void;
 }) {
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<CalendarPlus className="size-3.5" />}
-              label={formatDueLabel(dueAt)}
-              muted={!dueAt}
-            />
-          </button>
-        }
-      />
-      <DueDatePopoverContent align="end" dueAt={dueAt} onChange={onChange} />
-    </Popover>
+    <>
+      <dt>
+        <Gi icon={Calendar} size={14} />
+        Due date
+      </dt>
+      <dd>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className={cn(
+                  "pillbtn",
+                  !dueAt && "empty",
+                  isOverdueDay(dueAt) && "over",
+                )}
+              >
+                <Gi icon={Calendar} size={13} />
+                {formatDueLabel(dueAt)}
+              </button>
+            }
+          />
+          <DueDatePopoverContent align="end" dueAt={dueAt} onChange={onChange} />
+        </Popover>
+      </dd>
+    </>
   );
 }
 
@@ -818,42 +814,47 @@ function RecurrencePicker({
   onSelect: (r: TaskRecurrence | null) => void;
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<Repeat className="size-3.5" />}
-              label={recurrence ? RECURRENCE_LABEL[recurrence] : "Repeat"}
-              muted={!recurrence}
-            />
-          </button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-44">
-        {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map((r) => (
-          <DropdownMenuItem
-            key={r}
-            onClick={() => onSelect(r)}
-            className="gap-2"
-          >
-            <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
-            {recurrence === r ? <Check className="size-3.5" /> : null}
-          </DropdownMenuItem>
-        ))}
-        {recurrence ? (
-          <DropdownMenuItem
-            onClick={() => onSelect(null)}
-            className="gap-2 text-muted-foreground"
-          >
-            Does not repeat
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <dt>
+        <Gi icon={Repeat} size={14} />
+        Repeat
+      </dt>
+      <dd>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className={cn("pillbtn", !recurrence && "empty")}
+              >
+                <Gi icon={Repeat} size={13} />
+                {recurrence ? RECURRENCE_LABEL[recurrence] : "Does not repeat"}
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-44">
+            {(Object.keys(RECURRENCE_LABEL) as TaskRecurrence[]).map((r) => (
+              <DropdownMenuItem
+                key={r}
+                onClick={() => onSelect(r)}
+                className="gap-2"
+              >
+                <span className="flex-1">{RECURRENCE_LABEL[r]}</span>
+                {recurrence === r ? <Check className="size-3.5" /> : null}
+              </DropdownMenuItem>
+            ))}
+            {recurrence ? (
+              <DropdownMenuItem
+                onClick={() => onSelect(null)}
+                className="gap-2 text-muted-foreground"
+              >
+                Does not repeat
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </dd>
+    </>
   );
 }
 
@@ -870,23 +871,27 @@ function MarkAsPicker({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button
-            type="button"
-            className="flex w-full rounded-md transition-colors hover:bg-accent focus-visible:outline-none"
-          >
-            <SidebarPropertyRow
-              icon={<Flag className="size-3.5" />}
-              label="Mark as"
-              muted
-            />
+          <button type="button" className="sitem g8-muted">
+            <Gi icon={Flag} size={15} />
+            <span className="trunc">Mark as</span>
           </button>
         }
       />
-      <StatusMenuContent align="end" options={options} current={status} onSelect={onSelect} />
+      <StatusMenuContent
+        align="end"
+        options={options}
+        current={status}
+        onSelect={onSelect}
+      />
     </DropdownMenu>
   );
 }
 
+/**
+ * gr8r's drawer "Subtasks" section (`.dsec` + `.subt` rows) over our
+ * sub-issues: a checkbox completes / reopens one in place, the title opens
+ * it, and the add row is always there (Enter adds, Esc clears).
+ */
 export function SubIssuesPanel({
   propertyId,
   taskId,
@@ -899,6 +904,7 @@ export function SubIssuesPanel({
   taskId: string;
   /** The parent's status (id or literal) — a new sub-issue starts there. */
   status: string;
+  /** Set by the rail's "Add sub-issues" — focuses the add row. */
   adding: boolean;
   onStartAdd: () => void;
   onCancelAdd: () => void;
@@ -907,6 +913,19 @@ export function SubIssuesPanel({
   const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
   const { data: meta } = useQuery(taskDetailMetaQueryOptions(propertyId, taskId));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (adding) {
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [adding]);
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["task-meta", propertyId, taskId] });
+    qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+  };
 
   function createSubIssue() {
     const trimmed = title.trim();
@@ -928,86 +947,103 @@ export function SubIssuesPanel({
       }
       toast.success("Sub-issue created");
       setTitle("");
-      onCancelAdd();
-      qc.invalidateQueries({ queryKey: ["task-meta", propertyId, taskId] });
-      qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+      refresh();
+    });
+  }
+
+  function toggleSub(subId: string, done: boolean) {
+    startTransition(async () => {
+      const { updateTask } = await import("./actions");
+      // Legacy literals — the DB resolves them to the sub-issue's own
+      // list's closed / open status.
+      const result = await updateTask({
+        taskId: subId,
+        status: done ? "todo" : "done",
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      refresh();
     });
   }
 
   const subIssues = meta?.subIssues ?? [];
+  const doneCount = subIssues.filter((s) => isDone({ status: s.status })).length;
+  const pct = subIssues.length
+    ? Math.round((doneCount / subIssues.length) * 100)
+    : 0;
 
   return (
-    <div className="mt-5">
-      {subIssues.length > 0 ? (
-        <ul className="mb-2 space-y-0.5">
-          {subIssues.map((sub) => (
-            <li key={sub.id}>
-              <Link
-                href={taskHref(propertyId, sub.id)}
-                className="flex items-center gap-2 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-accent"
-              >
-                <StatusIcon status={sub.status as TaskStatus} className="size-3.5" />
-                <span className="truncate">{sub.title}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {adding ? (
-        <div className="rounded-md bg-muted p-2">
-          <Input
-            bare
-            autoFocus
-            placeholder="Sub-issue title"
-            value={title}
-            disabled={pending}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                createSubIssue();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                onCancelAdd();
-              }
-            }}
-            onBlur={() => {
-              if (!title.trim()) onCancelAdd();
-            }}
-            className="h-8 px-1 text-sm"
-          />
-          <div className="mt-2 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={onCancelAdd}
+    <div className="dsec">
+      <div className="dsec-h">
+        <h3>Sub-issues</h3>
+        <span className="cnt num">
+          {doneCount}/{subIssues.length}
+        </span>
+        {subIssues.length ? (
+          <span className="g8-dsec-prog">
+            <ProgBar
+              value={pct}
+              tone={doneCount === subIssues.length ? "green" : ""}
+            />
+          </span>
+        ) : null}
+      </div>
+      {subIssues.map((sub) => {
+        const done = isDone({ status: sub.status });
+        return (
+          <div key={sub.id} className={cn("subt", done && "done")}>
+            <input
+              type="checkbox"
+              className="check"
+              checked={done}
+              disabled={pending}
+              onChange={() => toggleSub(sub.id, done)}
+              aria-label={`${done ? "Reopen" : "Complete"} sub-issue ${sub.title}`}
+            />
+            <StatusIcon status={sub.status} className="size-3.5 shrink-0" />
+            <Link href={taskHref(propertyId, sub.id)} className="s">
+              {sub.title}
+            </Link>
+            <Link
+              href={taskHref(propertyId, sub.id)}
+              className="ibtn ibtn-xs x"
+              aria-label="Open sub-issue"
+              tabIndex={-1}
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-7 text-xs"
-              disabled={pending || !title.trim()}
-              onClick={createSubIssue}
-            >
-              Add
-            </Button>
+              <Gi icon={ChevronRight} size={14} />
+            </Link>
           </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onStartAdd}
-          className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent"
-        >
-          <Plus className="size-3.5" />
-          Add sub-issues
-        </button>
-      )}
+        );
+      })}
+      <div className="subt g8-subt-add">
+        <Gi icon={Plus} size={15} />
+        <input
+          ref={inputRef}
+          className="inline-in"
+          placeholder="Add sub-issue"
+          aria-label="Add sub-issue"
+          value={title}
+          disabled={pending}
+          onFocus={onStartAdd}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              createSubIssue();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setTitle("");
+              onCancelAdd();
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={() => {
+            if (!title.trim()) onCancelAdd();
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -1026,27 +1062,25 @@ function TaskAutomationsSection({ propertyId }: { propertyId: string }) {
   if (applicable.length === 0) return null;
 
   return (
-    <SidebarSection title="Automations">
+    <RailSection title="Automations">
       {applicable.slice(0, 6).map((w) => (
         <Link
           key={w.id}
           href={`/p/${propertyId}/workflows/${w.id}`}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-accent"
+          className="sitem"
         >
           <span
-            className={cn(
-              "size-1.5 shrink-0 rounded-full",
-              w.enabled ? "bg-success" : "bg-muted-foreground/40",
-            )}
+            className="pdot"
+            style={cVar(w.enabled ? "var(--g8-green)" : "var(--g8-text-4)")}
             title={w.enabled ? "On" : "Off"}
             aria-label={w.enabled ? "On" : "Off"}
           />
-          <span className="min-w-0 truncate">{w.name}</span>
-          <span className="ml-auto shrink-0 text-xs text-faint-foreground">
+          <span className="grow trunc">{w.name}</span>
+          <span className="ct">
             {w.trigger_event_type?.replace("task.", "on ").replace(/_/g, " ")}
           </span>
         </Link>
       ))}
-    </SidebarSection>
+    </RailSection>
   );
 }

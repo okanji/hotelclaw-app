@@ -1,26 +1,14 @@
 "use client";
 
-import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import {
-  LayoutGrid,
-  Globe,
-  FileEdit,
-  MessagesSquare,
-  Plus,
-} from "lucide-react";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { LayoutGrid, Globe, FilePen, MessagesSquare, Plus } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
- * Secondary sidebar for the Chatbots section. Saved views use ?view= so the
- * list page can switch filters without a route change (workflows pattern).
+ * Secondary sidebar for the Chatbots section, in gr8r's `.sitem` rows (it
+ * renders inside the tree node's `.sub`). Saved views use ?view= so the list
+ * page can switch filters without a route change (workflows pattern).
  */
 export function ChatbotsSection({ propertyId }: { propertyId: string }) {
   const pathname = usePathname();
@@ -39,56 +27,49 @@ export function ChatbotsSection({ propertyId }: { propertyId: string }) {
   const pinned = [
     { id: "all", label: "All chatbots", icon: LayoutGrid },
     { id: "published", label: "Live", icon: Globe },
-    { id: "drafts", label: "Drafts", icon: FileEdit },
+    { id: "drafts", label: "Drafts", icon: FilePen },
   ] as const;
 
+  const row = (
+    key: string,
+    href: string,
+    label: string,
+    icon: typeof LayoutGrid,
+    on: boolean,
+    tip?: string,
+  ) => (
+    <Link
+      key={key}
+      href={href}
+      className={on ? "sitem on" : "sitem"}
+      title={tip}
+      aria-current={on ? "page" : undefined}
+    >
+      <Gi icon={icon} size={14} />
+      <span className="trunc">{label}</span>
+    </Link>
+  );
+
   return (
-    <SidebarGroup>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {/* Root first, then create, then the saved cuts. */}
-          {pinned.map((v, i) => {
-            const href = v.id === "all" ? base : `${base}?view=${v.id}`;
-            const active =
-              (onList && view === v.id) || (onEditor && v.id === "all");
-            return (
-              <Fragment key={v.id}>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href={href} />}
-                    isActive={active}
-                    tooltip={v.label}
-                  >
-                    <v.icon />
-                    <span>{v.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {i === 0 ? (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}?new=1`} />}
-                tooltip="Create a chatbot"
-              >
-                <Plus />
-                <span>New chatbot</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-                ) : null}
-              </Fragment>
-            );
-          })}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              render={<Link href={`${base}/conversations`} />}
-              isActive={pathname.startsWith(`${base}/conversations`)}
-              tooltip="Guest conversations"
-            >
-              <MessagesSquare />
-              <span>Conversations</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <>
+      {/* Root first, then create, then the saved cuts. */}
+      {pinned.flatMap((v, i) => {
+        const href = v.id === "all" ? base : `${base}?view=${v.id}`;
+        const on = (onList && view === v.id) || (onEditor && v.id === "all");
+        const out = [row(v.id, href, v.label, v.icon, on)];
+        if (i === 0) {
+          out.push(row("new", `${base}?new=1`, "New chatbot", Plus, false, "Create a chatbot"));
+        }
+        return out;
+      })}
+      {row(
+        "conversations",
+        `${base}/conversations`,
+        "Conversations",
+        MessagesSquare,
+        pathname.startsWith(`${base}/conversations`),
+        "Guest conversations",
+      )}
+    </>
   );
 }

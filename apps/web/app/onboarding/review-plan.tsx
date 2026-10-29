@@ -2,7 +2,6 @@
 
 import {
   BookOpen,
-  CalendarCheck,
   ClipboardList,
   Hash,
   MessageCircle,
@@ -11,10 +10,9 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import {
   slugifyChannel,
-  starterBookingServices,
   type OnboardingPlan,
 } from "@/lib/onboarding/plan";
 
@@ -96,7 +94,6 @@ export function buildReviewSections(
       .map((c) => c.slug),
   ].filter((slug, i, all) => all.indexOf(slug) === i);
 
-  const services = starterBookingServices(answers.operations);
   const sections: ReviewSection[] = [];
 
   if (teams.length > 0) {
@@ -168,17 +165,6 @@ export function buildReviewSections(
     });
   }
 
-  if (services.length > 0) {
-    sections.push({
-      key: "bookings",
-      Icon: CalendarCheck,
-      title: "Bookable services",
-      count: services.length,
-      blurb: "Starter hours you can refine before going public.",
-      items: services.map((s) => ({ emoji: s.emoji, label: s.name })),
-    });
-  }
-
   // Automations mirror the seeding conditions in actions.ts — keep in sync.
   const automations: ReviewItem[] = [];
   if (plan?.forms.some((f) => /maintenance/i.test(f.title))) {
@@ -203,17 +189,10 @@ export function buildReviewSections(
       highlight: true,
     });
   }
-  if (services.length > 0) {
-    automations.push({
-      emoji: "✅",
-      label: "Auto-confirm bookings for parties of 4 or fewer",
-      note: "Off for now",
-    });
-  }
   // Chatbot before automations, deliberately. Both are "what runs on its own"
   // rather than "what gets created", but the chatbot is a half-width card and
   // automations is full-width — leading with the narrow one lets it pair off
-  // with Bookable services instead of stranding a hole in the mosaic, and
+  // with the card before it instead of stranding a hole in the mosaic, and
   // leaves the full-width automations list as the closing statement.
   sections.push({
     key: "chatbot",
@@ -238,7 +217,6 @@ export function buildReviewSections(
     { label: "Channels", value: channels.length },
     { label: "Documents", value: plan?.docs.length ?? 0 },
     { label: "Forms", value: plan?.forms.length ?? 0 },
-    { label: "Services", value: services.length },
     { label: "Automations", value: automations.length },
   ].filter((s) => s.value > 0);
 
@@ -258,30 +236,40 @@ export function ReviewPlan({
 }) {
   return (
     <>
-      {/* The shape of the build at a glance, before any detail. Stats carry
-          their own contrast (big number / small label), so they need no card
-          or divider — whitespace is the lightest separation that works. */}
+      {/* The shape of the build at a glance — gr8r's `.stats` strip. */}
       {summary.length > 0 ? (
-        <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
+        <dl
+          className="stats"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(summary.length, 4)}, minmax(0, 1fr))`,
+            margin: 0,
+          }}
+        >
           {summary.map((s) => (
-            <div key={s.label}>
-              <dd className="text-2xl tabular-nums text-guest-ink">{s.value}</dd>
-              <dt className="text-sm text-guest-ink-faint">{s.label}</dt>
+            <div key={s.label} className="stat">
+              <dd className="v" style={{ margin: 0 }}>
+                {s.value}
+              </dd>
+              <dt className="k">{s.label}</dt>
             </div>
           ))}
         </dl>
       ) : null}
 
-      {/* `@container`, not viewport breakpoints — this grid lives inside the
-          wizard's fixed 36rem column, so viewport width tells us nothing
-          useful about the space it actually has. */}
-      <div className="@container mt-8">
-        <dl className="grid gap-3 @2xl:grid-cols-2">
-          {sections.map((section) => (
-            <SectionCard key={section.key} section={section} />
-          ))}
-        </dl>
-      </div>
+      {/* Auto-fit, not breakpoints: the grid lives inside the wizard card,
+          so viewport width says nothing about the space it actually has. */}
+      <dl
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 10,
+          margin: 0,
+        }}
+      >
+        {sections.map((section) => (
+          <SectionCard key={section.key} section={section} />
+        ))}
+      </dl>
     </>
   );
 }
@@ -290,48 +278,38 @@ function SectionCard({ section }: { section: ReviewSection }) {
   const { Icon, title, count, blurb, items, layout = "rows", wide } = section;
   return (
     // Cards earn their keep here: each section is a fundamentally different
-    // content type, not a sibling metric. Radii are concentric — the 12px
-    // inner rows sit inside a 16px card with 16px padding.
-    <div
-      className={cn(
-        "rounded-2xl border border-guest-line bg-guest-card/60 p-4",
-        wide && "@2xl:col-span-2",
-      )}
-    >
-      <dt className="flex items-center gap-2">
-        <Icon className="size-4 shrink-0 stroke-guest-ink-faint" aria-hidden />
-        <span className="text-base font-medium text-guest-ink sm:text-sm">
-          {title}
-        </span>
+    // content type — gr8r's `.panel` with a `.panel-h` header.
+    <div className="panel" style={wide ? { gridColumn: "1 / -1" } : undefined}>
+      <dt className="panel-h">
+        <Gi icon={Icon} size={15} className="faint" />
+        <h2>{title}</h2>
         {count !== undefined ? (
-          <span className="text-base tabular-nums text-guest-ink-faint sm:text-sm">
+          <span className="faint" style={{ fontVariantNumeric: "tabular-nums" }}>
             {count}
           </span>
         ) : null}
       </dt>
-      <dd>
-        <p className="mt-1 text-base text-pretty text-guest-ink-faint sm:text-sm">
+      <dd className="panel-b" style={{ margin: 0 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           {blurb}
         </p>
         {items.length === 0 ? null : layout === "pills" ? (
-          <ul role="list" className="mt-3 flex flex-wrap gap-1.5">
+          <ul role="list" className="onb-picks" style={{ margin: "10px 0 0", padding: 0 }}>
             {items.map((item) => (
-              <li
-                key={item.label}
-                className="flex items-center gap-1.5 rounded-full border border-guest-line bg-guest-bg px-2.5 py-1 text-base text-guest-ink sm:text-sm"
-              >
+              <li key={item.label} className="badge gray">
                 {item.emoji ? <span aria-hidden>{item.emoji}</span> : null}
                 {item.label}
               </li>
             ))}
           </ul>
         ) : layout === "tags" ? (
-          <ul role="list" className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+          <ul
+            role="list"
+            className="row"
+            style={{ flexWrap: "wrap", gap: "4px 12px", margin: "10px 0 0", padding: 0 }}
+          >
             {items.map((item) => (
-              <li
-                key={item.label}
-                className="text-base text-guest-ink-soft sm:text-sm"
-              >
+              <li key={item.label} className="muted" style={{ fontSize: 13, listStyle: "none" }}>
                 {item.label}
               </li>
             ))}
@@ -339,31 +317,34 @@ function SectionCard({ section }: { section: ReviewSection }) {
         ) : (
           // Rows, shaped like the record they'll become — the same emoji +
           // title + qualifier the user will meet again in Docs or Workflows.
-          <ul role="list" className="mt-3 flex flex-col gap-1">
-            {items.map((item) => (
+          <ul role="list" className="panel" style={{ margin: "10px 0 0", padding: 0 }}>
+            {items.map((item, i) => (
               <li
                 key={item.label}
-                className="flex items-center gap-2.5 rounded-xl border border-guest-line bg-guest-bg px-2.5 py-2"
+                className="row"
+                style={{
+                  listStyle: "none",
+                  padding: "8px 10px",
+                  gap: 10,
+                  borderTop: i ? "1px solid var(--g8-divider)" : undefined,
+                }}
               >
                 {item.emoji ? (
-                  <span aria-hidden className="shrink-0">
+                  <span aria-hidden style={{ flexShrink: 0 }}>
                     {item.emoji}
                   </span>
                 ) : null}
-                <span className="min-w-0 flex-1 text-base text-pretty text-guest-ink sm:text-sm">
+                <span className="grow" style={{ minWidth: 0, fontSize: 13 }}>
                   {item.label}
                 </span>
                 {item.note ? (
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-xs",
-                      item.highlight
-                        ? "bg-guest-accent/10 text-guest-accent-ink"
-                        : "text-guest-ink-faint",
-                    )}
-                  >
-                    {item.note}
-                  </span>
+                  item.highlight ? (
+                    <span className="badge accent">{item.note}</span>
+                  ) : (
+                    <span className="faint" style={{ fontSize: 12, flexShrink: 0 }}>
+                      {item.note}
+                    </span>
+                  )
                 ) : null}
               </li>
             ))}

@@ -9,7 +9,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
+import { RoleBadge } from "@/components/gr8r/members-shared";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
@@ -63,17 +66,19 @@ export function SpaceMembersPanel({
     else refresh();
   }
 
+  // gr8r `pageTeam` members panel: `.panel` › `.panel-h`, one `.mini` per
+  // person (avatar, name → profile, role badge), hover remove.
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {roster.length} {roster.length === 1 ? "member" : "members"}
-        </span>
+    <section className="panel">
+      <div className="panel-h">
+        <h2>Members</h2>
+        <span className="faint">{roster.length}</span>
+        <span className="sp" />
         <Popover>
           <PopoverTrigger
-            render={<Button type="button" size="sm" variant="outline" />}
+            render={<button type="button" className="btn btn-secondary btn-sm" />}
           >
-            <Plus className="size-4" />
+            <Gi icon={Plus} size={13} />
             Add members
           </PopoverTrigger>
           <PopoverContent align="end" sideOffset={6} className="w-64 p-2">
@@ -121,46 +126,39 @@ export function SpaceMembersPanel({
       </div>
 
       {roster.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">
-          No one assigned to this space yet.
-        </p>
+        <div className="panel-b faint">No one assigned to this team yet.</div>
       ) : (
-        <ul
-          role="list"
-          className="flex flex-col divide-y divide-border border-t border-border"
-        >
-          {roster.map((p) => (
-            <li
-              key={p.id}
-              className="group/row flex h-[37px] items-center gap-3 px-1"
+        roster.map((p) => (
+          <div key={p.id} className="mini" style={{ minHeight: 48 }}>
+            <Av member={p} size="md" />
+            <Link
+              href={`/p/${propertyId}/members/${p.id}`}
+              className="grow"
+              style={{ minWidth: 0 }}
             >
-              <Avatar className="size-7">
-                {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-                <AvatarFallback className="text-xs">
-                  {initials(p.name)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              <div className="trunc" style={{ fontWeight: 500 }}>
                 {p.name ?? "Unnamed"}
-              </span>
-              <span className="shrink-0 text-xs text-faint-foreground capitalize">
-                {p.role}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Remove ${p.name ?? "member"}`}
-                onClick={() => void remove(p.id)}
-                className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-              >
-                <X className="size-3.5" />
-              </Button>
-            </li>
-          ))}
-        </ul>
+              </div>
+              {p.email ? (
+                <div className="faint trunc" style={{ fontSize: 12 }}>
+                  {p.email}
+                </div>
+              ) : null}
+            </Link>
+            <RoleBadge role={p.role} />
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
+              aria-label={`Remove ${p.name ?? "member"} from this team`}
+              title="Remove from team"
+              onClick={() => void remove(p.id)}
+            >
+              <Gi icon={X} size={14} />
+            </button>
+          </div>
+        ))
       )}
-    </div>
+    </section>
   );
 }
 

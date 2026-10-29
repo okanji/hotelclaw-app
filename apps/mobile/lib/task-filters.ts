@@ -1,3 +1,4 @@
+import { taskAssigneeIds } from "./api";
 import type { ApiTask, RecordSource, TaskPriority, TaskStatus } from "./api";
 
 /**
@@ -118,8 +119,10 @@ export function applyTaskFilters(
       return false;
     }
     if (filters.assignees.length) {
-      const key = t.assignee_id ?? UNASSIGNED;
-      if (!filters.assignees.includes(key)) return false;
+      // Any assignee matches (0115); no one at all = Unassigned.
+      const ids = taskAssigneeIds(t);
+      const keys = ids.length > 0 ? ids : [UNASSIGNED];
+      if (!keys.some((k) => filters.assignees.includes(k))) return false;
     }
     if (filters.due.length) {
       const buckets = taskDueBuckets(t, now);

@@ -3,10 +3,21 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMeetingDetail } from "@/lib/meetings/queries";
 import { PageHeader } from "@/components/shell/page-header";
-import { ArrowLeft, FileText, Hash, Square, Video } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { PageShell } from "@/components/ui/page-shell";
-import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CircleCheck,
+  Clock,
+  FileText,
+  Hash,
+  Sparkles,
+  Square,
+  User,
+  Users,
+  Video,
+} from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/badge-glyphs";
 import { JoinMeetingButton } from "@/components/meetings/join-meeting-button";
 import { RegenerateSummaryButton } from "@/components/meetings/regenerate-summary-button";
 import { meetingState, stateBadge, type MeetingState } from "@/lib/meetings/status";
@@ -51,95 +62,231 @@ export default async function MeetingDetailPage({
     ? renderTranscript(detail.transcript.raw_jsonl, detail.transcript.speakers)
     : null;
 
+  const speakers = detail.transcript?.speakers ?? [];
+  const actionItems = detail.summary?.action_items ?? [];
+  const decisions = detail.summary?.decisions ?? [];
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <PageHeader
         title={detail.title}
         icon={<Video />}
-        meta={<span title={badge.hint}><StatusBadge tone={badge.tone}>{badge.label}</StatusBadge></span>}
         actions={
-          <div className="flex items-center gap-3">
-          {joinable ? (
-            <JoinMeetingButton
-              meetingId={detail.id}
-              callId={detail.stream_call_id}
-              callType={detail.stream_call_type}
-            />
-          ) : null}
-          <Link
-            href={`/p/${propertyId}/meetings`}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" />
+          <Link href={`/p/${propertyId}/meetings`} className="btn btn-ghost btn-sm">
+            <Gi icon={ArrowLeft} size={13} />
             All meetings
           </Link>
-          </div>
         }
       />
-      <div className="flex-1 overflow-y-auto py-6">
-        {/* A meeting's notes are a reading surface — the 720px prose column
-            (`ui/page-shell`), one edge from the metadata header to the
-            transcript. */}
-        <PageShell width="prose">
-        <article className="space-y-6">
-          <header className="space-y-1 text-xs text-muted-foreground">
-            <p>
-              {new Date(state.startAt).toLocaleString()}
-              {detail.host_name ? ` · Started by ${detail.host_name}` : ""}
-              {detail.transcript?.duration_seconds
-                ? ` · ${formatDuration(detail.transcript.duration_seconds)}`
-                : ""}
-            </p>
-            {detail.channel_name ? (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide" style={{ maxWidth: 1080 }}>
+          <div className="ph">
+            <div className="grow">
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <h1>{detail.title}</h1>
+                <G8Badge tone={badge.tone} title={badge.hint}>
+                  {badge.label}
+                </G8Badge>
+              </div>
               <p>
-                <Link
-                  href={`/p/${propertyId}/chat`}
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                >
-                  <Hash className="size-3" />
-                  {detail.channel_name}
-                </Link>
+                {new Date(state.startAt).toLocaleString()}
+                {detail.host_name ? ` · Started by ${detail.host_name}` : ""}
+                {detail.transcript?.duration_seconds
+                  ? ` · ${formatDuration(detail.transcript.duration_seconds)}`
+                  : ""}
               </p>
+            </div>
+            {joinable ? (
+              <div className="acts">
+                <JoinMeetingButton
+                  meetingId={detail.id}
+                  callId={detail.stream_call_id}
+                  callType={detail.stream_call_type}
+                />
+              </div>
             ) : null}
-            {detail.transcript?.speakers && detail.transcript.speakers.length > 0 ? (
-              <p>
-                Participants:{" "}
-                {detail.transcript.speakers.map((s) => s.name).join(", ")}
-              </p>
-            ) : null}
-          </header>
+          </div>
 
-          {detail.summary ? (
-            <SummarySection
-              summary={detail.summary}
-              propertyId={propertyId}
-              meetingId={detail.id}
-              canRegenerate={hasStoredTranscript}
-            />
-          ) : (
-            <NoSummaryState
-              state={state}
-              hasTranscript={transcriptText !== null}
-              meetingId={detail.id}
-              canRegenerate={hasStoredTranscript}
-            />
-          )}
+          <div className="grid2">
+            {/* Reading column — the summary, then the raw transcript. */}
+            <div className="col" style={{ gap: 16, minWidth: 0 }}>
+              {detail.summary ? (
+                <SummarySection
+                  summary={detail.summary}
+                  propertyId={propertyId}
+                  meetingId={detail.id}
+                  canRegenerate={hasStoredTranscript}
+                />
+              ) : (
+                <NoSummaryState
+                  state={state}
+                  hasTranscript={transcriptText !== null}
+                  meetingId={detail.id}
+                  canRegenerate={hasStoredTranscript}
+                />
+              )}
 
-          {transcriptText ? (
-            <section>
-              <h2 className="mb-2 text-sm font-semibold">Full transcript</h2>
-              <details className="rounded-md bg-muted">
-                <summary className="cursor-pointer px-4 py-2 text-xs text-muted-foreground hover:text-foreground">
-                  Show transcript
-                </summary>
-                <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap px-4 py-3 text-xs leading-relaxed">
-                  {transcriptText}
-                </pre>
-              </details>
-            </section>
-          ) : null}
-        </article>
-        </PageShell>
+              {transcriptText ? (
+                <div className="panel">
+                  <details>
+                    <summary className="panel-h" style={{ cursor: "pointer" }}>
+                      <h2>Full transcript</h2>
+                      <span className="acts faint" style={{ fontSize: 12 }}>
+                        Show transcript
+                      </span>
+                    </summary>
+                    <pre
+                      className="panel-b"
+                      style={{
+                        maxHeight: "60vh",
+                        overflowY: "auto",
+                        whiteSpace: "pre-wrap",
+                        fontSize: 12,
+                        lineHeight: 1.6,
+                        margin: 0,
+                        fontFamily: "inherit",
+                        color: "var(--g8-text-2)",
+                      }}
+                    >
+                      {transcriptText}
+                    </pre>
+                  </details>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Side column — details, action items, decisions. */}
+            <div className="col" style={{ gap: 16, minWidth: 0 }}>
+              <div className="panel">
+                <div className="panel-h">
+                  <h2>Details</h2>
+                </div>
+                <div className="panel-b">
+                  <dl className="kv">
+                    <dt>
+                      <Gi icon={CalendarDays} size={14} />
+                      When
+                    </dt>
+                    <dd>{new Date(state.startAt).toLocaleString()}</dd>
+                    {detail.host_name ? (
+                      <>
+                        <dt>
+                          <Gi icon={User} size={14} />
+                          Host
+                        </dt>
+                        <dd>{detail.host_name}</dd>
+                      </>
+                    ) : null}
+                    {detail.transcript?.duration_seconds ? (
+                      <>
+                        <dt>
+                          <Gi icon={Clock} size={14} />
+                          Duration
+                        </dt>
+                        <dd>{formatDuration(detail.transcript.duration_seconds)}</dd>
+                      </>
+                    ) : null}
+                    {detail.channel_name ? (
+                      <>
+                        <dt>
+                          <Gi icon={Hash} size={14} />
+                          Channel
+                        </dt>
+                        <dd>
+                          <Link href={`/p/${propertyId}/chat`} className="muted">
+                            {detail.channel_name}
+                          </Link>
+                        </dd>
+                      </>
+                    ) : null}
+                    {speakers.length > 0 ? (
+                      <>
+                        <dt>
+                          <Gi icon={Users} size={14} />
+                          Participants
+                        </dt>
+                        <dd>{speakers.map((s) => s.name).join(", ")}</dd>
+                      </>
+                    ) : null}
+                  </dl>
+                </div>
+              </div>
+
+              {actionItems.length > 0 ? (
+                <div className="panel">
+                  <div className="panel-h">
+                    <h2>Action items</h2>
+                    <span className="faint" style={{ fontSize: 12 }}>
+                      {actionItems.length}
+                    </span>
+                  </div>
+                  <div style={{ paddingBottom: 6 }}>
+                    {actionItems.map((a, i) => (
+                      <div key={i} className="row" style={{ alignItems: "flex-start", gap: 9, padding: "6px 14px", fontSize: 13 }}>
+                        {/* Read-only summary — a presentational glyph, not a
+                            disabled checkbox screen readers would announce. */}
+                        <Gi icon={Square} size={14} className="faint" />
+                        <span className="grow">
+                          {a.text}
+                          {a.owner ? (
+                            <span className="faint" style={{ marginLeft: 6, fontSize: 12 }}>
+                              — {a.owner}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {decisions.length > 0 ? (
+                <div className="panel">
+                  <div className="panel-h">
+                    <h2>Decisions</h2>
+                    <span className="faint" style={{ fontSize: 12 }}>
+                      {decisions.length}
+                    </span>
+                  </div>
+                  <div style={{ paddingBottom: 6 }}>
+                    {decisions.map((d, i) => (
+                      <div key={i} className="row" style={{ alignItems: "flex-start", gap: 9, padding: "6px 14px", fontSize: 13 }}>
+                        <Gi icon={CircleCheck} size={14} className="faint" />
+                        <span className="grow">{d}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** gr8r `.empty-state` inside a panel. */
+function G8Empty({
+  icon,
+  title,
+  action,
+  children,
+}: {
+  icon: typeof Video;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="panel">
+      <div className="empty-state">
+        <div className="glyph">
+          <Gi icon={icon} />
+        </div>
+        <h3 className="es-h">{title}</h3>
+        <p>{children}</p>
+        {action}
       </div>
     </div>
   );
@@ -163,16 +310,16 @@ function NoSummaryState({
 }) {
   if (state.phase === "upcoming") {
     return (
-      <EmptyState icon={Video} title="Not started yet">
+      <G8Empty icon={Video} title="Not started yet">
         Notes appear here after the meeting, once its transcript is processed.
-      </EmptyState>
+      </G8Empty>
     );
   }
   if (state.phase === "live") {
     return (
-      <EmptyState icon={Video} title="Meeting in progress">
+      <G8Empty icon={Video} title="Meeting in progress">
         The summary appears here a few minutes after the call ends.
-      </EmptyState>
+      </G8Empty>
     );
   }
   const { label, hint } = stateBadge(state);
@@ -191,7 +338,7 @@ function NoSummaryState({
       <RegenerateSummaryButton meetingId={meetingId} />
     ) : undefined;
   return (
-    <EmptyState icon={FileText} title={title} action={regenerate}>
+    <G8Empty icon={FileText} title={title} action={regenerate}>
       {hint}
       {state.outcome === "summary_failed" && hasTranscript
         ? " Read the full transcript below."
@@ -199,7 +346,7 @@ function NoSummaryState({
           ? " To get notes, import a transcript from the Meetings page."
           : ""}
       <span className="sr-only"> ({label})</span>
-    </EmptyState>
+    </G8Empty>
   );
 }
 
@@ -218,83 +365,53 @@ function SummarySection({
 }) {
   if (!summary) return null;
   return (
-    <section className="space-y-6">
-      <div>
-        <h2 className="mb-2 text-xs font-medium text-faint-foreground">
-          Summary
-        </h2>
-        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-foreground dark:prose-invert">
-          {summary.summary_md}
-        </div>
-      </div>
-
-      {summary.action_items.length > 0 ? (
-        <div>
-          <h2 className="mb-2 text-xs font-medium text-faint-foreground">
-            Action items
-          </h2>
-          <ul className="space-y-1">
-            {summary.action_items.map((a, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                {/* Read-only summary — use a presentational icon instead of
-                    a disabled <input> so screen readers don't announce a
-                    non-interactive "checkbox, disabled". */}
-                <Square
-                  aria-hidden
-                  className="mt-1 size-3.5 text-muted-foreground"
-                />
-                <span>
-                  {a.text}
-                  {a.owner ? (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      — {a.owner}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {summary.decisions.length > 0 ? (
-        <div>
-          <h2 className="mb-2 text-xs font-medium text-faint-foreground">
-            Decisions
-          </h2>
-          <ul className="space-y-1">
-            {summary.decisions.map((d, i) => (
-              <li key={i} className="text-sm">
-                {d}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {summary.document_id ? (
-        <Link
-          href={`/p/${propertyId}/documents/${summary.document_id}`}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <FileText className="size-3.5" />
-          Open as document
-        </Link>
-      ) : null}
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-faint-foreground">
-          Generated by {summary.model}
-        </p>
-        {canRegenerate ? (
-          <RegenerateSummaryButton
-            meetingId={meetingId}
-            label="Regenerate"
-            variant="ghost"
-          />
+    <div className="panel">
+      <div className="panel-h">
+        <Gi icon={Sparkles} size={14} className="faint" />
+        <h2>Summary</h2>
+        {summary.document_id ? (
+          <div className="acts">
+            <Link
+              href={`/p/${propertyId}/documents/${summary.document_id}`}
+              className="btn btn-ghost btn-sm"
+            >
+              <Gi icon={FileText} size={13} />
+              Open as document
+            </Link>
+          </div>
         ) : null}
       </div>
-    </section>
+      <div className="panel-b">
+        <div
+          style={{
+            whiteSpace: "pre-wrap",
+            fontSize: 13.5,
+            lineHeight: 1.65,
+            color: "var(--g8-text)",
+          }}
+        >
+          {summary.summary_md}
+        </div>
+        <div
+          className="row"
+          style={{
+            marginTop: 14,
+            paddingTop: 10,
+            borderTop: "1px solid var(--g8-divider)",
+            justifyContent: "space-between",
+          }}
+        >
+          <span className="hint">Generated by {summary.model}</span>
+          {canRegenerate ? (
+            <RegenerateSummaryButton
+              meetingId={meetingId}
+              label="Regenerate"
+              variant="ghost"
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }
 

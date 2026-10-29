@@ -1,3 +1,4 @@
+import { isAssignedTo } from "@/lib/tasks/assignees";
 import { isDone, type StatusLike } from "@/lib/tasks/statuses";
 
 /**
@@ -22,6 +23,7 @@ export function parseMyTasksTab(value: string | null | undefined): MyTasksTab {
 type LensTask = StatusLike & {
   id: string;
   assignee_id: string | null;
+  assignee_ids?: string[];
   created_by?: string | null;
   parent_id?: string | null;
 };
@@ -44,7 +46,8 @@ export function lensRows<T extends LensTask>(
 }
 
 export function assignedRows<T extends LensTask>(tasks: T[], userId: string): T[] {
-  return lensRows(tasks, (t) => t.assignee_id === userId);
+  // Any assignee, not just the primary (0115).
+  return lensRows(tasks, (t) => isAssignedTo(t, userId));
 }
 
 export function createdRows<T extends LensTask>(tasks: T[], userId: string): T[] {

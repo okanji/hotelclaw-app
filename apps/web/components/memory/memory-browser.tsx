@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, PinOff, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { Library, Pin, PinOff, Plus, Search, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import type { MemoryRecord, MemorySubjectKind } from "@hotelclaw/memory";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/ai-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { forgetMemoryAction, pinMemoryAction, rememberMemoryAction } from "./actions";
 
 type Counts = Record<MemorySubjectKind, number>;
@@ -111,34 +108,47 @@ export function MemoryBrowser({
           { label: "Agents", href: `/p/${propertyId}/agents`, icon: <Sparkles /> },
           { label: "Memory" },
         ]}
-        actions={
-          canCurate ? (
-            <Button variant="outline" size="sm" onClick={() => setAdding((v) => !v)}>
-              <Plus data-icon="inline-start" />
-              Add a fact
-            </Button>
-          ) : null
-        }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
-          {/* Stat strip — plain numbers, no card chrome. */}
-          <dl className="grid grid-cols-2 gap-y-6 sm:grid-cols-4">
-            {(["property", "user", "guest"] as const).map((k) => (
-              <div key={k} className="min-w-0">
-                <dt className="truncate text-xs font-medium text-muted-foreground">{SUBJECT_LABEL[k]}</dt>
-                <dd className="text-2xl font-semibold tabular-nums">{counts[k]}</dd>
-              </div>
-            ))}
-            <div className="min-w-0">
-              <dt className="truncate text-xs font-medium text-muted-foreground">Total remembered</dt>
-              <dd className="text-2xl font-semibold tabular-nums">{total}</dd>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page">
+          <div className="ph">
+            <div>
+              <h1>Memory</h1>
+              <p>What this property has learned — recalled by every bot, curated by owners and managers.</p>
             </div>
-          </dl>
+            {canCurate ? (
+              <div className="acts">
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setAdding((v) => !v)}>
+                  <Gi icon={Plus} size={14} />
+                  Add a fact
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="stats">
+            {(["property", "user", "guest"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="stat"
+                onClick={() => setKind(k)}
+                aria-pressed={kind === k}
+              >
+                <span className="k">{SUBJECT_LABEL[k]}</span>
+                <span className="v">{counts[k]}</span>
+              </button>
+            ))}
+            <button type="button" className="stat" onClick={() => setKind("all")} aria-pressed={kind === "all"}>
+              <span className="k">Total remembered</span>
+              <span className="v">{total}</span>
+            </button>
+          </div>
 
           {adding && canCurate ? (
             <form
-              className="mt-10 flex flex-col gap-3 rounded-lg p-4 shadow-ring"
+              className="panel"
+              style={{ marginTop: 20 }}
               onSubmit={(e) => {
                 e.preventDefault();
                 const content = draft.trim();
@@ -155,58 +165,62 @@ export function MemoryBrowser({
                 setAdding(false);
               }}
             >
-              <Eyebrow>New property memory</Eyebrow>
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                rows={3}
-                maxLength={2000}
-                placeholder="One durable fact, specific and self-contained. e.g. The backup freezer is unit B2 behind the loading bay; it holds 48h without power."
-                className="w-full resize-y rounded-md bg-muted/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={draftPinned}
-                    onChange={(e) => setDraftPinned(e.target.checked)}
-                  />
-                  Pin — recall on every turn (standing facts only)
-                </label>
-                <span className="ml-auto flex gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" size="sm" disabled={pending}>
-                    Remember
-                  </Button>
-                </span>
+              <div className="panel-h">
+                <h2>New property memory</h2>
+              </div>
+              <div className="panel-b flex flex-col gap-3">
+                <textarea
+                  className="textarea"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="One durable fact, specific and self-contained. e.g. The backup freezer is unit B2 behind the loading bay; it holds 48h without power."
+                  autoFocus
+                />
+                <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+                  <label className="row muted" style={{ gap: 8, fontSize: "var(--g8-fs-sm)" }}>
+                    <input
+                      type="checkbox"
+                      className="toggle"
+                      checked={draftPinned}
+                      onChange={(e) => setDraftPinned(e.target.checked)}
+                    />
+                    Pin — recall on every turn (standing facts only)
+                  </label>
+                  <span className="row" style={{ marginLeft: "auto", gap: 6 }}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>
+                      Remember
+                    </button>
+                  </span>
+                </div>
               </div>
             </form>
           ) : null}
 
-          <div className="mt-10 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[16rem] flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+          <div className="toolbar" style={{ marginTop: 24, padding: 0, border: 0, gap: 8 }}>
+            <div className="inwrap grow" style={{ minWidth: 240 }}>
+              <Gi icon={Search} size={14} />
+              <input
+                className="input"
+                style={{ width: "100%" }}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search what the property remembers…"
-                className="pl-8"
+                aria-label="Search memory"
               />
             </div>
-            <div className="flex gap-1">
+            <div className="seg">
               {(["all", "property", "user", "guest"] as const).map((k) => (
                 <button
                   key={k}
                   type="button"
                   onClick={() => setKind(k)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                    kind === k
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:text-foreground",
-                  )}
+                  className={kind === k ? "on" : undefined}
+                  aria-pressed={kind === k}
                 >
                   {k === "all" ? "All" : SUBJECT_LABEL[k]}
                 </button>
@@ -215,46 +229,65 @@ export function MemoryBrowser({
           </div>
 
           {listing.isError ? (
-            <p className="mt-6 text-sm text-destructive">Could not load memory. Try again.</p>
+            <div className="alert danger" style={{ marginTop: 16 }}>
+              <Gi icon={TriangleAlert} size={15} />
+              <div>Could not load memory. Try again.</div>
+            </div>
           ) : rows.length === 0 ? (
-            <div className="mt-12 max-w-[52ch]">
-              <p className="text-sm text-pretty text-muted-foreground">
-                {debounced
-                  ? `Nothing remembered matches “${debounced}”.`
-                  : "Nothing remembered yet. Memories appear here as the AI saves findings during real work — a recurring issue and its fix, a supplier's behaviour, a decision and why — and as meetings, triage, and workflows record outcomes."}
-              </p>
+            <div className="panel" style={{ marginTop: 16 }}>
+              <G8Empty
+                icon={Library}
+                title={debounced ? "No matches" : "Nothing remembered yet"}
+                text={
+                  debounced
+                    ? `Nothing remembered matches “${debounced}”.`
+                    : "Memories appear here as the AI saves findings during real work — a recurring issue and its fix, a supplier's behaviour, a decision and why — and as meetings, triage, and workflows record outcomes."
+                }
+              />
             </div>
           ) : (
             (["property", "user", "guest"] as const)
               .filter((k) => grouped[k].length > 0)
               .map((k) => (
-                <section key={k} className="mt-12 flex flex-col gap-4">
-                  <div>
-                    <Eyebrow>{SUBJECT_LABEL[k]}</Eyebrow>
-                    <p className="mt-1 max-w-[60ch] text-sm text-pretty text-muted-foreground">
-                      {SUBJECT_HELP[k]}
-                    </p>
+                <section key={k} className="panel" style={{ marginTop: 16 }}>
+                  <div className="panel-h" style={{ alignItems: "flex-start" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <h2>
+                        {SUBJECT_LABEL[k]}{" "}
+                        <span className="faint" style={{ fontWeight: 500, fontSize: "var(--g8-fs-xs)" }}>
+                          {grouped[k].length}
+                        </span>
+                      </h2>
+                      <p className="muted" style={{ margin: "2px 0 0", fontSize: "var(--g8-fs-xs)", maxWidth: "70ch" }}>
+                        {SUBJECT_HELP[k]}
+                      </p>
+                    </div>
                   </div>
-                  <ul role="list" className="flex flex-col divide-y divide-border/60">
+                  <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
                     {grouped[k].map((row) => (
-                      <li key={row.id} className="flex gap-4 py-3">
+                      <li key={row.id} className="nrow" style={{ cursor: "default" }}>
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <StatusBadge tone={KIND_TONE[row.kind]}>{row.kind}</StatusBadge>
-                            {row.pinned ? <StatusBadge tone="info">pinned</StatusBadge> : null}
-                            <span className="font-mono text-[11px] text-muted-foreground">
+                          <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                            <G8Badge tone={KIND_TONE[row.kind]} dot={false}>{row.kind}</G8Badge>
+                            {row.pinned ? (
+                              <G8Badge tone="info" dot={false}>
+                                pinned
+                              </G8Badge>
+                            ) : null}
+                            <span className="mono faint" style={{ fontSize: "var(--g8-fs-2xs)" }}>
                               #{row.id.replace(/-/g, "").slice(0, 8)}
                             </span>
-                            <span className="text-xs text-muted-foreground tabular-nums">
+                            <span className="faint" style={{ fontSize: "var(--g8-fs-xs)", fontVariantNumeric: "tabular-nums" }}>
                               {row.created_at.slice(0, 10)}
                             </span>
                             {row.created_via !== "agent" ? (
-                              <span className="text-xs text-muted-foreground">via {row.created_via}</span>
+                              <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>via {row.created_via}</span>
                             ) : null}
                             {row.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="rounded-sm bg-muted px-1.5 py-px text-[11px] text-muted-foreground"
+                                className="badge"
+                                style={{ height: 18, fontSize: "var(--g8-fs-2xs)" }}
                                 title={
                                   tag === "auto"
                                     ? "Learned automatically from a conversation; merged into clearer facts nightly"
@@ -269,17 +302,20 @@ export function MemoryBrowser({
                               </span>
                             ))}
                           </div>
-                          <p className="mt-1 text-sm text-pretty">{row.content}</p>
+                          <p style={{ margin: "6px 0 0", lineHeight: 1.5 }}>{row.content}</p>
                           {row.source ? (
-                            <p className="mt-0.5 text-xs text-muted-foreground">Source: {row.source}</p>
+                            <p className="faint" style={{ margin: "2px 0 0", fontSize: "var(--g8-fs-xs)" }}>
+                              Source: {row.source}
+                            </p>
                           ) : null}
                         </div>
                         {canCurate ? (
-                          <div className="flex shrink-0 items-start gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
+                          <div className="row" style={{ gap: 2, alignItems: "flex-start", flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className={row.pinned ? "ibtn ibtn-sm on" : "ibtn ibtn-sm"}
                               aria-label={row.pinned ? "Unpin" : "Pin — recall every turn"}
+                              title={row.pinned ? "Unpin" : "Pin — recall every turn"}
                               disabled={pending}
                               onClick={() =>
                                 act(
@@ -288,17 +324,18 @@ export function MemoryBrowser({
                                 )
                               }
                             >
-                              {row.pinned ? <PinOff /> : <Pin />}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
+                              <Gi icon={row.pinned ? PinOff : Pin} size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="ibtn ibtn-sm"
                               aria-label="Forget this memory"
+                              title="Forget"
                               disabled={pending}
                               onClick={() => act(() => forgetMemoryAction(propertyId, row.id), "Forgotten")}
                             >
-                              <Trash2 />
-                            </Button>
+                              <Gi icon={Trash2} size={14} />
+                            </button>
                           </div>
                         ) : null}
                       </li>
@@ -307,7 +344,7 @@ export function MemoryBrowser({
                 </section>
               ))
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );

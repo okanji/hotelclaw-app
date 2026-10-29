@@ -1,5 +1,7 @@
 "use client";
 
+import { GuestScopePicker } from "@/components/members/guest-scope-picker";
+import type { ScopeGrant } from "@/lib/db/types";
 import { useState, useTransition } from "react";
 import {
   Dialog,
@@ -25,12 +27,15 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-// Guest (scope-limited, 0118) gets its own invite flow with a scope picker.
-const ROLES: { id: FullRole; label: string; hint: string }[] = [
+// Guest (0118): an outside collaborator who sees only what you share —
+// picking it reveals the scope picker below.
+const ROLES: { id: InviteRole; label: string; hint: string }[] = [
   { id: "staff", label: "Staff", hint: "Can chat, create tasks" },
   { id: "manager", label: "Manager", hint: "Staff + invite + manage channels" },
   { id: "owner", label: "Owner", hint: "Full control" },
+  { id: "guest", label: "Guest", hint: "Only what you share" },
 ];
+type InviteRole = FullRole | "guest";
 
 type SuccessState = {
   email: string;
@@ -44,14 +49,20 @@ type SuccessState = {
 
 export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<FullRole>("staff");
+  const [role, setRole] = useState<InviteRole>("staff");
+  const [scopes, setScopes] = useState<ScopeGrant[]>([]);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [pending, startTransition] = useTransition();
 
   function send(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createInvite({ propertyId, email, role });
+      const result = await createInvite({
+        propertyId,
+        email,
+        role,
+        scopes: role === "guest" ? scopes : [],
+      });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -101,7 +112,7 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
             {success?.isResend ? "Invite resent" : "Invite to property"}
           </DialogTitle>
           <DialogDescription>
-            We'll email a sign-in link. Clicking it creates the account (if
+            We&apos;ll email a sign-in link. Clicking it creates the account (if
             needed), signs them in, and adds them to this property.
           </DialogDescription>
         </DialogHeader>
@@ -121,11 +132,11 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                       <span className="font-medium">{success.role}</span>.
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      They'll get an email from{" "}
+                      They&apos;ll get an email from{" "}
                       <code className="text-xs">
                         Hotelclaw &lt;noreply@villa.dev&gt;
                       </code>
-                      . Check spam if it doesn't arrive.
+                      . Check spam if it doesn&apos;t arrive.
                       {success.isExistingUser
                         ? " They'll also see it in their in-app pending invites."
                         : ""}
@@ -199,7 +210,7 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
               <div
                 role="radiogroup"
                 aria-labelledby="invite-role-label"
-                className="grid grid-cols-3 gap-1.5"
+                className="grid grid-cols-2 gap-1.5"
               >
                 {ROLES.map((r) => {
                   const selected = role === r.id;
@@ -235,6 +246,17 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
                 })}
               </div>
             </div>
+            {role === "guest" ? (
+              <div className="space-y-2">
+                <Label>What they can see</Label>
+                <GuestScopePicker
+                  propertyId={propertyId}
+                  value={scopes}
+                  onChange={setScopes}
+                  disabled={pending}
+                />
+              </div>
+            ) : null}
             <DialogFooter>
               <Button
                 type="button"
@@ -244,7 +266,10 @@ export function InviteDialog({ propertyId, open, onOpenChange }: Props) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending || !email}>
+              <Button
+                type="submit"
+                disabled={pending || !email || (role === "guest" && scopes.length === 0)}
+              >
                 {pending ? "Sending…" : "Send invite"}
               </Button>
             </DialogFooter>

@@ -2,33 +2,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowUpDown,
   CalendarRange,
   Check,
   Columns3,
+  Filter,
   List,
+  Rows3,
   Search,
-  SlidersHorizontal,
+  SquareKanban,
   Users,
-  X,
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 import { isChoiceField } from "@/lib/tasks/custom-field-options";
-import { TabNav, TabNavItem } from "@/components/ui/tab-nav";
 import { cn } from "@/lib/utils";
 import { SORT_LABELS } from "./kanban";
 import { TriageDial } from "./triage-dial";
 import { AutomationsButton } from "@/components/workflows/automations-button";
 import { CustomFieldManagerDialog } from "./custom-field-manager";
 import { useQuery } from "@tanstack/react-query";
-import {
-  customFieldsQueryOptions,
-  type CustomFieldRow,
-} from "@/lib/query/custom-field-queries";
+import Link from "next/link";
+import { Gi } from "@/components/gr8r/icon";
+import { triageCountQueryOptions } from "@/lib/query/triage-queries";
+import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
 import {
   EMPTY_FILTERS,
   FilterMenu,
@@ -70,8 +70,8 @@ const STATUS_TABS: { id: StatusPreset; label: string }[] = [
   { id: "backlog", label: "Backlog" },
 ];
 
-const VIEW_TABS: { id: ViewMode; label: string; Icon: typeof Columns3 }[] = [
-  { id: "board", label: "Board", Icon: Columns3 },
+const VIEW_TABS: { id: ViewMode; label: string; Icon: typeof List }[] = [
+  { id: "board", label: "Board", Icon: SquareKanban },
   { id: "list", label: "List", Icon: List },
   { id: "timeline", label: "Timeline", Icon: CalendarRange },
   { id: "workload", label: "Workload", Icon: Users },
@@ -112,10 +112,7 @@ export function BoardToolbar({
   onChangeGroupBy,
 }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
-  // Search is a glyph until asked for (Linear's header): the input unfolds
-  // on click or `/` and folds away again once it is empty and blurred.
-  const [searchOpen, setSearchOpen] = useState(filters.search.length > 0);
-  const searchVisible = searchOpen || filters.search.length > 0;
+  const [fieldsOpen, setFieldsOpen] = useState(false);
 
   // `/` focuses search (Linear/GitHub convention). Skip when typing in
   // another input so we don't steal keystrokes mid-edit.
@@ -126,9 +123,7 @@ export function BoardToolbar({
       const tag = t?.tagName;
       if (t?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA") return;
       e.preventDefault();
-      setSearchOpen(true);
-      // The input may not exist yet on this frame.
-      requestAnimationFrame(() => searchRef.current?.focus());
+      searchRef.current?.focus();
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -139,254 +134,56 @@ export function BoardToolbar({
   const { data: customFields = [] } = useQuery(
     customFieldsQueryOptions(propertyId),
   );
+  const choiceFields = customFields.filter((f) => isChoiceField(f.type));
+
+  const sortName =
+    filters.sortKeys.length > 0
+      ? filters.sortKeys.map((k) => SORT_LABELS[k]).join(", ")
+      : SORT_LABELS[filters.sortBy];
+  const groupName = groupBy.startsWith("field:")
+    ? (customFields.find((f) => `field:${f.id}` === groupBy)?.name ?? "Field")
+    : GROUP_LABELS[groupBy as keyof typeof GROUP_LABELS];
 
   return (
-    // Linear's view row: presets + Filter on the left, ONE Display control on
-    // the right. Everything that configures how the list LOOKS (layout,
-    // grouping, ordering, fields) lives behind Display; only the two
-    // AI/automation entry points keep a glyph of their own. The row is 40px
-    // with the content pulled up (`pb-1`) so the pills sit clear of the rule.
-    <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-(--page-gutter) pb-1">
-      {/* Left — status preset pills (All / Active / Backlog). Compact pill,
-          full-size label. */}
-      <TabNav variant="pill" aria-label="Status filter" className="gap-0.5">
-        {STATUS_TABS.map(({ id, label }) => (
-          <TabNavItem
-            key={id}
-            active={filters.statusPreset === id}
-            onClick={() => onChange({ ...filters, statusPreset: id })}
-            className="h-7 px-2.5"
-          >
-            {label}
-          </TabNavItem>
-        ))}
-      </TabNav>
+    // gr8r's view toolbar (src/shell/view-engine.js `viewToolbar`): search,
+    // Filter, Sort, Group, Fields on the left; the status preset `.seg`, the
+    // AI / automation glyphs and the layout `.seg` on the right.
+    <div className="toolbar" role="toolbar" aria-label="Tasks view">
+      <div className="inwrap">
+        <Search className="i" size={13} strokeWidth={1.8} aria-hidden />
+        <input
+          ref={searchRef}
+          type="search"
+          name="board-search"
+          className="input search-sm"
+          placeholder="Search tasks"
+          aria-label="Search tasks"
+          value={filters.search}
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              onChange({ ...filters, search: "" });
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      </div>
 
-      {/* Filter — Linear puts this at the LEFT so filtering is discoverable
-          from the toolbar itself, not tucked behind an icon at the far end. */}
-      <span aria-hidden className="mx-1 h-4 w-px bg-border" />
       <FilterMenu
         filters={filters}
         onPick={onPickFacet}
         customFields={customFields}
       />
 
-      <div className="ml-auto flex items-center gap-0.5">
-        {/* Visible / total hint — only when filters are actively narrowing. */}
-        {(activeFilterCount > 0 || filters.search.length > 0) && total > 0 ? (
-          <span className="mr-1.5 hidden text-xs text-faint-foreground tabular-nums sm:inline">
-            {visible} of {total}
-          </span>
-        ) : null}
-
-        {/* Search — a glyph that unfolds into the input. */}
-        {searchVisible ? (
-          <div className="relative mr-1">
-            <Search
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              ref={searchRef}
-              type="search"
-              name="board-search"
-              aria-label="Search tasks"
-              placeholder="Search…"
-              autoFocus
-              value={filters.search}
-              onChange={(e) => onChange({ ...filters, search: e.target.value })}
-              onBlur={() => {
-                if (!filters.search) setSearchOpen(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  onChange({ ...filters, search: "" });
-                  setSearchOpen(false);
-                  e.currentTarget.blur();
-                }
-              }}
-              className={cn(
-                // The QUERY is a value the user types, so it reads on the UI
-                // rung (14px), not the metadata rung.
-                "h-7 w-48 rounded-md bg-accent pr-7 pl-7 text-sm shadow-none",
-                "placeholder:text-faint-foreground",
-                "transition-colors",
-                "focus-visible:shadow-focus focus-visible:outline-none",
-                "[&::-webkit-search-cancel-button]:hidden",
-              )}
-            />
-            {filters.search ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onChange({ ...filters, search: "" });
-                  setSearchOpen(false);
-                }}
-                className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-accent-pressed"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <button
-            type="button"
-            aria-label="Search tasks"
-            title="Search  /"
-            onClick={() => setSearchOpen(true)}
-            className={TOOLBAR_ICON_BUTTON}
-          >
-            <Search className="size-4" />
-          </button>
-        )}
-
-        <TriageDial propertyId={propertyId} showLabel={false} />
-
-        <AutomationsButton
-          propertyId={propertyId}
-          feature="tasks"
-          showLabel={false}
-          className="text-muted-foreground"
-        />
-
-        <DisplayMenu
-          propertyId={propertyId}
-          filters={filters}
-          onChange={onChange}
-          view={view}
-          onChangeView={onChangeView}
-          groupBy={groupBy}
-          onChangeGroupBy={onChangeGroupBy}
-          customFields={customFields}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Display menu                                                               */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Linear's "Display" popover: layout, grouping, ordering and the fields
- * manager in one place. The trigger carries a dot whenever the list is
- * showing something other than its defaults (a non-status grouping or a
- * non-manual order), so a customised view is visible from the bar.
- */
-function DisplayMenu({
-  propertyId,
-  filters,
-  onChange,
-  view,
-  onChangeView,
-  groupBy,
-  onChangeGroupBy,
-  customFields,
-}: {
-  propertyId: string;
-  filters: BoardFilters;
-  onChange: (next: BoardFilters) => void;
-  view: ViewMode;
-  onChangeView: (view: ViewMode) => void;
-  groupBy: BoardGroupBy;
-  onChangeGroupBy: (groupBy: BoardGroupBy) => void;
-  customFields: CustomFieldRow[];
-}) {
-  const [fieldsOpen, setFieldsOpen] = useState(false);
-  const sortModified =
-    filters.sortKeys.length > 0 || filters.sortBy !== "manual";
-  const modified = sortModified || (view === "board" && groupBy !== "status");
-  const choiceFields = customFields.filter((f) => isChoiceField(f.type));
-
-  return (
-    <>
+      {/* Sort — Manual, or a click-to-stack multi-key sort (ClickUp). */}
       <Popover>
         <PopoverTrigger
-          render={
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              title="Display options"
-              className={cn(
-                "ml-0.5 gap-1.5 px-2 text-muted-foreground",
-                "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
-                "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
-              )}
-            />
-          }
+          render={<button type="button" className="btn btn-ghost" />}
         >
-          <span className="relative inline-flex">
-            <SlidersHorizontal className="size-3.5" />
-            {modified ? (
-              <span
-                aria-hidden
-                className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary ring-2 ring-background"
-              />
-            ) : null}
-          </span>
-          Display
+          <ArrowUpDown className="i" size={14} strokeWidth={1.8} aria-hidden />
+          <span className="hide-m">Sort:</span> {sortName}
         </PopoverTrigger>
-        <PopoverContent align="end" sideOffset={6} className="w-64 gap-0 p-0">
-          <PopoverSection label="Layout">
-            <div
-              role="radiogroup"
-              aria-label="Layout"
-              className="grid grid-cols-4 gap-1 px-0.5 pb-0.5"
-            >
-              {VIEW_TABS.map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={view === id}
-                  onClick={() => onChangeView(id)}
-                  className={cn(
-                    "flex h-12 flex-col items-center justify-center gap-1 rounded-md text-xs transition-colors",
-                    "hover:bg-accent focus-visible:bg-accent focus-visible:outline-none",
-                    view === id
-                      ? "bg-accent text-foreground"
-                      : "text-secondary-ink",
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </PopoverSection>
-
-          {view === "board" ? (
-            <PopoverSection label="Grouping">
-              {(["status", "space", "project"] as const).map((g) => (
-                <PopoverRow
-                  key={g}
-                  onClick={() => onChangeGroupBy(g)}
-                  selected={g === groupBy}
-                >
-                  <span className="flex-1">{GROUP_LABELS[g]}</span>
-                </PopoverRow>
-              ))}
-              {/* Choice custom fields group too (ClickUp's group-by-dropdown/
-                  label) — a column per option, None last. */}
-              {choiceFields.map((f) => {
-                const id = `field:${f.id}` as const;
-                return (
-                  <PopoverRow
-                    key={f.id}
-                    onClick={() => onChangeGroupBy(id)}
-                    selected={id === groupBy}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  </PopoverRow>
-                );
-              })}
-            </PopoverSection>
-          ) : null}
-
+        <PopoverContent align="start" sideOffset={6} className="w-56 gap-0 p-0">
           <PopoverSection label="Ordering">
             <PopoverRow
               onClick={() =>
@@ -419,22 +216,122 @@ function DisplayMenu({
                 >
                   <span className="flex-1">{SORT_LABELS[key]}</span>
                   {selected && filters.sortKeys.length > 1 ? (
-                    <span className="rounded-md bg-muted px-1.5 text-xs font-medium tabular-nums text-faint-foreground">
-                      {index + 1}
-                    </span>
+                    <span className="badge gray num">{index + 1}</span>
                   ) : null}
                 </PopoverRow>
               );
             })}
           </PopoverSection>
-
-          <PopoverSection label="Fields">
-            <PopoverRow onClick={() => setFieldsOpen(true)} selected={false}>
-              <span className="flex-1">Manage custom fields…</span>
-            </PopoverRow>
-          </PopoverSection>
         </PopoverContent>
       </Popover>
+
+      {/* Group — the board's columns: status (the list pipeline), team,
+          project, or a choice custom field. The list view groups by status. */}
+      {view === "board" ? (
+        <Popover>
+          <PopoverTrigger
+            render={<button type="button" className="btn btn-ghost" />}
+          >
+            <Rows3 className="i" size={14} strokeWidth={1.8} aria-hidden />
+            <span className="hide-m">Group:</span> {groupName}
+          </PopoverTrigger>
+          <PopoverContent align="start" sideOffset={6} className="w-56 gap-0 p-0">
+            <PopoverSection label="Group by">
+              {(["status", "space", "project"] as const).map((g) => (
+                <PopoverRow
+                  key={g}
+                  onClick={() => onChangeGroupBy(g)}
+                  selected={g === groupBy}
+                >
+                  <span className="flex-1">{GROUP_LABELS[g]}</span>
+                </PopoverRow>
+              ))}
+            </PopoverSection>
+            {choiceFields.length > 0 ? (
+              <PopoverSection label="Custom fields">
+                {/* ClickUp's group-by-dropdown/label — a column per option,
+                    None last. */}
+                {choiceFields.map((f) => {
+                  const id = `field:${f.id}` as const;
+                  return (
+                    <PopoverRow
+                      key={f.id}
+                      onClick={() => onChangeGroupBy(id)}
+                      selected={id === groupBy}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    </PopoverRow>
+                  );
+                })}
+              </PopoverSection>
+            ) : null}
+          </PopoverContent>
+        </Popover>
+      ) : null}
+
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={() => setFieldsOpen(true)}
+        title="Manage custom fields"
+      >
+        <Columns3 className="i" size={14} strokeWidth={1.8} aria-hidden />
+        <span className="hide-m">Fields</span>
+      </button>
+
+      {/* Status preset — gr8r's "show done" toggle grown into Linear's
+          All / Active / Backlog. */}
+      <div className="seg" role="tablist" aria-label="Status filter">
+        {STATUS_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={filters.statusPreset === id}
+            className={filters.statusPreset === id ? "on" : ""}
+            onClick={() => onChange({ ...filters, statusPreset: id })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <span className="sp" />
+
+      {/* Visible / total hint — only when filters are actively narrowing. */}
+      {(activeFilterCount > 0 || filters.search.length > 0) && total > 0 ? (
+        <span className="faint num hide-m" style={{ fontSize: "var(--g8-fs-xs)" }}>
+          {visible} of {total}
+        </span>
+      ) : null}
+
+      <TriageChip propertyId={propertyId} />
+
+      <TriageDial propertyId={propertyId} showLabel={false} />
+
+      <AutomationsButton
+        propertyId={propertyId}
+        feature="tasks"
+        showLabel={false}
+        className="text-muted-foreground"
+      />
+
+      <div className="seg" role="tablist" aria-label="Layout">
+        {VIEW_TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={view === id}
+            className={view === id ? "on" : ""}
+            onClick={() => onChangeView(id)}
+          >
+            <Icon className="i" size={13} strokeWidth={1.8} aria-hidden />
+            <span className="hide-m">{label}</span>
+          </button>
+        ))}
+      </div>
+
       {fieldsOpen ? (
         <CustomFieldManagerDialog
           propertyId={propertyId}
@@ -442,7 +339,7 @@ function DisplayMenu({
           onOpenChange={setFieldsOpen}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -450,7 +347,7 @@ function DisplayMenu({
 /* Popover primitives                                                         */
 /* -------------------------------------------------------------------------- */
 
-function PopoverSection({
+export function PopoverSection({
   label,
   children,
 }: {
@@ -467,7 +364,7 @@ function PopoverSection({
   );
 }
 
-function PopoverRow({
+export function PopoverRow({
   onClick,
   selected,
   children,
@@ -496,10 +393,25 @@ function PopoverRow({
   );
 }
 
-const TOOLBAR_ICON_BUTTON = cn(
-  "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors",
-  "hover:bg-accent",
-  "focus-visible:outline-none focus-visible:shadow-focus",
-  "aria-expanded:bg-accent-pressed aria-expanded:text-foreground",
-  "data-popup-open:bg-accent-pressed data-popup-open:text-foreground",
-);
+/**
+ * "N in triage" — Linear keeps the intake queue next to the work, not in the
+ * Inbox. Only while something is waiting; the count route is full-members
+ * only, so guests (403) never see it.
+ */
+function TriageChip({ propertyId }: { propertyId: string }) {
+  const { data: count = 0 } = useQuery({
+    ...triageCountQueryOptions(propertyId),
+    retry: false,
+  });
+  if (!count) return null;
+  return (
+    <Link
+      href={`/p/${propertyId}/triage`}
+      className="pillbtn bordered hide-m"
+      title="Incoming requests waiting to be accepted or declined"
+    >
+      <Gi icon={Filter} size={13} />
+      <span className="num">{count > 99 ? "99+" : count}</span> in triage
+    </Link>
+  );
+}

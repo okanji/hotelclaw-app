@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * The guest kit — primitives for the warm-cream guest world: the onboarding
- * wizard, /welcome, public booking (/book), the guest chatbot (/g), and
+ * wizard, /welcome, the guest chatbot (/g), and
  * event ticket pages. These surfaces are deliberately NOT the app shell's
  * palette and never theme-switch; everything here reads from the `guest-*`
  * tokens in globals.css (single source for the cream/rust/ink values that

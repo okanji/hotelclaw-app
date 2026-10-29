@@ -3,10 +3,9 @@ import {
   CalendarDays,
   FileText,
   ListChecks,
-  Ticket,
   type LucideIcon,
 } from "lucide-react";
-import { TintIcon, type TintTone } from "@/components/ui/tint-card";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * Quick access to the main workspaces, sitting under the Home masthead like
@@ -23,7 +22,8 @@ type QuickTile = {
   sub: string;
   href: (base: string) => string;
   icon: LucideIcon;
-  tone: TintTone;
+  /** gr8r palette token for the icon tile. */
+  tone: string;
 };
 
 const TILES: QuickTile[] = [
@@ -32,28 +32,21 @@ const TILES: QuickTile[] = [
     sub: "Boards & your work",
     href: (b) => `${b}/tasks`,
     icon: ListChecks,
-    tone: "blue",
-  },
-  {
-    label: "Bookings",
-    sub: "Reservations & agenda",
-    href: (b) => `${b}/bookings`,
-    icon: Ticket,
-    tone: "coral",
+    tone: "var(--g8-blue)",
   },
   {
     label: "Calendar",
     sub: "Meetings & events",
     href: (b) => `${b}/calendar`,
     icon: CalendarDays,
-    tone: "sage",
+    tone: "var(--g8-green)",
   },
   {
     label: "Docs",
     sub: "Notes & knowledge",
     href: (b) => `${b}/documents`,
     icon: FileText,
-    tone: "lavender",
+    tone: "var(--g8-violet)",
   },
 ];
 
@@ -61,28 +54,32 @@ export function QuickAccessRow({ propertyId }: { propertyId: string }) {
   const base = `/p/${propertyId}`;
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {TILES.map((t) => {
-        const Icon = t.icon;
-        return (
-          <Link
-            key={t.label}
-            href={t.href(base)}
-            className="flex min-w-0 flex-col gap-2.5 rounded-card bg-card p-3 shadow-card transition-colors hover:bg-accent focus-visible:shadow-focus"
+      {TILES.map((t) => (
+        <Link
+          key={t.label}
+          href={t.href(base)}
+          className="panel row min-w-0"
+          style={{ padding: "10px 12px", gap: 10, color: "inherit" }}
+        >
+          <span
+            className="picon"
+            style={{ "--g8-c": t.tone } as React.CSSProperties}
           >
-            <TintIcon tone={t.tone}>
-              <Icon />
-            </TintIcon>
-            <div className="min-w-0">
-              <div className="truncate text-base leading-6 font-normal text-foreground">
-                {t.label}
-              </div>
-              <div className="truncate text-xs leading-4 text-faint-foreground">
-                {t.sub}
-              </div>
-            </div>
-          </Link>
-        );
-      })}
+            <Gi icon={t.icon} size={15} />
+          </span>
+          <span className="min-w-0">
+            <span className="trunc" style={{ display: "block", fontWeight: 500 }}>
+              {t.label}
+            </span>
+            <span
+              className="faint trunc"
+              style={{ display: "block", fontSize: "var(--g8-fs-xs)" }}
+            >
+              {t.sub}
+            </span>
+          </span>
+        </Link>
+      ))}
     </div>
   );
 }

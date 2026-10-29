@@ -29,15 +29,17 @@ const PROPERTIES = [
 ];
 
 // Tool allow-lists reference the authored eve tool names (spec M2).
-// `housekeeping` deliberately lacks refund_booking — that absence is an
-// M2 acceptance criterion.
+// `housekeeping` deliberately lacks the approval-gated money tools — that
+// absence is an M2 acceptance criterion. (The booking-table tools —
+// get_bookings / get_booking / refund_booking — were removed with the
+// Bookings feature on 2026-10-29.)
 const BOTS = [
   {
     bot_id: "frontdesk",
     display_name: "Front Desk",
     model_tier: "standard",
     tool_set: [
-      "search_docs", "read_doc", "get_bookings", "get_booking",
+      "search_docs", "read_doc",
       "create_task", "notify_channel", "brain_query", "brain_get",
     ],
     persona_fallback:
@@ -59,22 +61,22 @@ const BOTS = [
     display_name: "Bookings",
     model_tier: "advanced",
     tool_set: [
-      "get_bookings", "get_booking", "search_docs", "read_doc",
-      "notify_channel", "refund_booking", "brain_query", "brain_get",
+      "search_docs", "read_doc", "create_task",
+      "notify_channel", "override_rate", "comp_night", "brain_query", "brain_get",
     ],
     persona_fallback:
-      "You are the bookings assistant. Handle availability, rate reasoning, and booking changes. Quote numbers only from tools or the property's rates page; refunds and rate overrides always go through approval.",
+      "You are the reservations assistant. Handle rate reasoning and stay-change requests (file them as tasks for the team). Quote numbers only from the property's rates page; rate overrides and comp nights always go through approval.",
   },
   {
     bot_id: "analyst",
     display_name: "Analyst",
     model_tier: "advanced",
     tool_set: [
-      "list_tasks", "get_bookings", "search_docs", "read_doc",
+      "list_tasks", "search_docs", "read_doc",
       "brain_query", "brain_get",
     ],
     persona_fallback:
-      "You are the portfolio analyst. Read-only: synthesize tasks, bookings, and knowledge into clear assessments. Cite every figure's source; never take actions.",
+      "You are the portfolio analyst. Read-only: synthesize tasks and knowledge into clear assessments. Cite every figure's source; never take actions.",
   },
 ];
 

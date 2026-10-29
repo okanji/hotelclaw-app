@@ -1,28 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   CalendarClock,
-  CalendarX2,
   ClipboardList,
   Headset,
   LayoutTemplate,
   LifeBuoy,
   ListTodo,
   type LucideIcon,
-  Sparkles,
   TriangleAlert,
   Wand2,
   Workflow,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { TintIcon, type TintTone } from "@/components/ui/tint-card";
+import { Gi } from "@/components/gr8r/icon";
 import type { WorkflowSpec } from "@/lib/workflows/spec";
 import { classifyMode } from "@/lib/workflows/spec";
 import type { Surface } from "@/lib/workflows/catalog/types";
@@ -40,7 +35,6 @@ const SURFACES: Surface[] = [
   "meetings",
   "calendar",
   "forms",
-  "bookings",
   "entities",
 ];
 
@@ -55,12 +49,13 @@ type Example = {
 
 const EXAMPLE_GROUPS: {
   label: string;
-  tone: TintTone;
+  /** gr8r palette token for the group's icon tiles. */
+  tone: string;
   examples: Example[];
 }[] = [
   {
     label: "Triage & routing",
-    tone: "coral",
+    tone: "var(--g8-orange)",
     examples: [
       {
         icon: LifeBuoy,
@@ -80,7 +75,7 @@ const EXAMPLE_GROUPS: {
   },
   {
     label: "Digests & reports",
-    tone: "blue",
+    tone: "var(--g8-blue)",
     examples: [
       {
         icon: CalendarClock,
@@ -100,7 +95,7 @@ const EXAMPLE_GROUPS: {
   },
   {
     label: "Follow-ups & handoffs",
-    tone: "sage",
+    tone: "var(--g8-green)",
     examples: [
       {
         icon: ListTodo,
@@ -119,8 +114,8 @@ const EXAMPLE_GROUPS: {
     ],
   },
   {
-    label: "Guest & bookings",
-    tone: "honey",
+    label: "Guests",
+    tone: "var(--g8-amber)",
     examples: [
       {
         icon: Headset,
@@ -128,13 +123,6 @@ const EXAMPLE_GROUPS: {
         prompt:
           "When the guest chatbot escalates to a human, post the conversation in #front-desk and create a task",
         surfaces: ["ai", "chat", "tasks"],
-      },
-      {
-        icon: CalendarX2,
-        title: "Late cancellation alert",
-        prompt:
-          "When a booking is cancelled within 24 hours of its start, alert the front-desk channel",
-        surfaces: ["bookings", "chat"],
       },
     ],
   },
@@ -234,21 +222,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
 
   if (!spec) {
     return (
-      <div className="pb-16">
-        <header className="mb-6 text-center">
-          <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-md bg-primary/10">
-            <Sparkles className="size-5 text-primary-ink" aria-hidden />
-          </span>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Describe what you want
-          </h1>
-          <p className="mx-auto mt-2 max-w-[520px] text-sm leading-relaxed text-muted-foreground">
-            Type a goal in plain English — AI designs the workflow across your
-            property&apos;s tasks, chat, docs, meetings, calendar, forms,
-            bookings, and entities.
-          </p>
-        </header>
-
+      <div style={{ paddingBottom: 48 }}>
         <AiCopilot
           propertyId={propertyId}
           currentSpec={null}
@@ -259,8 +233,8 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           onPendingPromptConsumed={() => setPendingPrompt(null)}
         />
 
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-1.5">
-          <span className="mr-0.5 text-xs text-muted-foreground">
+        <div className="row" style={{ marginTop: 16, flexWrap: "wrap", justifyContent: "center", gap: 6 }}>
+          <span className="faint" style={{ fontSize: 12 }}>
             Works across
           </span>
           {SURFACES.map((s) => (
@@ -268,68 +242,66 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
           ))}
         </div>
 
-        <div className="mt-4 flex justify-center">
+        <div className="row" style={{ marginTop: 12, justifyContent: "center" }}>
           <button
             type="button"
             onClick={startFromScratch}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            className="btn btn-ghost btn-sm"
           >
-            <Workflow className="size-3.5" aria-hidden />
+            <Gi icon={Workflow} size={14} />
             Or build it by hand — start from scratch
           </button>
         </div>
 
-        <div className="mt-10">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <Eyebrow>Start from an idea</Eyebrow>
+        <div style={{ marginTop: 36 }}>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <span className="eyebrow">Start from an idea</span>
+            <span className="sp" />
             <Link
               href={`/p/${propertyId}/workflows/templates`}
-              className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary-ink hover:underline"
+              className="btn btn-ghost btn-sm"
             >
-              <LayoutTemplate className="size-3.5" aria-hidden />
+              <Gi icon={LayoutTemplate} size={14} />
               Browse templates
             </Link>
           </div>
 
-          <div className="space-y-6">
+          <div className="stack" style={{ gap: 20 }}>
             {EXAMPLE_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                <div className="label" style={{ marginBottom: 8, color: "var(--g8-text-2)" }}>
                   {group.label}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                </div>
+                <div className="pgrid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
                   {group.examples.map((ex) => (
                     <button
                       key={ex.title}
                       type="button"
                       onClick={() => setPendingPrompt(ex.prompt)}
                       disabled={busy}
-                      className={cn(
-                        "group flex h-full flex-col gap-2 rounded-md bg-card p-3.5 text-left shadow-ring transition-colors hover:bg-accent",
-                        busy && "pointer-events-none opacity-50",
-                      )}
+                      className="pcard"
+                      style={{ gap: 8, opacity: busy ? 0.5 : undefined }}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <TintIcon tone={group.tone}>
-                          <ex.icon aria-hidden />
-                        </TintIcon>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      <span className="row" style={{ gap: 10, width: "100%" }}>
+                        <span className="picon" style={{ "--g8-c": group.tone } as CSSProperties}>
+                          <Gi icon={ex.icon} size={15} />
+                        </span>
+                        <span className="trunc grow" style={{ fontWeight: 600 }}>
                           {ex.title}
                         </span>
-                        <ArrowRight
-                          className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                          aria-hidden
-                        />
-                      </div>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        <span className="faint">
+                          <Gi icon={ArrowRight} size={14} />
+                        </span>
+                      </span>
+                      <span className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>
                         {ex.prompt}
-                      </p>
-                      <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                      </span>
+                      <span className="row" style={{ gap: 4, flexWrap: "wrap", marginTop: "auto" }}>
                         {ex.surfaces.map((s) => (
                           <SurfaceLabelBadge key={s} surface={s} />
                         ))}
-                      </div>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -343,24 +315,28 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
 
   return (
     <div>
-      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Workflow className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <header className="row" style={{ marginBottom: 14, flexWrap: "wrap" }}>
+        <div className="row grow" style={{ gap: 8 }}>
+          <span className="faint">
+            <Gi icon={Workflow} size={15} />
+          </span>
           <input
             type="text"
             value={name}
+            aria-label="Workflow name"
             onChange={(e) => setName(e.target.value)}
-            className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 text-base font-semibold text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:shadow-focus"
+            className="input grow"
+            style={{ fontWeight: 600 }}
           />
         </div>
-        <Button
-          size="xs"
+        <button
+          type="button"
+          className="btn btn-primary"
           onClick={create}
           disabled={creating || !name.trim()}
-          className="sm:self-auto"
         >
           {creating ? "Creating…" : "Create workflow"}
-        </Button>
+        </button>
       </header>
 
       {/* The inspector's pickers (channels, members) read this context; without
@@ -373,7 +349,7 @@ export function NewWorkflowClient({ propertyId }: { propertyId: string }) {
         />
       </WorkflowBuilderDataProvider>
 
-      <div className="mt-4">
+      <div style={{ marginTop: 16 }}>
         <AiCopilot
           propertyId={propertyId}
           currentSpec={spec}

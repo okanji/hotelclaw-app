@@ -12,7 +12,6 @@ import {
   MessagesSquare,
   Sparkle,
   Sparkles,
-  Ticket,
   Video,
   Workflow,
   Zap,
@@ -118,14 +117,6 @@ export function paletteActions(propertyId: string): PaletteAction[] {
       keywords: ["video", "calls"],
       icon: Video,
       href: `${base}/meetings`,
-    },
-    {
-      id: "go-bookings",
-      group: "navigate",
-      label: "Go to bookings",
-      keywords: ["reservations", "tables", "services"],
-      icon: Ticket,
-      href: `${base}/bookings`,
     },
     {
       id: "go-forms",

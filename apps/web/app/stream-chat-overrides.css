@@ -1596,3 +1596,234 @@
   height: auto;
   scrollbar-gutter: auto;
 }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   gr8r skin (2026-10-29). The chat lives inside the gr8r shell (`.g8`, see
+   app/gr8r.css), so every Stream / Slack variable above is re-pointed at
+   gr8r tokens (`--g8-*`) here — one place, both themes (the tokens already
+   switch with `.dark`). Unlayered and `.g8`-scoped, so it out-ranks the
+   per-theme blocks above (`.str-chat.str-chat__theme-*`, 0-2-0) without
+   touching them. The look follows gr8r's feed / inbox rows: Geist at the
+   13.5–14.5px ramp, round `.av` avatars, hairline dividers, accent-soft
+   tints, `--g8-surface-2` row hover.
+   ═════════════════════════════════════════════════════════════════════════ */
+.g8 .str-chat,
+.g8 .str-chat.str-chat__theme-dark,
+.g8 .str-chat.str-chat__theme-light {
+  /* Stream's semantic layer → gr8r */
+  --str-chat__font-family: var(--g8-font);
+  --str-chat__typography-font-family-sans: var(--g8-font);
+  --str-chat__typography-font-family-mono: var(--g8-mono);
+  --str-chat__text-primary: var(--g8-text);
+  --str-chat__text-secondary: var(--g8-text-2);
+  --str-chat__text-tertiary: var(--g8-text-3);
+  --str-chat__text-disabled: var(--g8-text-4);
+  --str-chat__text-link: var(--g8-accent);
+  --str-chat__text-on-accent: var(--g8-on-accent);
+  --str-chat__accent-primary: var(--g8-accent);
+  --str-chat__accent-success: var(--g8-green);
+  --str-chat__accent-warning: var(--g8-amber);
+  --str-chat__accent-error: var(--g8-red);
+  --str-chat__background-core-app: var(--g8-surface);
+  --str-chat__background-core-elevation-0: var(--g8-surface);
+  --str-chat__background-core-elevation-1: var(--g8-surface);
+  --str-chat__background-core-elevation-2: var(--g8-surface);
+  --str-chat__background-core-elevation-3: var(--g8-surface);
+  --str-chat__background-core-surface-subtle: var(--g8-surface-2);
+  --str-chat__background-core-surface-default: var(--g8-surface-3);
+  --str-chat__background-core-surface-card: var(--g8-surface);
+  --str-chat__background-core-highlight: var(--g8-amber-soft);
+  --str-chat__background-utility-hover: var(--g8-surface-2);
+  --str-chat__background-utility-pressed: var(--g8-surface-3);
+  --str-chat__background-utility-selected: var(--g8-accent-soft);
+  --str-chat__border-core-default: var(--g8-border);
+  --str-chat__border-core-subtle: var(--g8-divider);
+  --str-chat__border-core-strong: var(--g8-border-strong);
+  --str-chat__avatar-bg-placeholder: var(--g8-surface-3);
+
+  /* Slack layer → gr8r */
+  --slack-chat-font-family: var(--g8-font);
+  --slack-avatar-size: 32px;
+  --slack-avatar-radius: 50%;
+  --slack-avatar-column-gap: 10px;
+  --slack-row-hover-bg: var(--g8-surface-2);
+  --slack-msg-display-name-size: var(--g8-fs);
+  --slack-msg-display-name-weight: 600;
+  --slack-msg-display-name-color: var(--g8-text);
+  --slack-msg-body-size: 14px;
+  --slack-msg-body-weight: 400;
+  --slack-msg-body-color: var(--g8-text);
+  --slack-msg-body-line-height: 21px;
+  --slack-msg-timestamp-size: var(--g8-fs-2xs);
+  --slack-msg-timestamp-color: var(--g8-text-3);
+  --slack-reaction-pill-bg: var(--g8-surface-2);
+  --slack-reaction-pill-bg-hover: var(--g8-surface-3);
+  --slack-reaction-pill-text: var(--g8-text-2);
+  --slack-reaction-pill-own-bg: var(--g8-accent-soft);
+  --slack-reaction-pill-own-bg-hover: color-mix(in srgb, var(--g8-accent) 16%, transparent);
+  --slack-add-reaction-icon: var(--g8-text-3);
+  --slack-mention-user-bg: var(--g8-accent-soft);
+  --slack-mention-user-text: var(--g8-accent);
+  --slack-mention-broadcast-bg: var(--g8-amber-soft);
+  --slack-mention-broadcast-text: var(--g8-amber);
+  --slack-date-pill-bg: var(--g8-surface);
+  --slack-image-card-bg: var(--g8-surface-2);
+  --slack-image-card-border: var(--g8-border);
+  --slack-image-card-muted: var(--g8-text-3);
+  --slack-image-card-hover: var(--g8-surface-3);
+  --slack-image-toolbar-bg: color-mix(in srgb, var(--g8-surface) 94%, transparent);
+  --slack-image-toolbar-border: var(--g8-border);
+  --slack-image-toolbar-icon: var(--g8-text-2);
+  --slack-image-toolbar-icon-hover-bg: var(--g8-surface-3);
+  --slack-image-alt-badge-bg: color-mix(in srgb, var(--g8-surface) 94%, transparent);
+  --slack-image-alt-badge-border: var(--g8-border);
+  --slack-image-alt-badge-text: var(--g8-text);
+}
+
+/* The message canvas is a gr8r content surface. */
+.g8 .str-chat__chat-view,
+.g8 #str-chat__channel {
+  background: var(--g8-surface);
+}
+
+/* Rows: gr8r's content gutter on the left, surface-2 hover. */
+.g8 .str-chat .str-chat__message {
+  padding-inline-start: var(--g8-gutter);
+}
+.g8 .str-chat__message > .str-chat__avatar,
+.g8 .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar,
+.g8 .str-chat__li.str-chat__li--bottom .str-chat__message.str-chat__message--with-avatar > .str-chat__avatar,
+.g8 .str-chat__avatar .str-chat__avatar-image {
+  border-radius: 50% !important;
+}
+.g8 .str-chat__message.str-chat__message--pinned {
+  background: color-mix(in srgb, var(--g8-amber) 6%, transparent);
+}
+
+/* Mentions: gr8r chip weight (600), accent ink. */
+.g8 .str-chat__slack-message-main .str-chat__message-text .str-chat__message-mention,
+.g8 .rich-editor-content .str-chat__message-mention {
+  font-weight: 600;
+  border-radius: var(--g8-r-xs);
+}
+
+/* Reactions: gr8r `.chip` — hairline-bordered, accent ring when it's yours. */
+.g8 .str-chat .str-chat__message-reactions__list-item-button {
+  border: 1px solid var(--g8-border) !important;
+  font-family: var(--g8-font);
+  font-size: var(--g8-fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.g8 .str-chat .str-chat__message-reactions__list-item-button[aria-pressed="true"] {
+  border-color: var(--g8-accent-line) !important;
+  color: var(--g8-accent) !important;
+}
+.g8 .str-chat .str-chat__slack-add-reaction-pill {
+  border: 1px solid var(--g8-border);
+}
+
+/* Date separator: a gr8r `.badge`-sized pill on a divider hairline. */
+.g8 .str-chat .str-chat__slack-date-separator__line {
+  background: var(--g8-divider);
+}
+.g8 .str-chat .str-chat__slack-date-separator__pill {
+  border-radius: var(--g8-r-full);
+  box-shadow: var(--g8-shadow-card);
+  color: var(--g8-text-2);
+  font-family: var(--g8-font);
+  font-size: var(--g8-fs-xs);
+  font-weight: 500;
+  padding-block: 4px;
+}
+.g8 .str-chat .str-chat__slack-date-separator__pill:hover {
+  background: var(--g8-surface-2);
+  color: var(--g8-text);
+}
+.g8 .str-chat .str-chat__slack-date-separator__pill:focus-visible,
+.g8 .str-chat .str-chat__slack-add-reaction-pill:focus-visible {
+  outline: 2px solid var(--g8-accent-line);
+}
+
+/* Hover action bar: a gr8r popover chip. */
+.g8 .str-chat__slack-message-actions-host .str-chat__message-options {
+  background: var(--g8-surface);
+  border-radius: var(--g8-r);
+  box-shadow: var(--g8-shadow-pop);
+}
+
+/* Composer (`SlackComposer` root, and Stream's own inside <Thread>): gr8r's
+   input frame — hairline strong border, 10px radius, accent ring on focus. */
+.g8 .g8-composer,
+.g8 .str-chat__message-input,
+.g8 .str-chat__message-composer {
+  background: var(--g8-surface) !important;
+  border: 1px solid var(--g8-border-strong) !important;
+  border-radius: var(--g8-r-lg) !important;
+  box-shadow: var(--g8-shadow-sm) !important;
+  transition:
+    border-color var(--g8-dur),
+    box-shadow var(--g8-dur);
+}
+.g8 .g8-composer:focus-within,
+.g8 .g8-composer.g8-composer--drag {
+  border-color: var(--g8-accent) !important;
+  box-shadow: 0 0 0 3px var(--g8-accent-soft) !important;
+}
+.g8 .g8-composer {
+  margin-inline: var(--g8-gutter);
+}
+.g8 .g8-composer .rich-editor-content,
+.g8 .g8-composer .relative > .pointer-events-none.absolute {
+  font-family: var(--g8-font);
+  font-size: var(--g8-fs-md);
+  line-height: 1.45;
+}
+.g8 .g8-composer .relative > .pointer-events-none.absolute {
+  color: var(--g8-text-3);
+}
+.g8 .str-chat__message-textarea,
+.g8 .str-chat__textarea > textarea,
+.g8 .str-chat__message-textarea__textarea {
+  font-family: var(--g8-font) !important;
+  font-size: var(--g8-fs-md) !important;
+  color: var(--g8-text) !important;
+}
+
+/* Typing + AI-thinking rows share the message avatar column. */
+.g8 .str-chat__typing-indicator {
+  padding-inline: var(--g8-gutter);
+}
+
+/* Chat cards — artifact cards, render_ui frames (DataTable / Card / StatRow /
+   Chart / Form / Questionnaire) and shared form cards: a gr8r `.panel`
+   (surface, hairline border, 10px radius) instead of a borderless fill. */
+.g8 .g8-chat-card,
+.g8 .g8-chat-form > div:first-child {
+  background: var(--g8-surface);
+  border: 1px solid var(--g8-border);
+  border-radius: var(--g8-r-lg);
+  box-shadow: var(--g8-shadow-sm);
+}
+.g8 a.g8-chat-card:hover,
+.g8 .g8-chat-card.group:hover {
+  background: var(--g8-surface-2);
+}
+
+/* Thread side panel header → gr8r `.drawer-h` (46px, hairline bottom). */
+.g8 .str-chat__thread .str-chat__thread-header {
+  min-height: var(--g8-topbar-h);
+  padding-inline: 16px 10px;
+  border-bottom: 1px solid var(--g8-border);
+  background: var(--g8-surface);
+}
+.g8 .str-chat__thread .str-chat__thread-header-title {
+  font-family: var(--g8-font);
+  font-size: var(--g8-fs);
+  font-weight: 600;
+  color: var(--g8-text);
+}
+.g8 .str-chat__thread .str-chat__thread-header-subtitle {
+  font-family: var(--g8-font);
+  font-size: var(--g8-fs-xs);
+  color: var(--g8-text-3);
+}

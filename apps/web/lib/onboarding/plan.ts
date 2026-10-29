@@ -47,7 +47,7 @@ export const AnswersSchema = z.object({
   roleTitle: z.string().max(80).default(""),
   priorities: z.array(z.string().max(60)).max(12),
   /** What the property runs on-site ("rooms", "restaurant", "spa", "tours",
-   *  "rentals"…) — drives bookings/chatbot/form generation. */
+   *  "rentals"…) — drives chatbot/form generation. */
   // Cap must exceed the wizard's option count (OPERATION_GROUPS, 17 as of
   // 2026-08-16) — a resort that genuinely runs everything would otherwise fail
   // validation at the last step with nothing actionable to tell them.
@@ -486,100 +486,4 @@ export function deterministicPlan(answers: OnboardingAnswers): OnboardingPlan {
     orgTitle,
     welcomeMessage,
   });
-}
-
-// ─── Bookable services (deterministic, from the "what do you operate" answer) ─
-//
-// Kept out of the AI plan on purpose: booking schedules are structured config
-// the availability engine parses, so we generate them deterministically rather
-// than trust a model to emit valid weekly-hours JSON. All capacity-mode (no
-// floor-plan resources needed); staff refine hours/timezone and go public later.
-
-export type StarterBookingService = {
-  name: string;
-  kind: "table" | "appointment" | "tour" | "event" | "rental" | "other";
-  bookingMode: "capacity" | "tables" | "rental";
-  emoji: string;
-  description: string;
-  schedule: Record<string, unknown>;
-};
-
-const everyDay = (ranges: { start: string; end: string }[]) =>
-  Object.fromEntries(
-    ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => [d, ranges]),
-  );
-
-/** Starter bookable services keyed off `answers.operations`. Restaurant, spa,
- *  and tours map cleanly to capacity-mode services; rooms/bar/events/rentals
- *  need resource/date setup, so they're left for the staff to add. */
-export function starterBookingServices(
-  operations: string[],
-): StarterBookingService[] {
-  const ops = new Set(operations);
-  const out: StarterBookingService[] = [];
-
-  if (ops.has("restaurant")) {
-    out.push({
-      name: "Restaurant",
-      kind: "table",
-      bookingMode: "capacity",
-      emoji: "🍽️",
-      description: "Table reservations for lunch and dinner service.",
-      schedule: {
-        version: 1,
-        slotIntervalMinutes: 30,
-        durationMinutes: 90,
-        capacityPerSlot: 40,
-        countPartySize: true,
-        maxPartySize: 8,
-        minNoticeMinutes: 30,
-        horizonDays: 60,
-        weekly: everyDay([
-          { start: "12:00", end: "14:30" },
-          { start: "18:00", end: "21:30" },
-        ]),
-      },
-    });
-  }
-  if (ops.has("spa")) {
-    out.push({
-      name: "Spa appointment",
-      kind: "appointment",
-      bookingMode: "capacity",
-      emoji: "💆",
-      description: "Book a treatment with one of our therapists.",
-      schedule: {
-        version: 1,
-        slotIntervalMinutes: 30,
-        durationMinutes: 60,
-        capacityPerSlot: 3,
-        countPartySize: false,
-        maxPartySize: 2,
-        minNoticeMinutes: 120,
-        horizonDays: 60,
-        weekly: everyDay([{ start: "09:00", end: "18:00" }]),
-      },
-    });
-  }
-  if (ops.has("tours")) {
-    out.push({
-      name: "Tour / activity",
-      kind: "tour",
-      bookingMode: "capacity",
-      emoji: "🗺️",
-      description: "Reserve seats on a guided tour or activity.",
-      schedule: {
-        version: 1,
-        slotIntervalMinutes: 60,
-        durationMinutes: 120,
-        capacityPerSlot: 12,
-        countPartySize: true,
-        maxPartySize: 8,
-        minNoticeMinutes: 180,
-        horizonDays: 60,
-        weekly: everyDay([{ start: "10:00", end: "16:00" }]),
-      },
-    });
-  }
-  return out;
 }

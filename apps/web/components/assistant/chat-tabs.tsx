@@ -17,6 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { MessageSquare, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * The tab strip — several conversations open at once, switched instantly
@@ -68,7 +69,7 @@ export function ChatTabs({
   }
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
+    <div className="g8-ctabs">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -101,9 +102,9 @@ export function ChatTabs({
         onClick={onNew}
         aria-label="New conversation"
         title="New conversation"
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        className="ibtn ibtn-sm"
       >
-        <Plus className="size-4" />
+        <Gi icon={Plus} size={15} />
       </button>
     </div>
   );
@@ -127,13 +128,7 @@ function Tab({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn(
-        "group flex h-7 min-w-0 shrink-0 items-center gap-1.5 rounded-md pr-1 pl-2 text-sm transition-colors",
-        active
-          ? "bg-accent-pressed text-foreground"
-          : "text-secondary-ink hover:bg-accent",
-        isDragging && "z-10 opacity-80",
-      )}
+      className={cn("g8-ctab", active && "on", isDragging && "z-10 opacity-80")}
       {...attributes}
       {...listeners}
     >
@@ -145,16 +140,13 @@ function Tab({
         className="flex min-w-0 items-center gap-1.5"
       >
         {tab.busy ? (
-          <span
-            aria-hidden
-            className="size-1.5 shrink-0 animate-pulse rounded-full bg-info"
-          />
+          <span aria-hidden className="pdot animate-pulse" style={{ "--g8-c": "var(--g8-accent)", borderRadius: "50%", width: 6, height: 6 } as React.CSSProperties} />
         ) : (
-          <MessageSquare className="size-3.5 shrink-0 text-faint-foreground" />
+          <Gi icon={MessageSquare} size={13} />
         )}
         <span className="max-w-40 truncate">{tab.title}</span>
         {tab.unread && !active ? (
-          <span aria-label="New reply" className="size-1.5 shrink-0 rounded-full bg-info" />
+          <span aria-label="New reply" className="pdot" style={{ "--g8-c": "var(--g8-accent)", borderRadius: "50%", width: 6, height: 6 } as React.CSSProperties} />
         ) : null}
       </button>
       <button
@@ -166,13 +158,9 @@ function Tab({
         aria-label={`Close ${tab.title}`}
         // Reveal on hover/focus only — a permanently visible × on every tab
         // turns the strip into a row of buttons rather than a row of places.
-        className={cn(
-          "flex size-5 shrink-0 items-center justify-center rounded-pill text-faint-foreground transition-colors",
-          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-accent-pressed hover:text-foreground",
-          active && "opacity-100",
-        )}
+        className="ibtn ibtn-xs x"
       >
-        <X className="size-3" />
+        <Gi icon={X} size={12} />
       </button>
     </div>
   );

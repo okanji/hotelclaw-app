@@ -2,7 +2,7 @@
 
 import { Workflow } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { WfPage } from "./g8-bits";
 import { NewWorkflowClient } from "@/app/p/[propertyId]/workflows/new/new-workflow-client";
 
 export function WorkflowsNew({ propertyId }: { propertyId: string }) {
@@ -14,11 +14,13 @@ export function WorkflowsNew({ propertyId }: { propertyId: string }) {
           { label: "New" },
         ]}
       />
-      <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-12 pb-12">
-          <NewWorkflowClient propertyId={propertyId} />
-        </PageShell>
-      </div>
+      <WfPage
+        title="Describe what you want"
+        lede="Type a goal in plain English — AI designs the workflow across your property’s tasks, chat, docs, meetings, calendar, forms, and entities."
+        narrow
+      >
+        <NewWorkflowClient propertyId={propertyId} />
+      </WfPage>
     </div>
   );
 }

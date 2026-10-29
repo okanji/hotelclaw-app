@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { Bot, MessagesSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { OutcomeBadge } from "@/components/chatbots/conversations-list";
+import { Gi } from "@/components/gr8r/icon";
+import { OutcomeBadge, WithStaffBadge } from "@/components/chatbots/conversations-list";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
 } from "@/lib/db/types";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 /**
@@ -47,33 +45,42 @@ export default async function AllConversationsPage({
           { label: "Chatbots", href: `/p/${propertyId}/chatbots`, icon: <Bot /> },
           { label: "Conversations" },
         ]}
-        meta="Escalations show “With staff” — open one to reply"
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph">
+            <div>
+              <h1>Conversations</h1>
+              <p>Every guest chat across your bots. Escalations show “With staff” — open one to reply.</p>
+            </div>
+          </div>
           {rows.length === 0 ? (
-            <EmptyState icon={MessagesSquare} title="No conversations yet">
-              Publish a chatbot and share its QR code — guest chats land here.
-            </EmptyState>
+            <div className="panel">
+              <div className="empty-state">
+                <div className="glyph">
+                  <Gi icon={MessagesSquare} />
+                </div>
+                <p className="es-h">No conversations yet</p>
+                <p>Publish a chatbot and share its QR code — guest chats land here.</p>
+              </div>
+            </div>
           ) : (
-            <ul className="divide-y divide-border rounded-md shadow-ring">
+            <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {rows.map((c) => (
                 <li key={c.id}>
                   <Link
                     href={`/p/${propertyId}/chatbots/${c.chatbot_id}/conversations/${c.id}`}
-                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
+                    className="nrow"
+                    style={{ alignItems: "center" }}
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">
+                    <div className="col grow" style={{ gap: 2 }}>
+                      <span className="trunc" style={{ fontWeight: 500 }}>
                         {c.guest_name ?? "Anonymous guest"}
                         {c.room_number ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            · Room {c.room_number}
-                          </span>
+                          <span className="muted"> · Room {c.room_number}</span>
                         ) : null}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
+                      </span>
+                      <span className="trunc muted" style={{ fontSize: 12 }}>
                         {botNames.get(c.chatbot_id) ?? "Chatbot"} · {c.message_count}{" "}
                         message{c.message_count === 1 ? "" : "s"}
                         {c.last_message_at
@@ -84,18 +91,16 @@ export default async function AllConversationsPage({
                               minute: "2-digit",
                             })}`
                           : ""}
-                      </p>
+                      </span>
                     </div>
-                    {(c.status as ChatbotConversationStatus) === "human" ? (
-                      <StatusBadge tone="info">With staff</StatusBadge>
-                    ) : null}
+                    {(c.status as ChatbotConversationStatus) === "human" ? <WithStaffBadge /> : null}
                     <OutcomeBadge outcome={c.outcome as ChatbotConversationOutcome} />
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </PageShell>
+        </div>
       </div>
     </div>
   );

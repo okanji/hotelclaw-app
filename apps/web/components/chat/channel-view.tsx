@@ -133,8 +133,11 @@ export function ChannelView({
     // Cold query finished and found nothing → not a member / archived / gone.
     if (coldForThis) {
       return (
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          This channel doesn’t exist or you don’t have access.
+        <div className="flex flex-1 items-center justify-center">
+          <div className="empty-state">
+            <h2 className="es-h">Channel unavailable</h2>
+            <p>This channel doesn’t exist or you don’t have access.</p>
+          </div>
         </div>
       );
     }

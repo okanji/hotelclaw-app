@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { CloudAlert } from "lucide-react";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { FullState, RetryButton } from "@/components/shell/route-error";
 
 /**
  * App-level error boundary — catches render errors that escape a section,
  * e.g. in the property `layout`'s providers or an auth page. Section-page
  * errors are caught closer by `app/p/[propertyId]/error.tsx`, which keeps the
- * app shell mounted.
+ * app shell mounted. gr8r's `stateFailed`, in the auth frame (there is no
+ * shell to sit in here).
  */
 export default function AppError({
   error,
@@ -21,21 +25,19 @@ export default function AppError({
   }, [error]);
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-12 text-center">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Something went wrong</h1>
-        <p className="text-sm text-muted-foreground">
-          An unexpected error stopped this page from loading.
-        </p>
-      </div>
-      <Button type="button" onClick={() => unstable_retry()}>
-        Try again
-      </Button>
-      {error.digest ? (
-        <p className="text-xs text-muted-foreground">
-          Reference: {error.digest}
-        </p>
-      ) : null}
-    </div>
+    <AuthShell>
+      <FullState
+        icon={CloudAlert}
+        title="Something went wrong."
+        message="An unexpected error stopped this page from loading. Your data is safe — try again in a moment."
+        failed
+        digest={error.digest}
+      >
+        <Link href="/" className="btn btn-secondary">
+          Go to Home
+        </Link>
+        <RetryButton onClick={() => unstable_retry()} />
+      </FullState>
+    </AuthShell>
   );
 }

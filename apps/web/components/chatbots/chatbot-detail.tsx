@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import Link from "next/link";
+import { useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,19 +14,15 @@ import {
   Share2,
   Wand2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shell/page-header";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Gi } from "@/components/gr8r/icon";
 import {
   parseChatbotConfig,
   type ChatbotConfig,
   type ChatbotRow,
 } from "@/lib/chatbots/schema";
 import { ChatbotStatusBadge } from "./chatbots-list";
-import { ActionsPanel, type BookableServiceOption } from "./actions-panel";
+import { ActionsPanel } from "./actions-panel";
 import {
   CustomActionsPanel,
   type CustomActionListItem,
@@ -42,8 +37,6 @@ import { ConversationsTab, type ConversationListRow } from "./conversations-list
 import { AnalyticsTab } from "./analytics-tab";
 import { DeployPanel } from "./deploy-panel";
 import { updateChatbot } from "./actions";
-import { NativeSelect } from "@/components/ui/native-select";
-import { PageShell } from "@/components/ui/page-shell";
 
 export type ChannelOption = { id: string; name: string; stream_channel_id: string };
 export type SpaceOption = { id: string; name: string };
@@ -63,7 +56,6 @@ export function ChatbotDetail({
   documents,
   customActions,
   deployedChannelIds,
-  services = [],
 }: {
   propertyId: string;
   bot: ChatbotRow;
@@ -74,7 +66,6 @@ export function ChatbotDetail({
   documents: DocumentOption[];
   customActions: CustomActionListItem[];
   deployedChannelIds: string[];
-  services?: BookableServiceOption[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<
@@ -168,188 +159,192 @@ export function ChatbotDetail({
       .then(() => toast.success("Guest link copied"));
   }
 
+  const TABS: { value: typeof tab; icon: typeof Wand2; label: string; count?: number }[] = [
+    { value: "build", icon: Wand2, label: "Build" },
+    { value: "knowledge", icon: BookOpen, label: "Knowledge", count: sources.length },
+    { value: "skills", icon: Puzzle, label: "Skills", count: skillCount },
+    {
+      value: "conversations",
+      icon: MessagesSquare,
+      label: "Conversations",
+      count: conversations.length,
+    },
+    { value: "analytics", icon: BarChart3, label: "Analytics" },
+    { value: "share", icon: Share2, label: "Share" },
+    { value: "settings", icon: Settings2, label: "Settings" },
+  ];
+
   return (
-    // `bleed`, like the other two-pane workspaces (`agents/agent-detail`,
-    // `fleet/bot-detail`): the builder column sits beside a 380px sticky test
-    // console, so a 960 cap left it 444px wide and the 7-tab strip needed 791
-    // (measured) — it clipped. Bleed keeps ONE left edge (masthead, tab strip,
-    // builder column and console all start at the shell's padding) while
-    // giving the editor room. See DESIGN.md § Page width.
+    // `.page wide`, like the other two-pane workspaces: the builder column
+    // sits beside a 380px sticky test console, so a capped page left the
+    // 7-tab strip clipped. One left edge for header, tabs, builder, console.
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
-        start={
-          <nav
-            aria-label="Breadcrumb"
-            className="flex min-w-0 items-center gap-0.5 text-sm font-medium"
-          >
-            <Link
-              href={`/p/${propertyId}/chatbots`}
-              className="flex shrink-0 items-center gap-1.5 rounded-md px-1 py-0.5 text-secondary-ink transition-[background-color] outline-none hover:bg-accent focus-visible:shadow-focus"
-            >
-              <Bot className="size-4 text-faint-foreground" />
-              Chatbots
-            </Link>
-            <span aria-hidden className="px-0.5 text-faint-foreground">
-              /
-            </span>
-            <span className="shrink-0 px-0.5 text-sm leading-none">
-              {config.appearance.avatarEmoji}
-            </span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") setName(bot.name);
-              }}
-              aria-label="Chatbot name"
-              className="field-sizing-content min-w-24 max-w-[40ch] truncate rounded-md bg-transparent px-1 py-0.5 text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground hover:bg-accent focus-visible:bg-accent"
-              placeholder="Untitled chatbot"
-            />
-          </nav>
-        }
-        actions={
-          <div className="flex items-center gap-1.5">
-            <ChatbotStatusBadge status={status} />
-            <Button variant="outline" size="sm" onClick={copyGuestLink}>
-              <Copy data-slot="icon" />
-              <span className="max-sm:hidden">Guest link</span>
-            </Button>
-            {dirty ? (
-              <Button size="sm" onClick={save} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            ) : null}
-            {status !== "published" ? (
-              <Button
-                size="sm"
-                onClick={() => setBotStatus("published")}
-                disabled={savingStatus}
-              >
-                Publish
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBotStatus("paused")}
-                disabled={savingStatus}
-              >
-                Pause
-              </Button>
-            )}
-          </div>
-        }
+        breadcrumbs={[
+          { label: "Chatbots", icon: <Bot />, href: `/p/${propertyId}/chatbots` },
+          { label: name || "Untitled chatbot" },
+        ]}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-16">
-        <PageShell width="bleed">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph" style={{ alignItems: "center" }}>
+            <span className="picon lg" style={{ "--g8-c": "var(--g8-violet)" } as CSSProperties}>
+              {config.appearance.avatarEmoji ? (
+                <span style={{ fontSize: 17, lineHeight: 1 }}>{config.appearance.avatarEmoji}</span>
+              ) : (
+                <Gi icon={Bot} size={17} />
+              )}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <h1>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={saveName}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") setName(bot.name);
+                  }}
+                  aria-label="Chatbot name"
+                  className="ph-name-in field-sizing-content"
+                  placeholder="Untitled chatbot"
+                />
+              </h1>
+              <p className="row" style={{ gap: 8 }}>
+                <ChatbotStatusBadge status={status} />
+                <span className="mono faint" style={{ fontSize: 12 }}>
+                  /g/{bot.public_slug}
+                </span>
+              </p>
+            </div>
+            <div className="acts">
+              <button type="button" className="btn btn-secondary" onClick={copyGuestLink}>
+                <Gi icon={Copy} size={14} />
+                <span className="max-sm:hidden">Guest link</span>
+              </button>
+              {dirty ? (
+                <button type="button" className="btn btn-secondary" onClick={save} disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              ) : null}
+              {status !== "published" ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setBotStatus("published")}
+                  disabled={savingStatus}
+                >
+                  Publish
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setBotStatus("paused")}
+                  disabled={savingStatus}
+                >
+                  Pause
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
-            <Tabs
-              value={tab}
-              onValueChange={(t) => setTab(t as typeof tab)}
-              className="flex min-w-0 flex-col"
-            >
-              {/* View-tab pill row (notion-spec-v2 §6): no underline rail, no
-                  container fill — the active tab IS the warm hover fill. */}
-              <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto">
-                <TabTrigger value="build" icon={Wand2} label="Build" />
-                <TabTrigger
-                  value="knowledge"
-                  icon={BookOpen}
-                  label="Knowledge"
-                  count={sources.length}
-                />
-                <TabTrigger
-                  value="skills"
-                  icon={Puzzle}
-                  label="Skills"
-                  count={skillCount}
-                />
-                <TabTrigger
-                  value="conversations"
-                  icon={MessagesSquare}
-                  label="Conversations"
-                  count={conversations.length}
-                />
-                <TabTrigger value="analytics" icon={BarChart3} label="Analytics" />
-                <TabTrigger value="share" icon={Share2} label="Share" />
-                <TabTrigger value="settings" icon={Settings2} label="Settings" />
-              </TabsList>
+            <div className="flex min-w-0 flex-col">
+              <div className="tabs" role="tablist" aria-label="Chatbot editor">
+                {TABS.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === t.value}
+                    className={tab === t.value ? "tab on" : "tab"}
+                    onClick={() => setTab(t.value)}
+                  >
+                    <Gi icon={t.icon} size={14} />
+                    {t.label}
+                    {typeof t.count === "number" && t.count > 0 ? (
+                      <span className="cnt num">{t.count}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
 
-              <TabsContent value="build" className="mt-5 space-y-6">
-                <BuildSection config={config} onChange={updateConfig} />
-              </TabsContent>
+              <div role="tabpanel" className="stack" style={{ marginTop: 20, gap: 24 }}>
+                {tab === "build" ? (
+                  <BuildSection config={config} onChange={updateConfig} />
+                ) : null}
 
-              <TabsContent value="knowledge" className="mt-5">
-                <KnowledgePanel
-                  propertyId={propertyId}
-                  chatbotId={bot.id}
-                  sources={sources}
-                  documents={documents}
-                  lastTrainedAt={bot.last_trained_at}
-                />
-              </TabsContent>
+                {tab === "knowledge" ? (
+                  <KnowledgePanel
+                    propertyId={propertyId}
+                    chatbotId={bot.id}
+                    sources={sources}
+                    documents={documents}
+                    lastTrainedAt={bot.last_trained_at}
+                  />
+                ) : null}
 
-              <TabsContent value="skills" className="mt-5 space-y-6">
-                <SkillsIntro count={skillCount} />
-                <ActionsPanel
-                  config={config}
-                  channels={channels}
-                  spaces={spaces}
-                  services={services}
-                  knowledge={{
-                    total: sources.length,
-                    trained: sources.filter((s) => s.status === "trained").length,
-                  }}
-                  onChange={(actions) => updateConfig({ actions })}
-                />
-                <CustomActionsPanel
-                  propertyId={propertyId}
-                  chatbotId={bot.id}
-                  actions={customActions}
-                />
-              </TabsContent>
+                {tab === "skills" ? (
+                  <>
+                    <SkillsIntro count={skillCount} />
+                    <ActionsPanel
+                      config={config}
+                      channels={channels}
+                      spaces={spaces}
+                      knowledge={{
+                        total: sources.length,
+                        trained: sources.filter((s) => s.status === "trained").length,
+                      }}
+                      onChange={(actions) => updateConfig({ actions })}
+                    />
+                    <CustomActionsPanel
+                      propertyId={propertyId}
+                      chatbotId={bot.id}
+                      actions={customActions}
+                    />
+                  </>
+                ) : null}
 
-              <TabsContent value="conversations" className="mt-5">
-                <ConversationsTab
-                  propertyId={propertyId}
-                  chatbotId={bot.id}
-                  conversations={conversations}
-                />
-              </TabsContent>
+                {tab === "conversations" ? (
+                  <ConversationsTab
+                    propertyId={propertyId}
+                    chatbotId={bot.id}
+                    conversations={conversations}
+                  />
+                ) : null}
 
-              <TabsContent value="analytics" className="mt-5">
                 {/* Mounted on demand — the route runs a lazy Haiku labeling pass. */}
                 {tab === "analytics" ? (
                   <AnalyticsTab propertyId={propertyId} chatbotId={bot.id} />
                 ) : null}
-              </TabsContent>
 
-              <TabsContent value="share" className="mt-5 space-y-6">
-                <ShareIntro status={status} />
-                <DeployPanel
-                  chatbotId={bot.id}
-                  propertyId={propertyId}
-                  publicSlug={bot.public_slug}
-                  status={status}
-                  allowedDomains={bot.allowed_domains ?? []}
-                  twilioNumber={bot.twilio_number ?? null}
-                  channels={channels}
-                  deployedChannelIds={deployedChannelIds}
-                />
-              </TabsContent>
+                {tab === "share" ? (
+                  <>
+                    <ShareIntro status={status} />
+                    <DeployPanel
+                      chatbotId={bot.id}
+                      propertyId={propertyId}
+                      publicSlug={bot.public_slug}
+                      status={status}
+                      allowedDomains={bot.allowed_domains ?? []}
+                      twilioNumber={bot.twilio_number ?? null}
+                      channels={channels}
+                      deployedChannelIds={deployedChannelIds}
+                    />
+                  </>
+                ) : null}
 
-              <TabsContent value="settings" className="mt-5 space-y-6">
-                <SettingsSection
-                  bot={bot}
-                  config={config}
-                  spaces={spaces}
-                  onChange={updateConfig}
-                />
-              </TabsContent>
-            </Tabs>
+                {tab === "settings" ? (
+                  <SettingsSection
+                    bot={bot}
+                    config={config}
+                    spaces={spaces}
+                    onChange={updateConfig}
+                  />
+                ) : null}
+              </div>
+            </div>
 
             {/* Sticky test console — visible whichever tab is active, so every
                 edit can be tried immediately. Tests run against SAVED config. */}
@@ -365,36 +360,9 @@ export function ChatbotDetail({
               />
             </div>
           </div>
-        </PageShell>
+        </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------ Tab trigger ----------------------------- */
-
-/** Underline tab with a micro icon and an optional count chip. */
-function TabTrigger({
-  value,
-  icon: Icon,
-  label,
-  count,
-}: {
-  value: string;
-  icon: typeof Wand2;
-  label: string;
-  count?: number;
-}) {
-  return (
-    <TabsTrigger value={value} className="flex-none gap-1.5 px-3">
-      <Icon className="size-4 shrink-0" />
-      {label}
-      {typeof count === "number" && count > 0 ? (
-        <span className="ml-0.5 rounded-full bg-muted px-1.5 text-xs font-medium tabular-nums text-muted-foreground in-data-active:text-foreground">
-          {count}
-        </span>
-      ) : null}
-    </TabsTrigger>
   );
 }
 
@@ -402,20 +370,15 @@ function TabTrigger({
 
 function SkillsIntro({ count }: { count: number }) {
   return (
-    <section className="space-y-1">
-      <div className="flex items-center gap-2">
-        <h2 className="text-base font-semibold">Skills</h2>
-        {count > 0 ? (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-            {count} active
-          </span>
-        ) : null}
+    <section>
+      <div className="row">
+        <h2 className="sec">Skills</h2>
+        {count > 0 ? <span className="badge accent num">{count} active</span> : null}
       </div>
-      <p className="max-w-[68ch] text-sm text-pretty text-muted-foreground">
+      <p className="muted" style={{ margin: "4px 0 0", maxWidth: "68ch", fontSize: 13 }}>
         Knowledge is what your bot <em>knows</em>; skills are what it can{" "}
         <em>do</em>. Each skill is a tool the bot calls mid-conversation —
-        collecting a guest&apos;s details, filing a ticket to your team, checking
-        real availability and booking, or handing off to a human. Toggle the
+        collecting a guest&apos;s details, filing a ticket to your team, or handing off to a human. Toggle the
         built-in skills below, or connect your own API as a custom skill.
       </p>
     </section>
@@ -426,18 +389,16 @@ function SkillsIntro({ count }: { count: number }) {
 
 function ShareIntro({ status }: { status: ChatbotRow["status"] }) {
   return (
-    <section className="space-y-1">
-      <h2 className="text-base font-semibold">
-        Put this bot in front of guests
-      </h2>
-      <p className="max-w-[68ch] text-sm text-pretty text-muted-foreground">
+    <section>
+      <h2 className="sec">Put this bot in front of guests</h2>
+      <p className="muted" style={{ margin: "4px 0 0", maxWidth: "68ch", fontSize: 13 }}>
         Share the hosted page link or QR code, embed a floating chat bubble on
         your website, or connect it to a channel.
         {status !== "published" ? (
-          <span className="font-medium text-foreground">
+          <b style={{ color: "var(--g8-text)" }}>
             {" "}
             Publish the bot first — guests can&apos;t reach a draft.
-          </span>
+          </b>
         ) : null}
       </p>
     </section>
@@ -454,27 +415,29 @@ function BuildSection({
   onChange: (patch: Partial<ChatbotConfig>) => void;
 }) {
   return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <Label htmlFor="bot-instructions">Instructions</Label>
-        <p className="text-xs text-muted-foreground">
+    <div className="stack" style={{ gap: 24 }}>
+      <section className="field">
+        <label className="label" htmlFor="bot-instructions">Instructions</label>
+        <p className="hint" style={{ margin: 0 }}>
           Who the bot is, what it helps guests with, its tone, and what it must
           never do. The more specific, the better it behaves.
         </p>
-        <Textarea
+        <textarea
           id="bot-instructions"
           value={config.instructions}
           onChange={(e) => onChange({ instructions: e.target.value })}
           rows={10}
           placeholder="You are the front-desk concierge for this property…"
-          className="font-mono text-sm leading-relaxed"
+          className="textarea mono"
+          style={{ lineHeight: 1.55 }}
         />
       </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="bot-display-name">Display name</Label>
-          <Input
+        <div className="field">
+          <label className="label" htmlFor="bot-display-name">Display name</label>
+          <input
+            className="input"
             id="bot-display-name"
             value={config.appearance.displayName}
             onChange={(e) =>
@@ -485,9 +448,10 @@ function BuildSection({
             placeholder="Front Desk"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="bot-emoji">Avatar emoji</Label>
-          <Input
+        <div className="field">
+          <label className="label" htmlFor="bot-emoji">Avatar emoji</label>
+          <input
+            className="input"
             id="bot-emoji"
             value={config.appearance.avatarEmoji}
             onChange={(e) =>
@@ -496,14 +460,15 @@ function BuildSection({
               })
             }
             maxLength={4}
-            className="w-24"
+            style={{ width: 96 }}
           />
         </div>
       </section>
 
-      <section className="space-y-2">
-        <Label htmlFor="bot-greeting">Greeting</Label>
-        <Input
+      <section className="field">
+        <label className="label" htmlFor="bot-greeting">Greeting</label>
+        <input
+          className="input"
           id="bot-greeting"
           value={config.greeting}
           onChange={(e) => onChange({ greeting: e.target.value })}
@@ -511,13 +476,14 @@ function BuildSection({
         />
       </section>
 
-      <section className="space-y-2">
-        <Label>Suggested questions</Label>
-        <p className="text-xs text-muted-foreground">
+      <section className="field">
+        <span className="label">Suggested questions</span>
+        <p className="hint" style={{ margin: 0 }}>
           Up to four tappable starters guests see before they type.
         </p>
         {[0, 1, 2, 3].map((i) => (
-          <Input
+          <input
+            className="input"
             key={i}
             value={config.suggestedQuestions[i] ?? ""}
             onChange={(e) => {
@@ -571,10 +537,11 @@ function SettingsSection({
   }
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <Label htmlFor="bot-model">Model</Label>
-        <NativeSelect
+    <div className="stack" style={{ gap: 24 }}>
+      <section className="field">
+        <label className="label" htmlFor="bot-model">Model</label>
+        <select
+          className="select"
           id="bot-model"
           value={config.modelTier}
           onChange={(e) =>
@@ -583,13 +550,14 @@ function SettingsSection({
         >
           <option value="standard">Standard — fast and economical (FAQ bots)</option>
           <option value="advanced">Advanced — strongest (order-taking, multi-step)</option>
-        </NativeSelect>
+        </select>
       </section>
 
       {spaces.length > 0 ? (
-        <section className="space-y-2">
-          <Label htmlFor="bot-default-team">Default team for tickets</Label>
-          <NativeSelect
+        <section className="field">
+          <label className="label" htmlFor="bot-default-team">Default team for tickets</label>
+          <select
+          className="select"
             id="bot-default-team"
             value={config.defaultTeamId ?? ""}
             onChange={(e) =>
@@ -602,17 +570,17 @@ function SettingsSection({
                 {s.name}
               </option>
             ))}
-          </NativeSelect>
-          <p className="text-xs text-muted-foreground">
+          </select>
+          <p className="hint" style={{ margin: 0 }}>
             Where tickets the bot raises land. Leave unassigned and triage
             routes each to the right team using the org chart.
           </p>
         </section>
       ) : null}
 
-      <section className="space-y-3 rounded-lg p-4 shadow-ring">
-        <p className="text-sm font-medium">Answer strictness</p>
-        <label className="flex items-start gap-2 text-sm">
+      <section className="panel stack" style={{ padding: 14, gap: 12 }}>
+        <p className="label" style={{ margin: 0 }}>Answer strictness</p>
+        <label className="row" style={{ alignItems: "flex-start", gap: 8, fontSize: 13 }}>
           <input
             type="checkbox"
             checked={config.guardrails.onlyFromSources}
@@ -621,19 +589,20 @@ function SettingsSection({
                 guardrails: { ...config.guardrails, onlyFromSources: e.target.checked },
               })
             }
-            className="mt-0.5"
+            style={{ marginTop: 2 }}
           />
           <span>
             Only answer from knowledge
-            <span className="block text-xs text-muted-foreground">
+            <span className="hint" style={{ display: "block" }}>
               The bot never guesses prices, hours, or policies — if it isn&apos;t
               in the knowledge base, it says so and offers the team.
             </span>
           </span>
         </label>
-        <div className="space-y-2">
-          <Label htmlFor="bot-fallback">When it can&apos;t help, it says</Label>
-          <Input
+        <div className="field">
+          <label className="label" htmlFor="bot-fallback">When it can&apos;t help, it says</label>
+          <input
+            className="input"
             id="bot-fallback"
             value={config.guardrails.fallbackMessage}
             onChange={(e) =>
@@ -643,9 +612,10 @@ function SettingsSection({
             }
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="bot-handoff">When handing off, it says</Label>
-          <Input
+        <div className="field">
+          <label className="label" htmlFor="bot-handoff">When handing off, it says</label>
+          <input
+            className="input"
             id="bot-handoff"
             value={config.guardrails.handoffMessage}
             onChange={(e) =>
@@ -657,32 +627,34 @@ function SettingsSection({
         </div>
       </section>
 
-      <section className="space-y-3 rounded-lg p-4 shadow-ring">
-        <p className="text-sm font-medium">Limits</p>
+      <section className="panel stack" style={{ padding: 14, gap: 12 }}>
+        <p className="label" style={{ margin: 0 }}>Limits</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="bot-daily-cap">Bot replies per day</Label>
-            <Input
+          <div className="field">
+            <label className="label" htmlFor="bot-daily-cap">Bot replies per day</label>
+            <input
+              className="input"
               id="bot-daily-cap"
               inputMode="numeric"
               value={dailyCap}
               onChange={(e) => setDailyCap(e.target.value)}
               onBlur={saveCaps}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="hint" style={{ margin: 0 }}>
               Past this, guests get the fallback message until midnight.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="bot-session-cap">Guest messages per conversation</Label>
-            <Input
+          <div className="field">
+            <label className="label" htmlFor="bot-session-cap">Guest messages per conversation</label>
+            <input
+              className="input"
               id="bot-session-cap"
               inputMode="numeric"
               value={sessionCap}
               onChange={(e) => setSessionCap(e.target.value)}
               onBlur={saveCaps}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="hint" style={{ margin: 0 }}>
               Past this, the bot wraps up and offers a human.
             </p>
           </div>

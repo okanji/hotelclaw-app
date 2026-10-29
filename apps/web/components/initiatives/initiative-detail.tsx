@@ -5,18 +5,37 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Archive, Check, ChevronRight, MoreHorizontal, RotateCcw, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import {
+  Activity,
+  Archive,
+  Check,
+  FolderKanban,
+  LayoutGrid,
+  MoreHorizontal,
+  RotateCcw,
+  Target,
+  X,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, G8_COLOR, PStatus, ProgBar } from "@/components/gr8r/home-glyphs";
+import { G8Empty, FeedItem } from "@/components/gr8r/members-shared";
+import {
+  G8Panel,
+  PROJECT_STATUS,
+  ProjectIcon,
+  ProjectPageShell,
+  fmtDay,
+  type CSSVars,
+  type ProjectTabDef,
+} from "@/components/gr8r/project-page";
+import { KV_ICONS, KvRow } from "@/components/gr8r/project-overview";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
 import type { InitiativeStatus } from "@/lib/db/types";
 import { initiativeQueryOptions } from "@/lib/query/initiative-queries";
 import { propertyMembersQueryOptions } from "@/lib/query/section-queries";
@@ -25,30 +44,16 @@ import { activityLogQueryOptions } from "@/lib/query/activity-log-queries";
 import { formatTarget, pct } from "@/lib/initiatives/planning";
 import {
   ActivityLogFeed,
-  ActivityLogList,
   useActivityLogRealtime,
   useActivityLookup,
   useViewerId,
 } from "@/components/activity/activity-log";
-import {
-  MetadataItem,
-  MetadataRow,
-  OverviewSection,
-  PropertyRow,
-  RailDate,
-  RailGroup,
-  RailProgress,
-  railValueClass,
-  WorkspaceShell,
-  ws,
-  type WorkspaceTab,
-} from "@/components/projects/workspace-shell";
+import { useUrlTab } from "@/components/projects/workspace-shell";
 import { WorkspaceDescription } from "@/components/projects/workspace-description";
 import { AddPicker } from "@/components/projects/workspace-panels";
 import { UpdatesSection } from "@/components/projects/project-updates";
 import {
   HEALTH_META,
-  PROJECT_STATUS_META,
   projectHealth,
 } from "@/components/projects/tracking/tracking-shared";
 import {
@@ -57,7 +62,7 @@ import {
   unlinkInitiativeProject,
   updateInitiative,
 } from "./actions";
-import { HealthDot } from "./health";
+import { HealthDot, UpdateHealthBadge } from "./health";
 import { INITIATIVE_STATUS_META, INITIATIVE_STATUSES } from "./initiative-status";
 import { useInitiativeRollups } from "./use-initiative-rollups";
 import { useInitiativesRealtime } from "./use-initiatives-realtime";
@@ -65,10 +70,13 @@ import { useInitiativesRealtime } from "./use-initiatives-realtime";
 type Person = { id: string; name: string | null; avatarUrl: string | null };
 
 /**
- * One initiative's workspace — the project page's chrome (`WorkspaceShell`)
- * over Linear's initiative overview: editable name + description, the updates
- * composer/feed, linked projects with progress + health (add / remove), and
- * a properties rail (status, health, owner, lead team, target).
+ * One initiative's workspace — gr8r's project page chrome
+ * (`ProjectPageShell`: `.proj-h` title row + `.tabs`) over Linear's
+ * initiative overview in gr8r's `.grid2` of panels: About (editable
+ * description), Updates (composer + feed), linked Projects with progress +
+ * health (add / remove) on the left; Details (`dl.kv`: status, health,
+ * owner, lead team, target, created), Progress and Recent activity on the
+ * right. The Activity tab is the full filtered feed.
  */
 export function InitiativeDetail({
   propertyId,
@@ -110,6 +118,7 @@ export function InitiativeDetail({
   const done = linkedProjects.reduce((n, p) => n + p.done, 0);
   const total = linkedProjects.reduce((n, p) => n + p.total, 0);
 
+  const [tab, setTab] = useUrlTab("overview");
   const [name, setName] = useState("");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -163,20 +172,20 @@ export function InitiativeDetail({
 
   if (isPending)
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading initiative…
+      <div className="fullstate">
+        <span className="faint">Loading initiative…</span>
       </div>
     );
   if (!initiative)
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-        <p className="text-sm text-muted-foreground">Initiative not found.</p>
-        <Link
-          href={`/p/${propertyId}/initiatives`}
-          className="text-sm text-foreground underline underline-offset-4"
-        >
-          Back to initiatives
-        </Link>
+      <div className="fullstate">
+        <div className="box">
+          <G8Empty icon={Target} title="Initiative not found" text="It may have been archived or removed.">
+            <Link href={`/p/${propertyId}/initiatives`} className="btn btn-secondary btn-sm">
+              Back to initiatives
+            </Link>
+          </G8Empty>
+        </div>
       </div>
     );
 
@@ -184,148 +193,58 @@ export function InitiativeDetail({
   const healthSuffix = health.source === "rollup" ? " (from projects)" : undefined;
   const target = formatTarget(initiative.target_date);
 
-  const breadcrumb = (
-    <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-      <Link
-        href={`/p/${propertyId}/initiatives`}
-        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        Initiatives
-      </Link>
-      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="flex min-w-0 items-center gap-1.5 truncate text-foreground">
-        {initiative.icon ? (
-          <span className="shrink-0 text-sm leading-none">{initiative.icon}</span>
-        ) : (
-          <span
-            className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[initiative.color])}
-            aria-hidden="true"
-          />
-        )}
-        <span className="truncate">{initiative.name}</span>
-      </span>
-    </nav>
-  );
+  const tabsDef: ProjectTabDef[] = [
+    { id: "overview", label: "Overview", icon: LayoutGrid },
+    { id: "activity", label: "Activity", icon: Activity },
+  ];
+  const progressPct = total ? Math.round((done / total) * 100) : 0;
 
-  const header = (
-    <div className="flex flex-col gap-4">
-      {initiative.archived_at ? (
-        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-          This initiative is archived.
-        </p>
-      ) : null}
-      <div className="flex min-w-0 items-center gap-2.5">
-        {initiative.icon ? (
-          <span className="shrink-0 text-2xl leading-none">{initiative.icon}</span>
-        ) : (
-          <span
-            className={cn("size-3 shrink-0 rounded-md", LABEL_DOT[initiative.color])}
-            aria-hidden="true"
-          />
-        )}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => void commitName()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setName(initiative.name);
-              e.currentTarget.blur();
-            }
-          }}
-          aria-label="Initiative name"
-          className={cn(
-            "min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground",
-            ws.title,
-          )}
-          placeholder="Untitled initiative"
-        />
-      </div>
-      <div className="pb-3">
-        <WorkspaceDescription value={initiative.description} onSave={commitDescription} />
-      </div>
-      <MetadataRow>
-        <MetadataItem label="Status">
-          <StatusMenu
-            status={initiative.status}
-            onSelect={(status) => void patch({ status })}
-            inline
-          />
-        </MetadataItem>
-        <MetadataItem label="Health">
-          <HealthDot health={health.health} suffix={healthSuffix} />
-        </MetadataItem>
-        <MetadataItem label="Projects">
-          <span className="tabular-nums">{linkedProjects.length}</span>
-        </MetadataItem>
-        {target ? (
-          <MetadataItem label="Target">
-            <span className="tabular-nums">{target}</span>
-          </MetadataItem>
-        ) : null}
-      </MetadataRow>
-    </div>
-  );
-
-  const projectsSection = (
-    <OverviewSection
+  const projectsPanel = (
+    <G8Panel
       title="Projects"
-      action={
+      count={linkedProjects.length}
+      flush
+      acts={
         <AddPicker label="Add project" candidates={candidates} onAdd={(id) => void addProject(id)} />
       }
     >
       {linkedProjects.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No projects yet — add the projects that move this initiative forward.
-        </p>
+        <G8Empty
+          icon={FolderKanban}
+          title="No projects yet"
+          text="Add the projects that move this initiative forward."
+          sm
+        />
       ) : (
-        <ul role="list" className="flex flex-col">
+        <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {linkedProjects.map((p) => {
-            const status = PROJECT_STATUS_META[p.status];
+            const status = PROJECT_STATUS[p.status];
             const computed = HEALTH_META[projectHealth(p)];
             const progress = pct(p.done, p.total);
             return (
-              <li key={p.id} className="group/row relative border-t border-border first:border-0">
+              <li key={p.id} className="group/row relative">
                 <Link
                   href={`/p/${propertyId}/projects/${p.id}`}
-                  className="flex min-h-[44px] items-center gap-3 rounded-md py-1.5 pr-9 pl-0.5 transition-colors hover:bg-accent"
+                  className="mini"
+                  style={{ paddingRight: 40, minHeight: 44 }}
                 >
-                  {p.icon ? (
-                    <span className="w-3 shrink-0 text-center text-sm leading-none">{p.icon}</span>
-                  ) : (
-                    <span
-                      className={cn("size-1.5 shrink-0 rounded-full", LABEL_DOT[p.color])}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  <ProjectIcon icon={p.icon} color={p.color} />
+                  <span className="tt" style={{ fontWeight: 500 }}>
                     {p.name || "Untitled project"}
                   </span>
-                  <span className="hidden w-24 shrink-0 items-center gap-1.5 text-sm text-muted-foreground sm:flex">
-                    <span className={cn("size-1.5 rounded-full", status.dot)} aria-hidden="true" />
-                    {status.label}
+                  <span className="hidden sm:inline-flex" style={{ width: 104, flexShrink: 0 }}>
+                    <PStatus name={status.name} color={status.c} />
                   </span>
-                  <span className="w-28 shrink-0">
+                  <span style={{ width: 112, flexShrink: 0, fontSize: "var(--g8-fs-sm)" }}>
                     {p.declared ? (
                       <HealthDot health={p.declared} />
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <span className={cn("size-2 rounded-full", computed.dot)} aria-hidden="true" />
-                        {computed.label}
-                      </span>
+                      <span className="muted">{computed.label}</span>
                     )}
                   </span>
-                  <span className="flex w-28 shrink-0 items-center gap-2 sm:w-36">
-                    <span className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                      {p.total > 0 ? (
-                        <span
-                          className="block h-full rounded-full bg-success/90"
-                          style={{ width: `${progress}%` }}
-                        />
-                      ) : null}
-                    </span>
-                    <span className="w-8 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+                  <span className="row" style={{ width: 128, flexShrink: 0, gap: 8 }}>
+                    <ProgBar value={progress} tone="green" />
+                    <span className="faint num" style={{ width: 32, textAlign: "right", fontSize: "var(--g8-fs-xs)" }}>
                       {progress}%
                     </span>
                   </span>
@@ -335,131 +254,151 @@ export function InitiativeDetail({
                   aria-label={`Remove ${p.name} from this initiative`}
                   title="Remove from initiative"
                   onClick={() => void removeProject(p.id)}
-                  className="absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-accent hover:text-destructive focus-visible:opacity-100"
+                  className="ibtn ibtn-sm absolute top-1/2 right-2 -translate-y-1/2 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100"
                 >
-                  <X className="size-3.5" />
+                  <Gi icon={X} size={13} />
                 </button>
               </li>
             );
           })}
         </ul>
       )}
-    </OverviewSection>
+    </G8Panel>
   );
 
-  const tabs: WorkspaceTab[] = [
-    {
-      id: "overview",
-      label: "Overview",
-      content: (
-        <div className="flex flex-col gap-10">
-          <UpdatesSection propertyId={propertyId} target={{ kind: "initiative", id: initiativeId }} />
-          {projectsSection}
-        </div>
-      ),
-    },
-    {
-      id: "activity",
-      label: "Activity",
-      content: (
-        <ActivityLogFeed
-          propertyId={propertyId}
-          scope={{ kind: "entity", id: initiativeId }}
-          meId={meId}
-          showProject={false}
+  const details = (
+    <dl className="kv">
+      <KvRow icon={KV_ICONS.status} label="Status">
+        <StatusMenu status={initiative.status} onSelect={(status) => void patch({ status })} />
+      </KvRow>
+      <KvRow icon={KV_ICONS.health} label="Health">
+        <span className="pillbtn" style={{ cursor: "default" }}>
+          <HealthDot health={health.health} suffix={healthSuffix} />
+        </span>
+      </KvRow>
+      <KvRow icon={KV_ICONS.lead} label="Owner">
+        <PersonPicker
+          people={people}
+          value={initiative.owner_id}
+          emptyLabel="No owner"
+          clearLabel="Clear owner"
+          onSelect={(owner_id) => void patch({ owner_id })}
         />
-      ),
-    },
-  ];
-
-  const rightRail = (
-    <div className="flex flex-col">
-      <RailGroup label="Properties">
-        <PropertyRow label="Status">
-          <StatusMenu status={initiative.status} onSelect={(status) => void patch({ status })} />
-        </PropertyRow>
-        <PropertyRow label="Health">
-          <span className="px-1.5 py-1">
-            <HealthDot health={health.health} suffix={healthSuffix} />
-          </span>
-        </PropertyRow>
-        <PropertyRow label="Owner">
-          <PersonPicker
-            people={people}
-            value={initiative.owner_id}
-            emptyLabel="No owner"
-            clearLabel="Clear owner"
-            onSelect={(owner_id) => void patch({ owner_id })}
+      </KvRow>
+      <KvRow icon={KV_ICONS.team} label="Lead team">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<button type="button" className="pillbtn" />}>
+            {(() => {
+              const team = spaces.find((s) => s.id === initiative.lead_space_id);
+              return team ? (
+                <>
+                  <span className="pdot" style={{ "--g8-c": G8_COLOR[team.color], borderRadius: "50%" } as CSSVars} />
+                  <span className="trunc">{team.name}</span>
+                </>
+              ) : (
+                <span className="faint">No team</span>
+              );
+            })()}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" sideOffset={6} className="max-h-72 overflow-y-auto">
+            {spaces.map((s) => (
+              <DropdownMenuItem key={s.id} onClick={() => void patch({ lead_space_id: s.id })}>
+                <span className="size-2 rounded-full" style={{ background: G8_COLOR[s.color] }} />
+                <span className="flex-1 truncate">{s.name}</span>
+                {s.id === initiative.lead_space_id ? <Check className="size-3.5" /> : null}
+              </DropdownMenuItem>
+            ))}
+            {initiative.lead_space_id ? (
+              <DropdownMenuItem onClick={() => void patch({ lead_space_id: null })}>
+                <span className="flex-1 text-muted-foreground">Clear team</span>
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </KvRow>
+      <KvRow icon={KV_ICONS.due} label="Target">
+        <span className="row" style={{ gap: 6 }}>
+          <TargetDateInput
+            key={initiative.target_date ?? ""}
+            value={initiative.target_date}
+            onCommit={(target_date) => void patch({ target_date })}
           />
-        </PropertyRow>
-        <PropertyRow label="Lead team">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<button type="button" className={railValueClass} />}>
-              {(() => {
-                const team = spaces.find((s) => s.id === initiative.lead_space_id);
-                return team ? (
-                  <>
-                    <span className={cn("size-1.5 shrink-0 rounded-full", LABEL_DOT[team.color])} />
-                    <span className="truncate">{team.name}</span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">No team</span>
-                );
-              })()}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={6} className="max-h-72 overflow-y-auto">
-              {spaces.map((s) => (
-                <DropdownMenuItem key={s.id} onClick={() => void patch({ lead_space_id: s.id })}>
-                  <span className={cn("size-2 rounded-full", LABEL_DOT[s.color])} />
-                  <span className="flex-1 truncate">{s.name}</span>
-                  {s.id === initiative.lead_space_id ? <Check className="size-3.5" /> : null}
-                </DropdownMenuItem>
-              ))}
-              {initiative.lead_space_id ? (
-                <DropdownMenuItem onClick={() => void patch({ lead_space_id: null })}>
-                  <span className="flex-1 text-muted-foreground">Clear team</span>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </PropertyRow>
-        <PropertyRow label="Target">
-          <span className="flex items-center gap-1.5">
-            <TargetDateInput
-              key={initiative.target_date ?? ""}
-              value={initiative.target_date}
-              onCommit={(target_date) => void patch({ target_date })}
-            />
-            {target ? <span className="text-sm text-faint-foreground">{target}</span> : null}
-          </span>
-        </PropertyRow>
-        <PropertyRow label="Created">
-          <span className="px-1.5 py-1">
-            <RailDate value={initiative.created_at} />
-          </span>
-        </PropertyRow>
-      </RailGroup>
+          {target ? <span className="faint num">{target}</span> : null}
+        </span>
+      </KvRow>
+      <KvRow icon={KV_ICONS.created} label="Created">
+        <span className="pillbtn" style={{ cursor: "default" }}>
+          {fmtDay(initiative.created_at) ?? "—"}
+        </span>
+      </KvRow>
+    </dl>
+  );
 
-      <RailGroup label="Progress">
-        <RailProgress done={done} total={total} />
-        <p className="px-0.5 pt-1 text-xs text-faint-foreground">
-          Issues done across {linkedProjects.length}{" "}
-          {linkedProjects.length === 1 ? "project" : "projects"}
-        </p>
-      </RailGroup>
-
-      <RailGroup label="Activity">
-        <ActivityLogList rows={activity.slice(0, 6)} lookup={lookup} pending={activityPending} dense />
-      </RailGroup>
+  const overview = (
+    <div className="page" style={{ maxWidth: 1160, paddingTop: 22, width: "100%" }}>
+      {initiative.archived_at ? (
+        <div className="alert warn" style={{ marginBottom: 16 }}>
+          <Gi icon={Archive} size={14} />
+          <span>This initiative is archived.</span>
+        </div>
+      ) : null}
+      <div className="grid2">
+        <div className="stack">
+          <G8Panel title="About">
+            <WorkspaceDescription value={initiative.description} onSave={commitDescription} />
+          </G8Panel>
+          <UpdatesSection
+            propertyId={propertyId}
+            target={{ kind: "initiative", id: initiativeId }}
+            variant="panel"
+          />
+          {projectsPanel}
+        </div>
+        <div className="stack" style={{ alignSelf: "start" }}>
+          <G8Panel title="Details">{details}</G8Panel>
+          <G8Panel title="Progress" count={`${progressPct}%`}>
+            <div className="row" style={{ gap: 10 }}>
+              <ProgBar value={progressPct} tone="green" />
+              <span className="muted num" style={{ fontSize: "var(--g8-fs-sm)", flexShrink: 0 }}>
+                {done}/{total}
+              </span>
+            </div>
+            <p className="faint" style={{ margin: "8px 0 0", fontSize: "var(--g8-fs-xs)" }}>
+              Issues done across {linkedProjects.length}{" "}
+              {linkedProjects.length === 1 ? "project" : "projects"}
+            </p>
+          </G8Panel>
+          <G8Panel
+            title="Recent activity"
+            acts={
+              activity.length ? (
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => setTab("activity")}>
+                  View all
+                </button>
+              ) : null
+            }
+          >
+            <div className="feed">
+              {activityPending ? (
+                <span className="faint">Loading…</span>
+              ) : activity.length ? (
+                activity.slice(0, 6).map((a) => <FeedItem key={a.id} row={a} lookup={lookup} />)
+              ) : (
+                <span className="faint">No activity yet</span>
+              )}
+            </div>
+          </G8Panel>
+        </div>
+      </div>
     </div>
   );
 
   const overflow = (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button type="button" size="icon-sm" variant="ghost" title="More" />}
+        render={<button type="button" className="ibtn" title="More" aria-label="More" />}
       >
-        <MoreHorizontal className="size-4" />
+        <Gi icon={MoreHorizontal} size={15} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6}>
         <DropdownMenuItem onClick={() => void toggleArchive()}>
@@ -477,13 +416,64 @@ export function InitiativeDetail({
   );
 
   return (
-    <WorkspaceShell
-      breadcrumb={breadcrumb}
-      header={header}
-      headerActions={overflow}
-      tabs={tabs}
-      rightRail={rightRail}
-    />
+    <ProjectPageShell
+      crumbs={[
+        { label: "Initiatives", href: `/p/${propertyId}/initiatives`, icon: <Target /> },
+        { label: initiative.name || "Untitled initiative" },
+      ]}
+      icon={
+        <span className="picon lg" style={{ "--g8-c": G8_COLOR[initiative.color] } as CSSVars}>
+          {initiative.icon ? (
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{initiative.icon}</span>
+          ) : (
+            <Gi icon={Target} size={18} />
+          )}
+        </span>
+      }
+      title={
+        <h1 style={{ minWidth: 0, flex: "0 1 auto" }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void commitName()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setName(initiative.name);
+                e.currentTarget.blur();
+              }
+            }}
+            aria-label="Initiative name"
+            placeholder="Untitled initiative"
+            size={Math.max(8, Math.min(48, name.length + 1))}
+            className="proj-name-in"
+          />
+        </h1>
+      }
+      status={
+        <span className="row" style={{ gap: 8 }}>
+          <StatusMenu status={initiative.status} onSelect={(status) => void patch({ status })} />
+          {health.health ? <UpdateHealthBadge health={health.health} /> : null}
+        </span>
+      }
+      headActions={overflow}
+      tabs={tabsDef}
+      active={tab}
+      onTab={setTab}
+    >
+      {tab === "activity" ? (
+        <div className="page" style={{ maxWidth: 900, paddingTop: 22, width: "100%" }}>
+          <ActivityLogFeed
+            propertyId={propertyId}
+            scope={{ kind: "entity", id: initiativeId }}
+            meId={meId}
+            showProject={false}
+          />
+        </div>
+      ) : (
+        overview
+      )}
+    </ProjectPageShell>
   );
 }
 
@@ -513,7 +503,8 @@ function TargetDateInput({
         if (e.key === "Enter") e.currentTarget.blur();
       }}
       aria-label="Target date"
-      className="h-7 w-[9.5rem] text-sm"
+      className="input"
+      style={{ height: 26, width: 148, fontSize: "var(--g8-fs-sm)" }}
     />
   );
 }
@@ -530,20 +521,17 @@ function StatusMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            className={inline ? "inline-flex items-center gap-1.5" : railValueClass}
-          />
-        }
+        render={<button type="button" className={inline ? "pillbtn" : "pillbtn"} />}
       >
-        <span className={cn("size-2 shrink-0 rounded-full", INITIATIVE_STATUS_META[status].dot)} />
-        {INITIATIVE_STATUS_META[status].label}
+        <PStatus
+          name={INITIATIVE_STATUS_META[status].label}
+          color={INITIATIVE_STATUS_META[status].c}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6}>
         {INITIATIVE_STATUSES.map((s) => (
           <DropdownMenuItem key={s} onClick={() => onSelect(s)}>
-            <span className={cn("size-2 rounded-full", INITIATIVE_STATUS_META[s].dot)} />
+            <span className="size-2 rounded-full" style={{ background: INITIATIVE_STATUS_META[s].c }} />
             <span className="flex-1">{INITIATIVE_STATUS_META[s].label}</span>
             {s === status ? <Check className="size-3.5" /> : null}
           </DropdownMenuItem>
@@ -569,30 +557,20 @@ function PersonPicker({
   const current = value ? people.find((p) => p.id === value) : undefined;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<button type="button" className={railValueClass} />}>
+      <DropdownMenuTrigger render={<button type="button" className="pillbtn" />}>
         {current ? (
           <>
-            <Avatar className="size-4">
-              {current.avatarUrl ? <AvatarImage src={current.avatarUrl} alt="" /> : null}
-              <AvatarFallback className="text-[9px]">
-                {(current.name ?? "?").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{current.name ?? "Member"}</span>
+            <Av member={current} />
+            <span className="trunc">{current.name ?? "Member"}</span>
           </>
         ) : (
-          <span className="text-muted-foreground">{emptyLabel}</span>
+          <span className="faint">{emptyLabel}</span>
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="max-h-72 overflow-y-auto">
         {people.map((p) => (
           <DropdownMenuItem key={p.id} onClick={() => onSelect(p.id)}>
-            <Avatar className="size-4">
-              {p.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-              <AvatarFallback className="text-[9px]">
-                {(p.name ?? "?").slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <Av member={p} />
             <span className="flex-1 truncate">{p.name ?? "Member"}</span>
             {p.id === value ? <Check className="size-3.5" /> : null}
           </DropdownMenuItem>

@@ -5,10 +5,8 @@ import { ChevronDown, Pin, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import { BotPanelConversation, messageText } from "@/components/ai/bot-panel-conversation";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import { scopeKey, type InsightScope } from "@/lib/insights/scope";
 import { usePinPrompt } from "./pinned-prompts";
 
@@ -68,9 +66,10 @@ export function InsightsAskPanel({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto flex items-center gap-2 rounded-overlay bg-popover px-4 py-2 text-sm font-medium text-foreground shadow-overlay transition-colors outline-none hover:bg-accent focus-visible:shadow-focus"
+          className="btn btn-secondary pointer-events-auto"
+          style={{ boxShadow: "var(--g8-shadow-pop)", borderRadius: "var(--g8-r-full)" }}
         >
-          <Sparkles className="size-4 text-faint-foreground" />
+          <Gi icon={Sparkles} size={14} />
           Ask AI
         </button>
       </div>
@@ -79,22 +78,23 @@ export function InsightsAskPanel({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
-      <div className="pointer-events-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-overlay bg-popover shadow-overlay">
-        <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Sparkles className="size-4 text-faint-foreground" />
-            Ask AI
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Collapse"
-            onClick={() => setOpen(false)}
-            className="text-muted-foreground"
-          >
-            <ChevronDown className="size-4" />
-          </Button>
+      <div
+        className="panel pointer-events-auto flex w-full max-w-2xl flex-col overflow-hidden"
+        style={{ boxShadow: "var(--g8-shadow-pop)" }}
+      >
+        <div className="panel-h" style={{ borderBottom: "1px solid var(--g8-border)", paddingBottom: 12 }}>
+          <Gi icon={Sparkles} size={14} />
+          <h2>Ask AI</h2>
+          <div className="acts">
+            <button
+              type="button"
+              className="ibtn ibtn-sm"
+              aria-label="Collapse"
+              onClick={() => setOpen(false)}
+            >
+              <Gi icon={ChevronDown} size={14} />
+            </button>
+          </div>
         </div>
 
         <BotPanelConversation
@@ -105,15 +105,20 @@ export function InsightsAskPanel({
           className="max-h-[45vh]"
           empty={
             <div className="flex flex-col gap-2 py-1">
-              <p className="text-sm text-muted-foreground">
+              <p className="muted" style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}>
                 Answers come from the same numbers the charts use — with the
                 source cited after each figure.
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {SUGGESTIONS.map((s) => (
-                  <Chip key={s} size="sm" onClick={() => send(s)}>
+                  <button
+                    key={s}
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => send(s)}
+                  >
                     {s}
-                  </Chip>
+                  </button>
                 ))}
               </div>
             </div>
@@ -122,18 +127,17 @@ export function InsightsAskPanel({
             const question = messages[index - 1];
             if (!question || question.role !== "user") return null;
             return (
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="xs"
+                className="btn btn-ghost btn-sm"
+                style={{ width: "fit-content" }}
                 disabled={pinning}
                 onClick={() => void pin(messageText(question))}
-                className="w-fit text-muted-foreground"
                 title="Keep this question on the page — it re-answers itself when the numbers move"
               >
-                <Pin className="size-3" />
+                <Gi icon={Pin} size={12} />
                 Pin this question
-              </Button>
+              </button>
             );
           }}
         />
@@ -143,7 +147,8 @@ export function InsightsAskPanel({
             e.preventDefault();
             send(input);
           }}
-          className="flex items-end gap-2 border-t border-border px-3 py-2.5"
+          className="flex items-end gap-2 px-3 py-2.5"
+          style={{ borderTop: "1px solid var(--g8-border)" }}
         >
           <textarea
             name="question"
@@ -159,25 +164,24 @@ export function InsightsAskPanel({
             rows={1}
             placeholder="Ask about this lens's numbers…"
             disabled={busy}
-            className="max-h-28 min-h-9 flex-1 resize-none rounded-md bg-transparent px-3 py-2 text-sm shadow-composer outline-none transition-[background-color,box-shadow] placeholder:text-faint-foreground focus-visible:shadow-composer-focus disabled:opacity-50 dark:bg-muted"
+            className="textarea max-h-28 flex-1 resize-none"
+            style={{ minHeight: 34 }}
           />
           {busy ? (
-            <Button type="button" size="sm" variant="outline" onClick={() => void stop()}>
+            <button type="button" className="btn btn-secondary" onClick={() => void stop()}>
               Stop
-            </Button>
+            </button>
           ) : (
-            <Button
+            <button
               type="submit"
               aria-label="Send"
-              size="icon-lg"
               disabled={input.trim().length === 0}
-              // Quiet ghost until there's something to send; then it fills in
-              // (warm ink) as the clear "go" affordance.
-              variant={input.trim().length > 0 ? "default" : "ghost"}
-              className={cn(input.trim().length === 0 && "text-faint-foreground")}
+              // Quiet until there's something to send; then it fills in as
+              // the clear "go" affordance.
+              className={input.trim().length > 0 ? "btn btn-primary" : "btn btn-ghost"}
             >
-              <Send className="size-4" />
-            </Button>
+              <Gi icon={Send} size={14} />
+            </button>
           )}
         </form>
       </div>

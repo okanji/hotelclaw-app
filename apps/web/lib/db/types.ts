@@ -2,6 +2,9 @@
 // once the Supabase project is provisioned, regenerate with:
 //   pnpm dlx supabase gen types typescript --project-id <id> > lib/db/types.ts
 
+/** What `favorites` (0120) can star — tasks have their own `task_favorites`. */
+export type FavoriteKind = "project" | "space" | "document" | "form" | "channel";
+
 /** Membership role ladder — helpers + the invitable subset live in lib/auth/roles.ts.
  *  `guest` is scope-limited (migration 0118); the DB CHECK admits it from there on. */
 export type Role = "owner" | "manager" | "staff" | "guest";
@@ -52,13 +55,37 @@ export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
  * field (unlike the property-wide `labels` catalog, which is shared across
  * tasks, docs, projects and teams).
  */
+/** What a guest grant (member_scopes, 0118) points at. */
+export type ScopeKind = "space" | "list" | "task" | "document" | "channel";
+export type ScopeGrant = { kind: ScopeKind; id: string; can_edit: boolean };
+
 export type CustomFieldType =
   | "text"
+  | "long_text"
   | "number"
+  | "currency"
   | "select"
   | "multi_select"
   | "date"
-  | "checkbox";
+  | "checkbox"
+  | "url"
+  | "email"
+  | "phone"
+  | "people"
+  | "files"
+  | "relation"
+  | "progress";
+
+/** Per-type settings (0116). Unknown keys are ignored. */
+export type CustomFieldConfig = {
+  /** currency: ISO 4217 code ("KES") + decimal places (default 2). */
+  code?: string;
+  precision?: number;
+  /** people: allow several people (default true). */
+  multiple?: boolean;
+  /** relation: only tasks in this list may be linked. */
+  target_list_id?: string | null;
+};
 /**
  * Options for select / multi_select. Values store the option `id`, so labels
  * stay renameable and recolorable without touching stored data. `color` is
@@ -675,6 +702,9 @@ export interface Database {
           cycle_id: string | null;
           milestone_id: string | null;
           triage_state: TriageState | null;
+          /** 0117 — trigger-maintained checklist counters. */
+          checklist_total: number;
+          checklist_done: number;
           triaged_by: string | null;
           triaged_at: string | null;
           triage_note: string | null;
@@ -885,6 +915,8 @@ export interface Database {
           name: string;
           type: CustomFieldType;
           options: CustomFieldOption[];
+          /** 0116 — per-type settings. */
+          config: CustomFieldConfig;
           position: number;
           created_by: string | null;
           created_at: string;
@@ -898,6 +930,7 @@ export interface Database {
           name: string;
           type: CustomFieldType;
           options?: CustomFieldOption[];
+          config?: CustomFieldConfig;
           position?: number;
           created_by?: string | null;
           archived_at?: string | null;
@@ -907,6 +940,7 @@ export interface Database {
           list_id: string | null;
           name: string;
           options: CustomFieldOption[];
+          config: CustomFieldConfig;
           position: number;
           archived_at: string | null;
         }>;
@@ -1352,6 +1386,157 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      /** 0118 — what a GUEST may see: a team, list, task, document or channel. */
+      member_scopes: {
+        Row: {
+          id: string;
+          property_id: string;
+          user_id: string;
+          scope_kind: ScopeKind;
+          scope_id: string;
+          can_edit: boolean;
+          granted_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          user_id: string;
+          scope_kind: ScopeKind;
+          scope_id: string;
+          can_edit?: boolean;
+          granted_by?: string | null;
+        };
+        Update: Partial<{ can_edit: boolean }>;
+        Relationships: [];
+      };
+      /** 0117 — named checklists on a task; items nest one level. */
+      task_checklists: {
+        Row: {
+          id: string;
+          task_id: string;
+          property_id: string;
+          name: string;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          property_id: string;
+          name: string;
+          position?: number;
+          created_by?: string | null;
+        };
+        Update: Partial<{ name: string; position: number }>;
+        Relationships: [];
+      };
+      task_checklist_items: {
+        Row: {
+          id: string;
+          checklist_id: string;
+          task_id: string;
+          property_id: string;
+          parent_item_id: string | null;
+          text: string;
+          done: boolean;
+          done_at: string | null;
+          done_by: string | null;
+          assignee_id: string | null;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          checklist_id: string;
+          task_id: string;
+          property_id: string;
+          parent_item_id?: string | null;
+          text: string;
+          done?: boolean;
+          assignee_id?: string | null;
+          position?: number;
+          created_by?: string | null;
+        };
+        Update: Partial<{
+          text: string;
+          done: boolean;
+          assignee_id: string | null;
+          position: number;
+          parent_item_id: string | null;
+        }>;
+        Relationships: [];
+      };
+      /** 0115 — the assignee SET; tasks.assignee_id is the derived primary. */
+      task_assignees: {
+        Row: {
+          task_id: string;
+          user_id: string;
+          property_id: string;
+          position: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          task_id: string;
+          user_id: string;
+          property_id: string;
+          position?: number;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<{
+          position: number;
+        }>;
+        Relationships: [];
+      };
+      project_files: {
+        Row: {
+          id: string;
+          property_id: string;
+          project_id: string;
+          file_name: string;
+          storage_path: string;
+          byte_size: number | null;
+          mime_type: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          property_id: string;
+          project_id: string;
+          file_name: string;
+          storage_path: string;
+          byte_size?: number | null;
+          mime_type?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
+      favorites: {
+        Row: {
+          user_id: string;
+          property_id: string;
+          kind: FavoriteKind;
+          entity_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id?: string;
+          property_id: string;
+          kind: FavoriteKind;
+          entity_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Record<string, never>>;
+        Relationships: [];
+      };
       task_favorites: {
         Row: {
           user_id: string;
@@ -1446,6 +1631,8 @@ export interface Database {
           storage_path: string;
           mime_type: string | null;
           byte_size: number | null;
+          /** 0116 — the files custom field this attachment fills, if any. */
+          field_id: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -1456,11 +1643,13 @@ export interface Database {
           storage_path: string;
           mime_type?: string | null;
           byte_size?: number | null;
+          field_id?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
         Update: Partial<{
           file_name: string;
+          field_id: string | null;
         }>;
         Relationships: [];
       };
@@ -1502,12 +1691,15 @@ export interface Database {
           title: string | null;
           primary_space_id: string | null;
           manager_id: string | null;
+          /** 0118 — guest grants applied on accept. */
+          scopes: ScopeGrant[];
         };
         Insert: {
           id?: string;
           property_id: string;
           email: string;
           role: Role;
+          scopes?: ScopeGrant[];
           token: string;
           expires_at: string;
           created_by?: string | null;
@@ -1520,6 +1712,7 @@ export interface Database {
           accepted_at: string | null;
           expires_at: string;
           role: Role;
+          scopes: ScopeGrant[];
           full_name: string | null;
           title: string | null;
           primary_space_id: string | null;
@@ -3878,8 +4071,38 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      /** FULL member (owner / manager / staff) — guests excluded since 0118. */
       is_member: {
         Args: { prop_id: string };
+        Returns: boolean;
+      };
+      /** Any membership row, guests included (0118 — the old is_member). */
+      has_property_access: {
+        Args: { prop_id: string };
+        Returns: boolean;
+      };
+      is_management: {
+        Args: { prop_id: string };
+        Returns: boolean;
+      };
+      can_access_task: {
+        Args: { tid: string; need_edit?: boolean };
+        Returns: boolean;
+      };
+      can_access_document: {
+        Args: { did: string; need_edit?: boolean };
+        Returns: boolean;
+      };
+      can_access_space: {
+        Args: { sid: string; need_edit?: boolean };
+        Returns: boolean;
+      };
+      can_access_list: {
+        Args: { lid: string; need_edit?: boolean };
+        Returns: boolean;
+      };
+      can_access_channel: {
+        Args: { cid: string };
         Returns: boolean;
       };
       /** The status set a space inherits (its chain's default, else the

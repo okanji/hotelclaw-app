@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,13 +38,13 @@ import {
   ArrowUpAZ,
   ChevronDown,
   ChevronRight,
+  Ellipsis,
   GripVertical,
-  MoreHorizontal,
   Plus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +56,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
 import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { G8StatusIcon } from "@/components/gr8r/my-tasks-glyphs";
+import { CATEGORY_COLUMNS, isDone } from "@/lib/tasks/statuses";
+import { taskKey } from "@/lib/tasks/task-key";
 import {
   customFieldsQueryOptions,
   propertyTaskFieldValuesQueryOptions,
@@ -84,7 +96,6 @@ import { deleteTask, moveTask, updateTask } from "./actions";
 import { saveTaskViewLayout } from "./list-view-actions";
 import {
   COLUMNS,
-  COLUMN_PILL_CLASS,
   PRIORITY_META,
   PRIORITY_IDS,
   STATUS_IDS,
@@ -523,8 +534,15 @@ export function ListView({
         />
       ) : null}
 
+      {/* gr8r `.list-wrap` › `.tlist` (src/components/task-list.js): sticky
+          `.thead`, `.grp` status headers, `.trow` rows, `.addrow`. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-        <div style={{ minWidth }} className="flex flex-1 flex-col">
+        <div
+          style={{ minWidth }}
+          className="list-wrap tlist flex flex-1 flex-col"
+          role="table"
+          aria-label="Tasks"
+        >
           <HeaderRow
             propertyId={propertyId}
             columns={columns}
@@ -565,7 +583,6 @@ export function ListView({
                   status={status}
                   itemIds={order[status]}
                   label={col.label}
-                  pillClass={COLUMN_PILL_CLASS[col.pillTone].pill}
                   count={rows.length}
                   collapsed={collapsed[status]}
                   onToggleCollapsed={() =>
@@ -621,7 +638,17 @@ export function ListView({
 
             <PortalDragOverlay>
               {activeId ? (
-                <div className="rounded-md bg-popover px-3 py-1.5 text-sm font-medium text-foreground shadow-overlay">
+                <div
+                  className="panel"
+                  style={{
+                    width: "fit-content",
+                    maxWidth: 360,
+                    padding: "6px 12px",
+                    boxShadow: "var(--g8-shadow-drag)",
+                    fontSize: "var(--g8-fs-sm)",
+                    fontWeight: 500,
+                  }}
+                >
                   {byId.get(activeId)?.title ?? ""}
                 </div>
               ) : null}
@@ -685,11 +712,21 @@ function CalcFooterRow({
 }) {
   return (
     <div
-      className="sticky bottom-0 z-20 mt-auto grid h-8 items-center border-t border-border bg-card pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2"
-      style={{ gridTemplateColumns: gridTemplate }}
+      className="thead"
+      style={
+        {
+          "--g8-cols": gridTemplate,
+          position: "sticky",
+          top: "auto",
+          bottom: 0,
+          marginTop: "auto",
+          borderBottom: 0,
+          borderTop: "1px solid var(--g8-border)",
+        } as CSSProperties
+      }
     >
       <span />
-      <span className="px-1.5 text-xs text-faint-foreground tabular-nums">
+      <span className="faint num px-1.5" style={{ fontSize: "var(--g8-fs-xs)" }}>
         {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
       </span>
       {columns.map((column) => {
@@ -701,10 +738,11 @@ function CalcFooterRow({
             className="flex min-w-0 items-baseline gap-1.5 px-1.5"
             title={`${CALC_LABEL[column.calc]} of ${column.label}`}
           >
-            <span className="shrink-0 text-xs text-faint-foreground">
-              {CALC_LABEL[column.calc]}
-            </span>
-            <span className="truncate text-sm font-medium text-foreground tabular-nums">
+            <span className="faint shrink-0">{CALC_LABEL[column.calc]}</span>
+            <span
+              className="num truncate"
+              style={{ color: "var(--g8-text)", fontWeight: 500 }}
+            >
               {value ?? "—"}
             </span>
           </span>
@@ -755,11 +793,12 @@ function HeaderRow({
 
   return (
     <div
-      className="sticky top-0 z-20 grid h-9 items-center border-b border-border bg-card pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2 text-sm/[1.2] font-normal text-muted-foreground"
-      style={{ gridTemplateColumns: gridTemplate }}
+      className="thead"
+      role="row"
+      style={{ "--g8-cols": gridTemplate, zIndex: 20 } as CSSProperties}
     >
       <span />
-      <span className="px-1.5">Title</span>
+      <span className="px-2">Task</span>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -880,7 +919,8 @@ function HeaderCell({
         {...listeners}
         role="button"
         aria-label={`Reorder ${column.label} column`}
-        className="grid size-4 shrink-0 cursor-grab place-items-center rounded text-faint-foreground opacity-0 transition-opacity group-hover/header:opacity-100 active:cursor-grabbing"
+        className="grid size-4 shrink-0 cursor-grab place-items-center rounded opacity-0 transition-opacity group-hover/header:opacity-100 active:cursor-grabbing"
+        style={{ color: "var(--g8-text-4)" }}
       >
         <GripVertical className="size-3" />
       </span>
@@ -897,9 +937,9 @@ function HeaderCell({
         >
           <span className="min-w-0 truncate">{column.label}</span>
           {active === "asc" ? (
-            <ArrowDownAZ className="size-3 shrink-0 text-foreground" />
+            <ArrowDownAZ className="size-3 shrink-0" />
           ) : active === "desc" ? (
-            <ArrowUpAZ className="size-3 shrink-0 text-foreground" />
+            <ArrowUpAZ className="size-3 shrink-0" />
           ) : null}
         </ColumnHeaderMenu>
       </span>
@@ -912,7 +952,10 @@ function HeaderCell({
         onPointerUp={onPointerUp}
         className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none opacity-0 group-hover/header:opacity-100"
       >
-        <span className="mx-auto block h-full w-px bg-border" />
+        <span
+          className="mx-auto block h-full w-px"
+          style={{ background: "var(--g8-accent-line)" }}
+        />
       </span>
     </span>
   );
@@ -924,7 +967,6 @@ function StatusSection({
   status,
   itemIds,
   label,
-  pillClass,
   count,
   collapsed,
   onToggleCollapsed,
@@ -934,7 +976,6 @@ function StatusSection({
   status: TaskStatus;
   itemIds: string[];
   label: string;
-  pillClass: string;
   count: number;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -944,50 +985,51 @@ function StatusSection({
   // The whole section body is a drop target so a task can be dragged into an
   // empty group (which is a status change, not a reorder).
   const { setNodeRef, isOver } = useDroppable({ id: `section:${status}` });
+  const col = CATEGORY_COLUMNS.find((c) => c.id === status);
 
   return (
-    <section className="border-b border-border last:border-0">
-      <header className="flex h-9 items-center gap-2 px-(--page-gutter)">
+    <section>
+      {/* gr8r `.grp`: chevron · status glyph · name · count · "+". */}
+      <div className="grp">
         <button
           type="button"
+          className="ibtn ibtn-xs"
           onClick={onToggleCollapsed}
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
-          className="grid size-5 place-items-center rounded-md text-muted-foreground hover:bg-accent"
+          aria-expanded={!collapsed}
         >
-          {collapsed ? (
-            <ChevronRight className="size-3.5" />
-          ) : (
-            <ChevronDown className="size-3.5" />
-          )}
+          <Gi icon={collapsed ? ChevronRight : ChevronDown} size={14} />
         </button>
-        <h3
-          className={cn(
-            "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
-            pillClass,
-          )}
-        >
-          {label}
-        </h3>
-        <span className="text-sm tabular-nums text-faint-foreground">
-          {count}
-        </span>
+        {col ? (
+          <G8StatusIcon
+            category={col.category}
+            blocked={col.isBlocked}
+            color={col.color}
+          />
+        ) : null}
+        <span>{label}</span>
+        <span className="cnt num">{count}</span>
         <button
           type="button"
+          className="ibtn ibtn-xs"
           onClick={onOpenFullCreate}
-          className="ml-auto inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground hover:bg-accent"
+          aria-label={`Add task to ${label}`}
+          title="Add task"
         >
-          <Plus className="size-3" />
-          New
+          <Gi icon={Plus} size={14} />
         </button>
-      </header>
+      </div>
 
       {!collapsed ? (
-        <div ref={setNodeRef} className={cn(isOver && "bg-accent/40")}>
-          {count === 0 ? (
-            <div className="px-(--page-gutter) py-4 text-sm text-faint-foreground">
-              No tasks in this status.
-            </div>
-          ) : (
+        <div
+          ref={setNodeRef}
+          style={
+            isOver
+              ? { background: "color-mix(in srgb, var(--g8-accent) 6%, transparent)" }
+              : undefined
+          }
+        >
+          {count === 0 ? null : (
             <SortableContext
               items={itemIds}
               strategy={verticalListSortingStrategy}
@@ -995,6 +1037,10 @@ function StatusSection({
               {children}
             </SortableContext>
           )}
+          <button type="button" className="addrow" onClick={onOpenFullCreate}>
+            <Gi icon={Plus} size={14} />
+            Add task
+          </button>
         </div>
       ) : null}
     </section>
@@ -1078,18 +1124,21 @@ function ListRow({
   return (
     <div
       ref={setNodeRef}
-      style={{
-        gridTemplateColumns: gridTemplate,
-        transform: CSS.Translate.toString(transform),
-        transition,
-      }}
+      role="row"
+      style={
+        {
+          "--g8-cols": gridTemplate,
+          transform: CSS.Translate.toString(transform),
+          transition,
+        } as CSSProperties
+      }
       className={cn(
-        // The measured 37px database row (notion-spec-v2 §6); the only rule
-        // is the 1px warm divider between rows.
-        "group grid min-h-[37px] items-center border-t border-border pl-[max(0.25rem,calc(var(--page-gutter)-2.875rem))] pr-2 py-1 text-sm",
-        "hover:bg-accent",
-        selected && "bg-accent-pressed",
-        (pending || isDragging) && "opacity-60",
+        // gr8r `.trow`: one grid row on the shared `--g8-cols` template.
+        "trow group",
+        isDone(task) && "done",
+        selected && "sel",
+        isDragging && "dragging",
+        pending && "opacity-60",
       )}
     >
       <span className="flex items-center">
@@ -1104,7 +1153,8 @@ function ListRow({
             // and as a positioned later sibling it won hit-testing over this
             // button — a real pointer pressing the grip landed on the checkbox
             // and the drag never started.
-            className="relative z-10 grid size-5 shrink-0 cursor-grab place-items-center rounded-md text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+            className="relative z-10 grid size-5 shrink-0 cursor-grab place-items-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+            style={{ color: "var(--g8-text-4)" }}
           >
             <GripVertical className="size-3.5" />
           </button>
@@ -1124,7 +1174,9 @@ function ListRow({
         />
       </span>
 
-      <span className={cn("flex min-w-0 items-center gap-1.5 px-1.5", indent && "pl-7")}>
+      <span
+        className={cn("ttl flex min-w-0 items-center px-2", indent && "pl-7")}
+      >
         {subtaskCount > 0 && onToggleSubtasks ? (
           <button
             type="button"
@@ -1132,23 +1184,21 @@ function ListRow({
             aria-label={
               subtasksExpanded ? "Collapse sub-tasks" : "Expand sub-tasks"
             }
-            className="flex shrink-0 items-center gap-0.5 rounded-md px-0.5 text-muted-foreground hover:bg-accent"
+            className="meta-mini shrink-0 rounded-md px-0.5"
           >
-            {subtasksExpanded ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
-            <span className="text-xs tabular-nums">{subtaskCount}</span>
+            <Gi icon={subtasksExpanded ? ChevronDown : ChevronRight} size={13} />
+            <span className="num">{subtaskCount}</span>
           </button>
         ) : null}
+        <span className="key">{taskKey(task)}</span>
         <Link
           href={taskHref(propertyId, task.id)}
           onClick={handleTitleClick}
-          className={cn(
-            "truncate font-medium text-foreground hover:underline",
-            indent && "text-sm font-normal",
-          )}
+          className="tt min-w-0"
+          style={{
+            color: "inherit",
+            ...(indent ? { fontSize: "var(--g8-fs-sm)" } : null),
+          }}
         >
           {task.title}
         </Link>
@@ -1163,15 +1213,15 @@ function ListRow({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-7 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            <button
+              type="button"
+              className="ibtn ibtn-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              aria-label={`${task.title} options`}
               disabled={pending}
             />
           }
         >
-          <MoreHorizontal className="size-4" />
+          <Gi icon={Ellipsis} size={14} />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
@@ -1239,21 +1289,21 @@ function BulkActionBar({
   }
 
   return (
-    <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center px-4">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-overlay bg-popover px-3 py-1.5 shadow-overlay">
-        <span className="pr-1 text-xs font-medium tabular-nums text-foreground">
+    // gr8r `.bulkbar` — the inverted floating bar, bottom centre.
+    <div className="bulkbar enter" role="toolbar" aria-label="Bulk actions">
+        <span className="num" style={{ fontWeight: 500, paddingRight: 4 }}>
           {ids.length} selected
         </span>
+        <span className="sep" />
 
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
+              <button
+                type="button"
+                className="btn btn-sm"
                 disabled={pending}
-              />
+                />
             }
           >
             Move to
@@ -1279,12 +1329,11 @@ function BulkActionBar({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs"
+              <button
+                type="button"
+                className="btn btn-sm"
                 disabled={pending}
-              />
+                />
             }
           >
             Priority
@@ -1314,26 +1363,25 @@ function BulkActionBar({
           runAll={runAll}
         />
 
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs text-destructive hover:text-destructive"
+        <span className="sep" />
+        <button
+          type="button"
+          className="btn btn-sm"
           disabled={pending}
           onClick={() => runAll((id) => deleteTask(id), "Deleted")}
         >
           Delete
-        </Button>
-
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-xs text-faint-foreground"
+        </button>
+        <button
+          type="button"
+          className="ibtn ibtn-sm"
+          style={{ color: "var(--g8-text-inv)" }}
+          aria-label="Clear selection"
           disabled={pending}
           onClick={onClear}
         >
-          Clear
-        </Button>
-      </div>
+          <Gi icon={X} size={14} />
+        </button>
     </div>
   );
 }

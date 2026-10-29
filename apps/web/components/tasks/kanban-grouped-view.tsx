@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -33,7 +33,7 @@ import {
 import { optionColor, valueOptionIds } from "@/lib/tasks/custom-field-options";
 import { setTaskProject, setTaskSpace } from "@/components/projects/actions";
 import { setTaskFieldValue } from "./field-actions";
-import { LABEL_CHIP } from "@/components/labels/label-tokens";
+import { G8_COLOR } from "@/components/gr8r/my-tasks-glyphs";
 
 const NONE = "__none__";
 /**
@@ -43,8 +43,6 @@ const NONE = "__none__";
  * unique draggable ids.
  */
 const CARD_ID_SEP = "@@";
-
-const CHIP = LABEL_CHIP;
 
 /** `field:<uuid>` groups by a dropdown/label custom field, ClickUp-style. */
 type GroupBy = "space" | "project" | `field:${string}`;
@@ -249,9 +247,9 @@ export function KanbanGroupedView({
 
   if (isFieldGroup && fields.length > 0 && !field) {
     return (
-      <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-        That field is gone — pick another grouping.
-      </p>
+      <div className="empty-state">
+        <p>That field is gone — pick another grouping.</p>
+      </div>
     );
   }
 
@@ -262,7 +260,8 @@ export function KanbanGroupedView({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveId(null)}
     >
-      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto px-(--page-gutter) py-3">
+      {/* gr8r `.board` — one `.bcol` per team / project / option. */}
+      <div className="board">
         {columns.map((col) => (
           <Column
             key={col.key}
@@ -310,31 +309,20 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col:${colKey}` });
   return (
-    <div className="flex w-72 shrink-0 flex-col">
-      {/* Group header = the entity-hued status PILL + a faint count
-          (notion-spec-v2 §6). The bare dot + primary-ink heading it replaces
-          was the generic-kanban shape. */}
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <h3
-          className={cn(
-            "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
-            color ? CHIP[color] : "bg-pill-neutral text-pill-neutral-ink",
-          )}
-        >
-          {label}
-        </h3>
-        <span className="text-sm text-faint-foreground tabular-nums">
-          {tasks.length}
-        </span>
+    <section className={cn("bcol", isOver && "over")} aria-label={label}>
+      <div className="bcol-h">
+        <span
+          className="pdot"
+          style={
+            {
+              "--g8-c": color && colKey !== NONE ? G8_COLOR[color] : "var(--g8-gray)",
+            } as CSSProperties
+          }
+        />
+        <span className="truncate">{label}</span>
+        <span className="cnt num">{tasks.length}</span>
       </div>
-      {/* No column background — cards float on the page plane. */}
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2.5 rounded-md p-1.5 transition-colors",
-          isOver && "bg-accent-pressed",
-        )}
-      >
+      <div ref={setNodeRef} className="bcol-b">
         {tasks.map((t) => (
           <DraggableCard
             key={t.id}
@@ -346,7 +334,7 @@ function Column({
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -374,7 +362,12 @@ function DraggableCard({
       onClick={() => onOpen(task.id)}
       className={cn("cursor-grab active:cursor-grabbing", isDragging && "opacity-40")}
     >
-      <TaskCardOverlay task={task} assignee={assignee} labels={labels} />
+      <TaskCardOverlay
+        task={task}
+        assignee={assignee}
+        labels={labels}
+        lifted={false}
+      />
     </div>
   );
 }

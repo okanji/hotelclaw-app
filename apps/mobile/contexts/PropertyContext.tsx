@@ -11,7 +11,9 @@ import { useAuth } from "./AuthContext";
 
 export type PropertyMembership = {
   property_id: string;
-  role: "owner" | "manager" | "staff";
+  /** "guest" (0118): sees only what was shared — RLS trims every read; the
+   *  shell hides the AI surfaces (eve refuses guests). */
+  role: "owner" | "manager" | "staff" | "guest";
   property: { id: string; name: string; slug: string };
 };
 

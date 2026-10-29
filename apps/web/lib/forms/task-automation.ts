@@ -51,10 +51,12 @@ export type FormTaskMappings = {
   priority: boolean;
   dueDate: boolean;
   labels: boolean;
+  /** 0116 — custom-field ids that a question saves into. */
+  fields: string[];
 };
 
 export function deriveTaskMappings(
-  fields: Pick<FormField, "taskProperty">[],
+  fields: Pick<FormField, "taskProperty" | "taskField">[],
 ): FormTaskMappings {
   const has = (kind: string) => fields.some((f) => f.taskProperty === kind);
   return {
@@ -62,6 +64,7 @@ export function deriveTaskMappings(
     priority: has("priority"),
     dueDate: has("due_date"),
     labels: has("labels"),
+    fields: [...new Set(fields.map((f) => f.taskField).filter((id): id is string => !!id))],
   };
 }
 
@@ -70,6 +73,7 @@ export const NO_TASK_MAPPINGS: FormTaskMappings = {
   priority: false,
   dueDate: false,
   labels: false,
+  fields: [],
 };
 
 /** Cap description lines so a 40-question form doesn't emit a novel. */
@@ -121,6 +125,11 @@ export function buildFormTaskAutomationSpec(args: {
     ...args.config.labels,
     ...(mappings.labels ? [MAPPED_REFS.labels] : []),
   ];
+  // Questions saved into custom fields (0116): one whole-value ref per field
+  // so the answer keeps its type (a file list, a people array).
+  const fields = Object.fromEntries(
+    (mappings.fields ?? []).map((id) => [id, `{{trigger.task_properties.fields.${id}}}`]),
+  );
 
   return {
     workflow_spec_version: 1,
@@ -143,6 +152,7 @@ export function buildFormTaskAutomationSpec(args: {
           ...(mappings.dueDate ? { due_at: MAPPED_REFS.dueDate } : {}),
           ...(args.config.spaceId ? { space_id: args.config.spaceId } : {}),
           ...(assigneeId ? { assignee_id: assigneeId } : {}),
+          ...(Object.keys(fields).length > 0 ? { fields } : {}),
         },
       },
     },

@@ -1,3 +1,4 @@
+import { requireFullMember } from "@/lib/auth/session";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { generateText } from "ai";
@@ -42,6 +43,10 @@ export async function POST(
   { params }: { params: Promise<{ propertyId: string }> },
 ) {
   const { propertyId } = await params;
+  // Guests (0118) hold a membership row but this route acts through the
+  // service client, past RLS — full members only.
+  const roleGate = await requireFullMember(propertyId);
+  if (!roleGate.ok) return NextResponse.json({ error: roleGate.error }, { status: roleGate.status });
   const supabase = await createClient();
   const {
     data: { user },

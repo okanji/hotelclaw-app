@@ -1,8 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import {
+  CircleCheck,
+  Ellipsis,
+  FolderKanban,
+  House,
+  Inbox,
+  Menu,
+  type LucideIcon,
+} from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { LeftShell } from "./left-shell";
 import { useShellSection } from "./shell-section-context";
+import { useNotifications } from "./use-notifications";
 import type { Membership } from "@/lib/auth/session";
 
 type User = {
@@ -51,6 +62,7 @@ export function MobileTopBar({
   return (
     // `hc-mobile-top-bar`: hidden entirely inside the native app's WebView
     // (html[data-hotelclaw-embed]) — the native header already owns nav there.
+    <>
     <header className="hc-mobile-top-bar flex h-11 shrink-0 items-center gap-2 px-3 md:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
@@ -68,7 +80,8 @@ export function MobileTopBar({
         <SheetContent
           side="left"
           showCloseButton={false}
-          className="w-[19rem] max-w-[85vw] gap-0 bg-sidebar p-0"
+          // Portaled out of the shell root, so it carries gr8r's `.g8` scope.
+          className="g8 w-[19rem] max-w-[85vw] gap-0 bg-sidebar p-0"
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">
@@ -89,5 +102,48 @@ export function MobileTopBar({
         {propertyName}
       </span>
     </header>
+    <BottomNav propertyId={currentPropertyId} userId={user.id} onMore={() => setOpen(true)} />
+    </>
+  );
+}
+
+/**
+ * gr8r `renderBottomNav()` (≤640px only — gr8r's responsive.css shows it):
+ * Home, My Tasks, Projects, Inbox (accent dot when unread), More → the
+ * navigation drawer.
+ */
+function BottomNav({
+  propertyId,
+  userId,
+  onMore,
+}: {
+  propertyId: string;
+  userId: string;
+  onMore: () => void;
+}) {
+  const pathname = usePathname();
+  const { unseenCount } = useNotifications(userId);
+  const base = `/p/${propertyId}`;
+  const tab = (path: string, label: string, icon: LucideIcon, extra?: React.ReactNode) => {
+    const on = pathname === `${base}${path}` || pathname.startsWith(`${base}${path}/`);
+    return (
+      <Link href={`${base}${path}`} className={on ? "on" : undefined} aria-current={on ? "page" : undefined}>
+        <Gi icon={icon} size={19} />
+        <span>{label}</span>
+        {extra}
+      </Link>
+    );
+  };
+  return (
+    <nav className="bottomnav hc-mobile-top-bar" aria-label="Primary">
+      {tab("/home", "Home", House)}
+      {tab("/my-tasks", "My Tasks", CircleCheck)}
+      {tab("/projects", "Projects", FolderKanban)}
+      {tab("/activity", "Inbox", Inbox, unseenCount > 0 ? <span className="bdot" /> : null)}
+      <button type="button" onClick={onMore}>
+        <Gi icon={Ellipsis} size={19} />
+        <span>More</span>
+      </button>
+    </nav>
   );
 }

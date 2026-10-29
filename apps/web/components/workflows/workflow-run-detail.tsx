@@ -7,7 +7,7 @@ import {
   workflowRunDetailQueryOptions,
 } from "@/lib/query/workflow-queries";
 import { PageHeader } from "@/components/shell/page-header";
-import { PageShell } from "@/components/ui/page-shell";
+import { WfPage } from "./g8-bits";
 import { RunInspectorClient } from "@/app/p/[propertyId]/workflows/[workflowId]/runs/[runId]/run-inspector-client";
 
 export function WorkflowRunDetail({
@@ -36,16 +36,14 @@ export function WorkflowRunDetail({
           { label: run.id.slice(0, 8) },
         ]}
       />
-      <div className="flex-1 overflow-y-auto">
-        <PageShell className="pt-10 pb-12">
-          <RunInspectorClient
-            propertyId={propertyId}
-            workflowId={workflowId}
-            initialRun={run as Parameters<typeof RunInspectorClient>[0]["initialRun"]}
-            initialSteps={runData.steps as Parameters<typeof RunInspectorClient>[0]["initialSteps"]}
-          />
-        </PageShell>
-      </div>
+      <WfPage title="Run" lede={`${workflow.name} · ${run.id.slice(0, 8)}`} narrow>
+        <RunInspectorClient
+          propertyId={propertyId}
+          workflowId={workflowId}
+          initialRun={run as Parameters<typeof RunInspectorClient>[0]["initialRun"]}
+          initialSteps={runData.steps as Parameters<typeof RunInspectorClient>[0]["initialSteps"]}
+        />
+      </WfPage>
     </div>
   );
 }

@@ -78,13 +78,15 @@ export default function YouTab() {
               <Text style={styles.linkText}>🗂️  Projects</Text>
               <Text style={styles.chevron}>›</Text>
             </Pressable>
-            <Pressable
-              style={styles.linkRow}
-              onPress={() => router.navigate("/assistant")}
-            >
-              <Text style={styles.linkText}>✨  Assistant</Text>
-              <Text style={styles.chevron}>›</Text>
-            </Pressable>
+            {activeProperty?.role === "guest" ? null : (
+              <Pressable
+                style={styles.linkRow}
+                onPress={() => router.navigate("/assistant")}
+              >
+                <Text style={styles.linkText}>✨  Assistant</Text>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            )}
             <Pressable
               style={styles.linkRow}
               onPress={() => router.navigate("/documents")}

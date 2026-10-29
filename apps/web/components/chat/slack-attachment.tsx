@@ -93,8 +93,12 @@ export function SlackAttachment(props: AttachmentProps) {
 
   return (
     <>
+      {/* `.g8-chat-form` gives the shared form card gr8r's chat-card frame
+          (stream-chat-overrides.css, "gr8r skin"). */}
       {formAttachments.map((a) => (
-        <FormAttachmentCard key={a.form_id} attachment={a} />
+        <div key={a.form_id} className="g8-chat-form">
+          <FormAttachmentCard attachment={a} />
+        </div>
       ))}
       <ChatUiSendProvider send={sendQuickReply}>
         {aiUiAttachments

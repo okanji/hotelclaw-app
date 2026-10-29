@@ -2,12 +2,14 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { useFavorites } from "@/lib/favorites/use-favorites";
 import {
   ArrowUpRight,
   Check,
   ChevronDown,
   Link2,
   MoreHorizontal,
+  Star,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -42,7 +44,8 @@ import {
 /* health / status glyphs, grouping, and the per-row "…" menu (gr8r's).      */
 /* -------------------------------------------------------------------------- */
 
-export type ProjectsLayout = "list" | "board" | "timeline";
+/** gr8r's Grid / List / Table plus our Board and Timeline. */
+export type ProjectsLayout = "grid" | "list" | "table" | "board" | "timeline";
 export type ProjectsGrouping = "status" | "health" | "lead" | "none";
 export type ProjectsOrdering = "name" | "target" | "progress";
 export type TimelineZoom = "month" | "quarter" | "year";
@@ -68,7 +71,7 @@ export const LIST_PROPERTIES: { id: ListProperty; label: string }[] = [
 ];
 
 const DEFAULT_DISPLAY: ProjectsDisplay = {
-  layout: "timeline",
+  layout: "grid",
   grouping: "status",
   ordering: "name",
   showCompleted: true,
@@ -321,11 +324,20 @@ export function ProjectRowMenu({
   href,
   onChanged,
   className,
+  bare,
+  onOpen,
+  propertyId,
 }: {
   project: ProjectTracking;
   href: string;
   onChanged: () => void;
   className?: string;
+  /** Use `className` as the trigger's ONLY classes (gr8r's `.ibtn`). */
+  bare?: boolean;
+  /** Open in place (the projects surface's pushState) instead of a reload. */
+  onOpen?: () => void;
+  /** When set, the menu offers gr8r's "Add to favorites" (`favorites`, 0120). */
+  propertyId?: string;
 }) {
   async function setStatus(status: ProjectStatus) {
     const res = await updateProject(project.id, { status });
@@ -340,17 +352,21 @@ export function ProjectRowMenu({
             type="button"
             aria-label={`Options for ${project.name}`}
             onClick={(e) => e.stopPropagation()}
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-md text-faint-foreground transition-colors hover:bg-accent hover:text-foreground",
-              className,
-            )}
+            className={
+              bare
+                ? className
+                : cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-md text-faint-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    className,
+                  )
+            }
           />
         }
       >
         <MoreHorizontal className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={() => window.location.assign(href)}>
+        <DropdownMenuItem onClick={() => (onOpen ? onOpen() : window.location.assign(href))}>
           <ArrowUpRight />
           Open project
         </DropdownMenuItem>
@@ -373,6 +389,9 @@ export function ProjectRowMenu({
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        {propertyId ? (
+          <FavoriteMenuItem propertyId={propertyId} projectId={project.id} name={project.name} />
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {
@@ -426,5 +445,24 @@ export function OptionMenu<T extends string>({
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function FavoriteMenuItem({
+  propertyId,
+  projectId,
+  name,
+}: {
+  propertyId: string;
+  projectId: string;
+  name: string;
+}) {
+  const { isFavorite, toggle } = useFavorites(propertyId);
+  const on = isFavorite("project", projectId);
+  return (
+    <DropdownMenuItem onClick={() => void toggle("project", projectId, name)}>
+      <Star />
+      {on ? "Remove from favorites" : "Add to favorites"}
+    </DropdownMenuItem>
   );
 }

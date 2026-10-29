@@ -79,6 +79,8 @@ type Props = {
   scopeSpaceId?: string | null;
   /** Active list scope (`?list=`), threaded to inline quick-add. */
   scopeListId?: string | null;
+  /** Project scope (the project page's board) — quick-adds join it. */
+  scopeProjectId?: string | null;
 };
 
 export function KanbanView({
@@ -89,6 +91,7 @@ export function KanbanView({
   cardLabels,
   scopeSpaceId,
   scopeListId,
+  scopeProjectId,
   hideDone,
   onOpenFullCreate,
 }: Props) {
@@ -449,7 +452,9 @@ export function KanbanView({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="flex min-h-0 flex-1 gap-2 overflow-x-auto px-(--page-gutter) py-3">
+      {/* gr8r `.board` (src/views/board.js) — one `.bcol` per column of the
+          board's pipeline (`columnsFor`). */}
+      <div className="board">
         {board.columns.map((column) => {
           // Done columns can be force-collapsed by the toolbar's "Hide done"
           // toggle without touching the per-column collapse state.
@@ -475,6 +480,7 @@ export function KanbanView({
               onOpenFullCreate={onOpenFullCreate}
               scopeSpaceId={scopeSpaceId}
               scopeListId={scopeListId}
+              scopeProjectId={scopeProjectId}
             />
           );
         })}

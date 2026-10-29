@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowRightLeft,
+  ListChecks,
   Bot,
   CalendarClock,
   CheckCircle2,
@@ -394,6 +395,22 @@ export function describeActivity(
         // legacy literal.
         extra: `to ${typeof d.to_name === "string" ? d.to_name : statusLabel("task", d.to)}`,
       };
+    case "checklist_added":
+    case "checklist_removed":
+    case "checklist_completed": {
+      const name = typeof d.name === "string" && d.name ? d.name : "a";
+      return {
+        ...base,
+        Icon: ListChecks,
+        verb:
+          row.verb === "checklist_added"
+            ? `added the ${name} checklist to`
+            : row.verb === "checklist_removed"
+              ? `removed the ${name} checklist from`
+              : `completed the ${name} checklist on`,
+        object: taskObj,
+      };
+    }
     case "list_changed":
       return {
         ...base,
@@ -422,7 +439,15 @@ export function describeActivity(
         extra: `to ${d.to === L.meId ? "you" : personName(d.to)}`,
       };
     case "unassigned":
-      return { ...base, Icon: UserMinus, verb: "unassigned", object: taskObj };
+      // 0115: one row per person removed; `from` names them.
+      return {
+        ...base,
+        Icon: UserMinus,
+        verb: d.from
+          ? `removed ${d.from === L.meId ? "you" : personName(d.from)} from`
+          : "unassigned",
+        object: taskObj,
+      };
     case "due_changed": {
       const to = shortDate(d.to);
       return {

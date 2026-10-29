@@ -14,13 +14,16 @@ import {
   PenLine,
   Pin,
   Plus,
+  Search,
+  SearchX,
   Sparkles,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { AutomationsButton } from "@/components/workflows/automations-button";
 import { PageHeader } from "@/components/shell/page-header";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,7 +43,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TintIcon } from "@/components/ui/tint-card";
 import { FormStatusBadge } from "./status-badge";
 import { GenerateFormDialog } from "./generate-form-dialog";
 import { ShareFormDialog } from "./share-form-dialog";
@@ -89,6 +91,8 @@ export function FormsList({
   const [sharing, setSharing] = useState<FormListItem | null>(null);
   const [pinning, setPinning] = useState<FormListItem | null>(null);
   const [creatingStarter, startStarter] = useTransition();
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | FormStatus>("all");
   const base = `/p/${propertyId}/forms`;
 
   // The Forms section sidebar deep-links the create flows (`?new=1` /
@@ -126,81 +130,151 @@ export function FormsList({
   }
 
   const published = forms.filter((f) => f.status === "published").length;
+  const needle = q.trim().toLowerCase();
+  const shown = forms.filter(
+    (f) =>
+      (statusFilter === "all" || f.status === statusFilter) &&
+      (!needle ||
+        f.title.toLowerCase().includes(needle) ||
+        (f.description ?? "").toLowerCase().includes(needle)),
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         title="Forms"
         icon={<ClipboardList />}
-        meta={
-          forms.length > 0 ? (
-            <span className="tabular-nums">
-              {forms.length} {forms.length === 1 ? "form" : "forms"} · {published} published
-            </span>
-          ) : null
-        }
-        actions={
-          <div className="flex items-center gap-1.5">
-            <AutomationsButton propertyId={propertyId} feature="forms" />
-            <StarterMenu onPick={createStarter} disabled={creatingStarter} />
-            <Button variant="ghost" size="sm" onClick={() => setGenerateOpen(true)}>
-              <Sparkles data-slot="icon" />
-              <span className="hidden sm:inline">Draft with AI</span>
-            </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus data-slot="icon" />
-              New form
-            </Button>
-          </div>
-        }
+        actions={<AutomationsButton propertyId={propertyId} feature="forms" />}
       />
 
-      <div className="@container flex-1 overflow-y-auto px-(--page-gutter) pt-2 pb-12">
-        {forms.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            title="No forms yet"
-            className="mt-8"
-            action={
-              <div className="flex flex-wrap justify-center gap-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide">
+          <div className="ph">
+            <div>
+              <h1>Forms</h1>
+              <p>
+                {forms.length === 0
+                  ? "Waivers, requests and reports your team and guests fill in."
+                  : `${forms.length} ${forms.length === 1 ? "form" : "forms"} · ${published} published`}
+              </p>
+            </div>
+            <div className="acts">
+              <StarterMenu onPick={createStarter} disabled={creatingStarter} />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setGenerateOpen(true)}
+              >
+                <Gi icon={Sparkles} size={14} />
+                <span className="hide-m">Draft with AI</span>
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => setNewOpen(true)}>
+                <Gi icon={Plus} size={14} />
+                New form
+              </button>
+            </div>
+          </div>
+
+          {forms.length === 0 ? (
+            <G8Empty
+              icon={ClipboardList}
+              title="No forms yet"
+              text="Start from a waiver, maintenance request or incident report and edit the wording, describe what you need and let AI draft it, or build your own."
+            >
+              <div className="row" style={{ flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 4 }}>
                 <StarterMenu
                   onPick={createStarter}
                   disabled={creatingStarter}
                   label="Start from a template"
                   variant="outline"
                 />
-                <Button variant="outline" size="sm" onClick={() => setGenerateOpen(true)}>
-                  <Sparkles data-slot="icon" />
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setGenerateOpen(true)}
+                >
+                  <Gi icon={Sparkles} size={13} />
                   Draft with AI
-                </Button>
-                <Button size="sm" onClick={() => setNewOpen(true)}>
-                  <Plus data-slot="icon" />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setNewOpen(true)}
+                >
+                  <Gi icon={Plus} size={13} />
                   New form
-                </Button>
+                </button>
               </div>
-            }
-          >
-            Start from a waiver, maintenance request or incident report and edit
-            the wording, describe what you need and let AI draft it, or build your
-            own.
-          </EmptyState>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
-            {forms.map((form) => (
-              <FormCard
-                key={form.id}
-                form={form}
-                href={`${base}/${form.id}`}
-                fillHref={`${base}/${form.id}/fill`}
-                responseCount={responseCounts[form.id] ?? 0}
-                propertyId={propertyId}
-                onDelete={() => setDeleting(form)}
-                onShare={() => setSharing(form)}
-                onPin={() => setPinning(form)}
-              />
-            ))}
-          </div>
-        )}
+            </G8Empty>
+          ) : (
+            <>
+              <div className="row" style={{ marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+                <div className="inwrap">
+                  <Gi icon={Search} size={13} />
+                  <input
+                    className="input search-sm"
+                    placeholder="Search forms"
+                    aria-label="Search forms"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="select"
+                  style={{ height: 26, width: "auto", fontSize: 12 }}
+                  aria-label="Filter by status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as "all" | FormStatus)}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                  <option value="closed">Closed</option>
+                </select>
+                {shown.length !== forms.length ? (
+                  <span className="faint num" style={{ fontSize: 12 }}>
+                    {shown.length} of {forms.length}
+                  </span>
+                ) : null}
+              </div>
+              {shown.length === 0 ? (
+                <G8Empty
+                  sm
+                  icon={SearchX}
+                  title="No results found"
+                  text="No forms match your search."
+                >
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setQ("");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                </G8Empty>
+              ) : (
+                <div className="pgrid">
+                  {shown.map((form) => (
+                    <FormCard
+                      key={form.id}
+                      form={form}
+                      href={`${base}/${form.id}`}
+                      fillHref={`${base}/${form.id}/fill`}
+                      responseCount={responseCounts[form.id] ?? 0}
+                      propertyId={propertyId}
+                      onDelete={() => setDeleting(form)}
+                      onShare={() => setSharing(form)}
+                      onPin={() => setPinning(form)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <NewFormDialog propertyId={propertyId} open={newOpen} onOpenChange={setNewOpen} />
@@ -259,10 +333,16 @@ function StarterMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant={variant} size="sm" disabled={disabled} />}
+        render={
+          <button
+            type="button"
+            className={variant === "ghost" ? "btn btn-ghost" : "btn btn-secondary btn-sm"}
+            disabled={disabled}
+          />
+        }
       >
-        <LayoutTemplate data-slot="icon" />
-        <span className={variant === "ghost" ? "hidden sm:inline" : undefined}>{label}</span>
+        <Gi icon={LayoutTemplate} size={variant === "ghost" ? 14 : 13} />
+        <span className={variant === "ghost" ? "hide-m" : undefined}>{label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuGroup>
@@ -287,16 +367,6 @@ function StarterMenu({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/** One plain-words row on a library card. */
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-2 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="truncate text-right">{value}</dd>
-    </div>
   );
 }
 
@@ -342,97 +412,103 @@ function FormCard({
     });
   }
 
+  // gr8r `.pcard`: `.picon` + title + description, the plain-words facts as
+  // a `.kv` list, and a `.foot` with the status pill and the response count.
   return (
-    <article className="group flex flex-col gap-4 rounded-card bg-card p-5 shadow-card">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-3">
-          <TintIcon tone="honey">{form.icon || <ClipboardList />}</TintIcon>
-          <div className="min-w-0">
-            <Link
-              href={href}
-              className="block truncate text-base font-medium hover:underline hover:underline-offset-2"
-            >
-              {form.title}
-            </Link>
-            <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">
-              {form.description || "A form you built."}
-            </p>
+    // No card-level click: menu items portal but still bubble through the
+    // React tree, so a card onClick would navigate on "Delete". The title
+    // link and "Edit form" are the ways in.
+    <article className="pcard" style={{ cursor: "default" }}>
+      <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+        <span className="picon lg" style={{ "--g8-c": "var(--g8-amber)" } as React.CSSProperties}>
+          {form.icon ? (
+            <span aria-hidden style={{ fontSize: 17, lineHeight: 1 }}>{form.icon}</span>
+          ) : (
+            <Gi icon={ClipboardList} size={17} />
+          )}
+        </span>
+        <div className="grow" style={{ minWidth: 0, paddingRight: 24 }}>
+          <Link
+            href={href}
+            className="trunc"
+            style={{ display: "block", fontWeight: 600, color: "inherit" }}
+          >
+            {form.title}
+          </Link>
+          <div className="desc" style={{ minHeight: 0 }}>
+            {form.description || "A form you built."}
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-                aria-label="Form actions"
-              />
-            }
-          >
-            <MoreHorizontal className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => router.push(href)}>
-              <PenLine data-slot="icon" />
-              Edit
-            </DropdownMenuItem>
-            {form.status === "published" ? (
-              <DropdownMenuItem onClick={() => router.push(fillHref)}>
-                <ClipboardList data-slot="icon" />
-                Fill
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onClick={duplicate} disabled={duplicating}>
-              <Copy data-slot="icon" />
-              Duplicate
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onShare}>
-              <MessageSquareShare data-slot="icon" />
-              Share to chat
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onPin}>
-              <Pin data-slot="icon" />
-              Pin to space
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              <Trash2 data-slot="icon" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
-
-      <dl className="divide-y divide-border border-y border-border">
-        <InfoRow label="Status" value={<FormStatusBadge status={form.status} />} />
-        <InfoRow
-          label="Questions"
-          value={questions === 0 ? "None yet" : `${questions}`}
-        />
-        <InfoRow
-          label="Answered"
-          value={
-            form.anonymous
-              ? "Anonymously"
-              : form.allow_multiple
-                ? "As often as needed"
-                : "Once per person"
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className="ibtn ibtn-sm more"
+              aria-label="Form actions"
+            />
           }
-        />
-        <InfoRow label="Signature" value={signs ? "Asked for" : "Not needed"} />
-        <InfoRow
-          label="Responses"
-          value={<span className="tabular-nums">{responseCount}</span>}
-        />
+        >
+          <Gi icon={MoreHorizontal} size={14} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => router.push(href)}>
+            <PenLine data-slot="icon" />
+            Edit
+          </DropdownMenuItem>
+          {form.status === "published" ? (
+            <DropdownMenuItem onClick={() => router.push(fillHref)}>
+              <ClipboardList data-slot="icon" />
+              Fill
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onClick={duplicate} disabled={duplicating}>
+            <Copy data-slot="icon" />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onShare}>
+            <MessageSquareShare data-slot="icon" />
+            Share to chat
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onPin}>
+            <Pin data-slot="icon" />
+            Pin to space
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 data-slot="icon" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <dl className="kv">
+        <dt>Questions</dt>
+        <dd>{questions === 0 ? "None yet" : questions}</dd>
+        <dt>Answered</dt>
+        <dd>
+          {form.anonymous
+            ? "Anonymously"
+            : form.allow_multiple
+              ? "As often as needed"
+              : "Once per person"}
+        </dd>
+        <dt>Signature</dt>
+        <dd>{signs ? "Asked for" : "Not needed"}</dd>
       </dl>
 
-      <div className="mt-auto">
-        <Button nativeButton={false} variant="outline" size="sm" render={<Link href={href} />}>
+      <div className="foot">
+        <FormStatusBadge status={form.status} />
+        <span className="num">
+          {responseCount} {responseCount === 1 ? "response" : "responses"}
+        </span>
+        <span className="sp" />
+        <Link href={href} className="btn btn-ghost btn-sm">
           Edit form
-          <ArrowRight data-slot="icon" />
-        </Button>
+          <Gi icon={ArrowRight} size={13} />
+        </Link>
       </div>
     </article>
   );

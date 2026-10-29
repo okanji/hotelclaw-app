@@ -69,18 +69,10 @@ export default async function ChatbotDetailPage({
         .limit(200),
     ]);
 
-  const [{ data: deployments }, { data: services }] = await Promise.all([
-    supabase
-      .from("chatbot_channel_deployments")
-      .select("stream_channel_id")
-      .eq("chatbot_id", chatbotId),
-    supabase
-      .from("bookable_services")
-      .select("id, name, emoji, active")
-      .eq("property_id", propertyId)
-      .is("archived_at", null)
-      .order("name"),
-  ]);
+  const { data: deployments } = await supabase
+    .from("chatbot_channel_deployments")
+    .select("stream_channel_id")
+    .eq("chatbot_id", chatbotId);
 
   // Custom actions — header SECRETS stay server-side; the client only sees
   // header names (rendered as "•••• saved" in the editor).
@@ -115,7 +107,6 @@ export default async function ChatbotDetailPage({
       documents={documents ?? []}
       customActions={customActions}
       deployedChannelIds={(deployments ?? []).map((d) => d.stream_channel_id)}
-      services={services ?? []}
     />
   );
 }

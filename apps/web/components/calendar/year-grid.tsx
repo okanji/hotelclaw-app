@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
 import { isSameDay, monthGrid } from "@/lib/calendar/time";
 import {
   dayDensity,
@@ -12,13 +11,14 @@ import {
 } from "@/lib/calendar/view-range";
 import type { CalendarEvent } from "@/lib/calendar/types";
 
-// Marker strength per density level — one hue (the selection blue) at three
-// opacities, so "busier" reads as "darker" without inventing a status scale.
-const LEVEL_CLASS = ["", "bg-primary/35", "bg-primary/65", "bg-primary"] as const;
+// Marker strength per density level — gr8r's accent at three strengths
+// (`.yr-d i.l1/.l2/.l3` in gr8r-ext.css), so "busier" reads as "darker"
+// without inventing a status scale.
+const LEVEL_CLASS = ["", "l1", "l2", "l3"] as const;
 
 /**
  * Year view: twelve compact month grids with a density dot under every day
- * that has events, bookings, or due tasks — the same filtered feed the other
+ * that has events or due tasks — the same filtered feed the other
  * views render, so hidden calendars drop out here too. Clicking a day opens
  * Day view on it (delegated up). Spill-over days from adjacent months render
  * blank so each block reads as exactly one month.
@@ -45,26 +45,28 @@ export function YearGrid({
     .map((d) => d.toLocaleDateString(undefined, { weekday: "narrow" }));
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-4 pb-6">
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 pt-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+    // gr8r has no year view; this is twelve gr8r-styled mini months
+    // (`.yr*` in gr8r-ext.css) on the same tokens as the `.cal` month.
+    <div className="yr">
+      <div className="yr-grid">
         {months.map((month) => {
           const m = month.getMonth();
           return (
-            <section key={m} aria-label={month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}>
-              <h2 className="px-1 pb-1.5 text-sm font-semibold text-foreground">
-                {month.toLocaleDateString(undefined, { month: "long" })}
-              </h2>
-              <div className="grid grid-cols-7 text-center text-xs text-faint-foreground">
+            <section
+              key={m}
+              className="yr-m"
+              aria-label={month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+            >
+              <h3>{month.toLocaleDateString(undefined, { month: "long" })}</h3>
+              <div className="yr-wd">
                 {weekdays.map((w, i) => (
-                  <span key={i} className="py-1">
-                    {w}
-                  </span>
+                  <span key={i}>{w}</span>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="yr-days">
                 {monthGrid(month).map((d) => {
                   if (d.getMonth() !== m) {
-                    return <span key={d.toISOString()} aria-hidden className="h-8" />;
+                    return <span key={d.toISOString()} aria-hidden style={{ height: 30 }} />;
                   }
                   const count = density.get(dayKey(d)) ?? 0;
                   const level = densityLevel(count);
@@ -79,27 +81,17 @@ export function YearGrid({
                       key={d.toISOString()}
                       type="button"
                       onClick={() => onSelectDay(d)}
+                      aria-current={isToday ? "date" : undefined}
                       aria-label={
                         count > 0
                           ? `${label}, ${count} item${count === 1 ? "" : "s"}`
                           : label
                       }
                       title={count > 0 ? `${count} item${count === 1 ? "" : "s"}` : undefined}
-                      className={cn(
-                        "relative flex h-8 flex-col items-center justify-center rounded-md text-xs tabular-nums transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none",
-                        isToday
-                          ? "font-semibold text-primary"
-                          : "text-secondary-ink",
-                      )}
+                      className={isToday ? "yr-d today" : "yr-d"}
                     >
-                      <span>{d.getDate()}</span>
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "absolute bottom-1 size-1 rounded-full",
-                          LEVEL_CLASS[level],
-                        )}
-                      />
+                      {d.getDate()}
+                      {level > 0 ? <i aria-hidden className={LEVEL_CLASS[level]} /> : null}
                     </button>
                   );
                 })}

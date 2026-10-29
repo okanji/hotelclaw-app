@@ -1,181 +1,204 @@
 "use client";
 
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { Stat, StatGroup } from "@/components/ui/stat";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Clock } from "lucide-react";
 import {
   pct,
   progressByAssignee,
   progressStats,
   type ProgressTask,
 } from "@/lib/initiatives/planning";
-import { OverviewSection } from "./workspace-shell";
-import { COLUMNS } from "@/components/tasks/kanban";
-import { StatusIcon } from "@/components/tasks/task-icons";
+import { isBlocked, isDone, isStarted } from "@/lib/tasks/statuses";
 import type { TaskStatus } from "@/lib/db/types";
-
-/** Status ink for the issue tally (only the statuses that need attention
- *  or mark completion get a hue; to-do stays foreground). */
-const STATUS_TALLY: Partial<Record<TaskStatus, string>> = {
-  in_progress: "text-warning",
-  blocked: "text-destructive",
-  done: "text-success",
-};
+import { Gi } from "@/components/gr8r/icon";
+import { Av, StIcon } from "@/components/gr8r/home-glyphs";
+import { G8Panel } from "@/components/gr8r/project-page";
 
 type Person = { id: string; name: string | null; avatarUrl: string | null };
 
-function initials(name: string | null | undefined) {
-  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+/** The four category buckets, in gr8r's STATUSES order, with their ramp. */
+const BUCKETS: { id: TaskStatus; label: string; c: string }[] = [
+  { id: "todo", label: "To do", c: "var(--g8-st-todo)" },
+  { id: "in_progress", label: "In progress", c: "var(--g8-st-progress)" },
+  { id: "blocked", label: "Blocked", c: "var(--g8-red)" },
+  { id: "done", label: "Done", c: "var(--g8-st-done)" },
+];
+
+function bucketOf(t: ProgressTask): TaskStatus {
+  if (isDone(t)) return "done";
+  if (isBlocked(t)) return "blocked";
+  if (isStarted(t)) return "in_progress";
+  return "todo";
 }
 
-/** Completed (solid) over started (soft) on one track, out of scope. */
-function ScopeBar({
-  scope,
-  started,
-  completed,
-  className,
-}: {
-  scope: number;
-  started: number;
-  completed: number;
-  className?: string;
-}) {
+/** Completed (solid) over started (soft) on one gr8r `.stackbar`. */
+function ScopeBar({ scope, started, completed }: { scope: number; started: number; completed: number }) {
   return (
-    <div
-      className={cn("flex h-1 overflow-hidden rounded-full bg-muted", className)}
+    <span
+      className="stackbar"
+      style={{ height: 6, flex: 1 }}
       role="img"
       aria-label={`${completed} of ${scope} points completed, ${started} started`}
     >
-      {completed > 0 ? (
-        <div className="h-full shrink-0 bg-success/90" style={{ width: `${pct(completed, scope)}%` }} />
-      ) : null}
-      {started > 0 ? (
-        <div className="h-full shrink-0 bg-warning/70" style={{ width: `${pct(started, scope)}%` }} />
-      ) : null}
-    </div>
+      {completed > 0 ? <i style={{ width: `${pct(completed, scope)}%`, background: "var(--g8-st-done)" }} /> : null}
+      {started > 0 ? <i style={{ width: `${pct(started, scope)}%`, background: "var(--g8-st-progress)" }} /> : null}
+    </span>
   );
 }
 
 /**
- * Linear's project Progress block: Scope / Started / Completed in estimate
- * points (an unestimated task counts as 1 — `lib/initiatives/planning.ts`),
- * then the same three numbers per assignee.
+ * gr8r's Overview "Progress" panel (src/views/project-overview.js — big %,
+ * days to the due date, overdue badge, a status `.stackbar`, per-status
+ * tallies) carrying our Linear-parity numbers: Scope / Started / Completed
+ * in estimate points (an unestimated task counts as 1 —
+ * `lib/initiatives/planning.ts`) and the same per assignee.
  */
 export function ProjectProgressBlock({
   tasks,
   people,
+  targetDate,
+  overdue = 0,
+  health,
+  onBucket,
 }: {
   tasks: ProgressTask[];
   people: Person[];
+  /** `projects.target_date` — "N days until …" under the big number. */
+  targetDate?: string | null;
+  overdue?: number;
+  /** Declared + pace health, shown in the panel header. */
+  health?: React.ReactNode;
+  /** A tally was clicked — the page opens its List tab. */
+  onBucket?: (status: TaskStatus) => void;
 }) {
   const stats = useMemo(() => progressStats(tasks), [tasks]);
   const rows = useMemo(() => progressByAssignee(tasks), [tasks]);
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
-  // Issue COUNTS per status (the points above can hide a blocked issue) —
-  // folded in from the old "N of M completed" bar so Overview has one
-  // progress block.
-  const statusCounts = useMemo(() => {
+  const counts = useMemo(() => {
     const c: Record<TaskStatus, number> = { todo: 0, in_progress: 0, blocked: 0, done: 0 };
-    for (const t of tasks) c[t.status] += 1;
+    for (const t of tasks) c[bucketOf(t)] += 1;
     return c;
   }, [tasks]);
 
-  if (stats.tasks === 0) {
-    return (
-      <OverviewSection title="Progress">
-        <p className="text-sm text-muted-foreground">
-          No issues yet — scope and progress appear as work is added.
-        </p>
-      </OverviewSection>
-    );
-  }
+  const days = useMemo(() => {
+    if (!targetDate) return null;
+    const [y, m, d] = targetDate.slice(0, 10).split("-").map(Number);
+    const target = new Date(y!, (m ?? 1) - 1, d ?? 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return {
+      n: Math.round((target.getTime() - today.getTime()) / 86_400_000),
+      label: target.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    };
+  }, [targetDate]);
+
+  const done = pct(stats.doneTasks, stats.tasks);
 
   return (
-    <OverviewSection
+    <G8Panel
       title="Progress"
-      action={
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {stats.doneTasks}/{stats.tasks} issues
-        </span>
+      acts={
+        <>
+          {health}
+          <span className="faint num" style={{ fontSize: 12 }}>
+            {stats.doneTasks} of {stats.tasks} tasks done
+          </span>
+        </>
       }
     >
-      <StatGroup cols={3}>
-        <Stat
-          label="Scope"
-          value={stats.scope}
-          delta={`${stats.tasks} ${stats.tasks === 1 ? "issue" : "issues"} · points`}
-        />
-        <Stat
-          label="Started"
-          value={stats.started}
-          delta={`${pct(stats.started, stats.scope)}%`}
-          tone={stats.started > 0 ? "warning" : "neutral"}
-        />
-        <Stat
-          label="Completed"
-          value={stats.completed}
-          delta={`${pct(stats.completed, stats.scope)}%`}
-          tone={stats.completed > 0 ? "success" : "neutral"}
-        />
-      </StatGroup>
-      <ScopeBar scope={stats.scope} started={stats.started} completed={stats.completed} />
-      <dl className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
-        {COLUMNS.map((s) =>
-          statusCounts[s.id] > 0 ? (
-            <div key={s.id} className="flex items-center gap-1">
-              <StatusIcon status={s.id} className="size-3 text-muted-foreground" />
-              <dt className="sr-only">{s.label}</dt>
-              <dd className="text-sm tabular-nums text-muted-foreground">
-                <span className={STATUS_TALLY[s.id] ?? "text-foreground"}>
-                  {statusCounts[s.id]}
-                </span>
-                <span className="ml-1">{s.label}</span>
-              </dd>
-            </div>
-          ) : null,
-        )}
-      </dl>
-
-      <ul role="list" className="mt-2 flex flex-col">
-        {rows.map((r) => {
-          const p = r.assigneeId ? byId.get(r.assigneeId) : undefined;
-          const label = r.assigneeId ? (p?.name ?? "Former member") : "Unassigned";
-          return (
-            <li
-              key={r.assigneeId ?? "none"}
-              className="flex min-h-[37px] items-center gap-3 border-t border-border first:border-0"
-            >
-              <Avatar className="size-5 shrink-0">
-                {p?.avatarUrl ? <AvatarImage src={p.avatarUrl} alt="" /> : null}
-                <AvatarFallback className="bg-accent-pressed text-[10px] font-medium text-secondary-ink">
-                  {r.assigneeId ? initials(p?.name) : "–"}
-                </AvatarFallback>
-              </Avatar>
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate text-sm",
-                  r.assigneeId ? "font-medium text-foreground" : "text-muted-foreground",
-                )}
+      {stats.tasks === 0 ? (
+        <span className="faint">No tasks yet — scope and progress appear as work is added.</span>
+      ) : (
+        <>
+          <div className="row" style={{ alignItems: "baseline", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+            <span className="num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-.03em" }}>
+              {done}%
+            </span>
+            {days ? (
+              <span className="muted">
+                {days.n >= 0 ? `${days.n} days until ${days.label}` : `Ended ${days.label}`}
+              </span>
+            ) : null}
+            {overdue > 0 ? (
+              <span className="badge red">
+                <Gi icon={Clock} size={11} />
+                {overdue} overdue
+              </span>
+            ) : null}
+          </div>
+          <div className="stackbar" style={{ height: 8, marginBottom: 12 }}>
+            {BUCKETS.map((b) =>
+              counts[b.id] > 0 ? (
+                <i
+                  key={b.id}
+                  style={{ width: `${(counts[b.id] / stats.tasks) * 100}%`, background: b.c }}
+                  title={`${b.label}: ${counts[b.id]}`}
+                />
+              ) : null,
+            )}
+          </div>
+          <div className="row" style={{ flexWrap: "wrap", gap: 14, fontSize: 12.5 }}>
+            {BUCKETS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className="row"
+                style={{ gap: 5 }}
+                onClick={onBucket ? () => onBucket(b.id) : undefined}
               >
-                {label}
-              </span>
-              <ScopeBar
-                scope={r.scope}
-                started={r.started}
-                completed={r.completed}
-                className="w-20 shrink-0 sm:w-28"
-              />
-              <span className="w-16 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
-                {r.completed}/{r.scope}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </OverviewSection>
+                <StIcon task={{ status: b.id }} size={12} />
+                <span className="muted">{b.label}</span>
+                <b className="num" style={{ fontWeight: 600 }}>
+                  {counts[b.id]}
+                </b>
+              </button>
+            ))}
+          </div>
+
+          {/* Points — Linear's Scope / Started / Completed. */}
+          <div className="stats" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginTop: 16 }}>
+            <PointStat label="Scope" value={stats.scope} sub={`${stats.tasks} ${stats.tasks === 1 ? "task" : "tasks"} · points`} />
+            <PointStat label="Started" value={stats.started} sub={`${pct(stats.started, stats.scope)}%`} />
+            <PointStat label="Completed" value={stats.completed} sub={`${pct(stats.completed, stats.scope)}%`} />
+          </div>
+
+          <div className="col" style={{ gap: 0, marginTop: 12 }}>
+            {rows.map((r) => {
+              const p = r.assigneeId ? byId.get(r.assigneeId) : undefined;
+              const label = r.assigneeId ? (p?.name ?? "Former member") : "Unassigned";
+              return (
+                <div
+                  key={r.assigneeId ?? "none"}
+                  className="row"
+                  style={{ minHeight: 34, gap: 10, borderTop: "1px solid var(--g8-divider)" }}
+                >
+                  <Av member={r.assigneeId ? (p ?? { id: r.assigneeId, name: label }) : null} />
+                  <span
+                    className={r.assigneeId ? "trunc" : "trunc muted"}
+                    style={{ width: 140, flexShrink: 0, fontWeight: r.assigneeId ? 500 : 400 }}
+                  >
+                    {label}
+                  </span>
+                  <ScopeBar scope={r.scope} started={r.started} completed={r.completed} />
+                  <span className="num muted" style={{ width: 52, textAlign: "right", flexShrink: 0, fontSize: 12.5 }}>
+                    {r.completed}/{r.scope}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </G8Panel>
+  );
+}
+
+function PointStat({ label, value, sub }: { label: string; value: number; sub: string }) {
+  return (
+    <div className="stat">
+      <div className="k">{label}</div>
+      <div className="v">{value}</div>
+      <div className="d">{sub}</div>
+    </div>
   );
 }

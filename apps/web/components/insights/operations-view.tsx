@@ -12,15 +12,10 @@ import {
   XAxis,
 } from "recharts";
 import { FileClock, OctagonX } from "lucide-react";
-import {
-  DividerList,
-  ROW_CLASS,
-  Stats,
-  WidgetEmpty,
-  relativeShort,
-} from "@/components/home/editorial-section";
+import { relativeShort } from "@/components/home/editorial-section";
 import { insightsOperationsQueryOptions } from "@/lib/query/insights-queries";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Gi } from "@/components/gr8r/icon";
+import { G8InlineStats as Stats, G8Note, G8Rows } from "./g8-insights";
 import {
   AXIS_TICK,
   COLOR,
@@ -40,9 +35,9 @@ import {
 function OpsLoading() {
   return (
     <div className="flex flex-col gap-2 py-4" aria-busy="true">
-      <Skeleton className="h-4 w-3/5" />
-      <Skeleton className="h-4 w-2/5" />
-      <Skeleton className="h-4 w-1/2" />
+      <span className="sk" style={{ height: 14, width: "60%" }} />
+      <span className="sk" style={{ height: 14, width: "40%" }} />
+      <span className="sk" style={{ height: 14, width: "50%" }} />
     </div>
   );
 }
@@ -68,13 +63,13 @@ export function MeetingsBody({ propertyId }: { propertyId: string }) {
           ]}
         />
         {meetings.unownedActionItems > 0 ? (
-          <p className="mt-3 text-sm text-pretty text-muted-foreground">
+          <p className="muted" style={{ margin: "12px 0 0", fontSize: "var(--g8-fs-sm)" }}>
             {meetings.unownedActionItems} extracted commitment
             {meetings.unownedActionItems === 1 ? " has" : "s have"} no owner —
             they live in{" "}
             <Link
               href={`/p/${propertyId}/meetings`}
-              className="underline hover:text-foreground"
+              className="link"
             >
               meeting notes
             </Link>{" "}
@@ -91,28 +86,25 @@ export function StaleSopsBody({ propertyId }: { propertyId: string }) {
   const { staleSops } = data;
 
   return staleSops.length === 0 ? (
-          <WidgetEmpty>
+          <G8Note>
             Every pinned doc has been touched in the last 60 days.
-          </WidgetEmpty>
+          </G8Note>
         ) : (
-          <DividerList>
+          <G8Rows>
             {staleSops.map((doc) => (
-              <li key={doc.documentId}>
-                <Link
-                  href={`/p/${propertyId}/documents/${doc.documentId}`}
-                  className={`${ROW_CLASS} group`}
-                >
-                  <FileClock className="size-4 shrink-0 text-warning" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
-                    {doc.title}
-                  </span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    untouched {relativeShort(doc.updatedAt)}
-                  </span>
-                </Link>
-              </li>
+              <Link
+                key={doc.documentId}
+                href={`/p/${propertyId}/documents/${doc.documentId}`}
+                className="mini"
+              >
+                <span style={{ color: "var(--g8-amber)", display: "inline-flex" }}>
+                  <Gi icon={FileClock} size={14} />
+                </span>
+                <span className="tt">{doc.title}</span>
+                <span className="m">untouched {relativeShort(doc.updatedAt)}</span>
+              </Link>
             ))}
-          </DividerList>
+          </G8Rows>
         );
 }
 
@@ -146,7 +138,7 @@ export function WorkflowRunsBody({ propertyId }: { propertyId: string }) {
                   interval="preserveStartEnd"
                 />
                 <Tooltip
-                  cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
+                  cursor={{ fill: COLOR.bar, opacity: 0.6 }}
                   contentStyle={TOOLTIP_CONTENT_STYLE}
                   labelStyle={TOOLTIP_LABEL_STYLE}
                 />
@@ -168,29 +160,28 @@ export function WorkflowRunsBody({ propertyId }: { propertyId: string }) {
             </ResponsiveContainer>
           </div>
           {automation.topFailing.length > 0 ? (
-            <DividerList>
+            <G8Rows>
               {automation.topFailing.map((w) => (
-                <li key={w.workflowId}>
-                  <Link
-                    href={`/p/${propertyId}/workflows/${w.workflowId}`}
-                    className={`${ROW_CLASS} group`}
-                  >
-                    <OctagonX className="size-4 shrink-0 text-destructive" />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:underline">
-                      {w.name}
+                <Link
+                  key={w.workflowId}
+                  href={`/p/${propertyId}/workflows/${w.workflowId}`}
+                  className="mini"
+                >
+                  <span style={{ color: "var(--g8-red)", display: "inline-flex" }}>
+                    <Gi icon={OctagonX} size={14} />
+                  </span>
+                  <span className="tt">{w.name}</span>
+                  <span className="m bad">
+                    {w.failures} failure{w.failures === 1 ? "" : "s"}
+                  </span>
+                  {w.lastError ? (
+                    <span className="m trunc hidden sm:inline" style={{ maxWidth: 224 }}>
+                      {w.lastError}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-destructive">
-                      {w.failures} failure{w.failures === 1 ? "" : "s"}
-                    </span>
-                    {w.lastError ? (
-                      <span className="hidden max-w-56 shrink-0 truncate text-xs text-faint-foreground sm:inline">
-                        {w.lastError}
-                      </span>
-                    ) : null}
-                  </Link>
-                </li>
+                  ) : null}
+                </Link>
               ))}
-            </DividerList>
+            </G8Rows>
           ) : null}
     </div>
   );
@@ -232,7 +223,7 @@ export function OpsActivityBody({ propertyId }: { propertyId: string }) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">
+      <p className="faint" style={{ margin: "6px 0 0", fontSize: "var(--g8-fs-xs)" }}>
         Workspace events per day, last 14 days.
       </p>
     </>

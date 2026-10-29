@@ -5,10 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MessagesSquare, Sparkles, Workflow } from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Chip } from "@/components/ui/chip";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/ai-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import {
   fleetSessionsQueryOptions,
   type FleetSessionRow,
@@ -16,7 +15,6 @@ import {
 import { SESSION_STATUS_UI } from "@/lib/fleet/status-colors";
 import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { SessionTranscriptSheet } from "./session-transcript";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 type SessionFilter = "all" | "awaiting" | "workflow" | "chat";
@@ -68,46 +66,56 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
           { label: "Sessions" },
         ]}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide" style={{ maxWidth: 1100 }}>
+          <div className="ph">
+            <div>
+              <h1>Sessions</h1>
+              <p>Pod-bot chats and workflow runs. Open one to read its transcript.</p>
+            </div>
+          </div>
           {sessions.length === 0 ? (
-            <EmptyState icon={MessagesSquare} title="No sessions yet">
-              Address a bot in a channel (e.g. @frontdesk) or trigger a workflow
-              through the actions API and its session will appear here.
-            </EmptyState>
+            <div className="panel">
+              <G8Empty
+                icon={MessagesSquare}
+                title="No sessions yet"
+                text="Address a bot in a channel (e.g. @frontdesk) or trigger a workflow through the actions API and its session will appear here."
+              />
+            </div>
           ) : (
-            <div className="space-y-3">
-              {/* Kind/state filter chips (bookings-agenda pattern) — zero-count
-                  chips stay (disabled) so the row doesn't reflow as sessions
-                  change under Realtime. */}
-              <div className="flex flex-wrap gap-1.5">
+            <>
+              {/* Kind/state filter tabs — zero-count tabs stay (disabled) so
+                  the row doesn't reflow as sessions change under Realtime. */}
+              <div className="tabs" role="tablist" style={{ marginBottom: 14 }}>
                 {FILTERS.map(([value, label]) => {
                   const count = sessions.filter((s) =>
                     matchesFilter(s, value),
                   ).length;
                   const empty = value !== "all" && count === 0;
                   return (
-                    <Chip
+                    <button
                       key={value}
-                      size="sm"
-                      selected={filter === value}
+                      type="button"
+                      role="tab"
+                      aria-selected={filter === value}
                       disabled={empty}
                       onClick={() => setFilter(value)}
-                      className={cn(empty && "opacity-40")}
+                      className={filter === value ? "tab on" : "tab"}
+                      style={empty ? { opacity: 0.4 } : undefined}
                     >
                       {label}
-                      <span className="tabular-nums opacity-70">{count}</span>
-                    </Chip>
+                      <span className="cnt">{count}</span>
+                    </button>
                   );
                 })}
               </div>
 
               {filtered.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">
-                  No sessions match this filter.
-                </p>
+                <div className="panel">
+                  <G8Empty sm icon={MessagesSquare} title="Nothing here" text="No sessions match this filter." />
+                </div>
               ) : (
-                <ul role="list" className="flex flex-col divide-y divide-border">
+                <ul role="list" className="panel" style={{ margin: 0, padding: 0, listStyle: "none", overflow: "hidden" }}>
                   {filtered.map((session) => (
                     <SessionRow
                       key={session.id}
@@ -121,7 +129,7 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
                   ))}
                 </ul>
               )}
-            </div>
+            </>
           )}
 
           <SessionTranscriptSheet
@@ -129,7 +137,7 @@ export function SessionsView({ propertyId }: { propertyId: string }) {
             session={openSession}
             onClose={close}
           />
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -146,32 +154,29 @@ function SessionRow({
   const status = SESSION_STATUS_UI[session.status];
   const content = (
     <>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm">
-        {isWorkflow ? (
-          <Workflow className="size-4 text-muted-foreground" />
-        ) : (
-          podBotEmoji(session.bot?.bot_id ?? "")
-        )}
+      <span
+        className="picon"
+        style={{ "--g8-c": isWorkflow ? "var(--g8-violet)" : "var(--g8-gray)", fontSize: 14 } as React.CSSProperties}
+      >
+        {isWorkflow ? <Gi icon={Workflow} size={14} /> : podBotEmoji(session.bot?.bot_id ?? "")}
       </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <span className="truncate">
-            {session.bot?.display_name ?? "Bot"}
-          </span>
+      <span className="col grow" style={{ minWidth: 0, gap: 2 }}>
+        <span className="row" style={{ gap: 8, fontWeight: 500 }}>
+          <span className="trunc">{session.bot?.display_name ?? "Bot"}</span>
           {isWorkflow ? (
-            <StatusBadge tone="violet" dot={false}>
+            <G8Badge tone="violet" dot={false}>
               Workflow run
-            </StatusBadge>
+            </G8Badge>
           ) : null}
         </span>
-        <span className="truncate font-mono text-xs text-muted-foreground">
+        <span className="mono faint trunc" style={{ fontSize: "var(--g8-fs-xs)" }}>
           {isWorkflow ? session.eve_session_id : session.channel_id}
         </span>
       </span>
       {session.status !== "idle" ? (
-        <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <G8Badge tone={status.tone}>{status.label}</G8Badge>
       ) : null}
-      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+      <span className="due">
         {session.last_turn_at
           ? new Date(session.last_turn_at).toLocaleString(undefined, {
               month: "short",
@@ -186,15 +191,18 @@ function SessionRow({
 
   if (!href) {
     return (
-      <li className="flex items-center gap-3 py-3 opacity-60">{content}</li>
+      <li className="nrow" style={{ alignItems: "center", opacity: 0.6, cursor: "default" }}>
+        {content}
+      </li>
     );
   }
   return (
-    <li>
+    <li className="nrow" style={{ padding: 0 }}>
       <Link
         href={href}
         replace
-        className="flex items-center gap-3 rounded-md py-3 transition-colors hover:bg-accent"
+        className="row grow"
+        style={{ gap: 12, padding: "11px 14px", minWidth: 0 }}
       >
         {content}
       </Link>

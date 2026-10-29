@@ -9,6 +9,12 @@ import {
 } from "@/lib/notifications/server";
 import type { Database } from "@/lib/db/types";
 import { isUuid } from "@/lib/tasks/statuses";
+import {
+  assigneeIdsFromEmbed,
+  diffAssignees,
+  MAX_ASSIGNEES,
+  normalizeAssigneeIds,
+} from "@/lib/tasks/assignees";
 
 type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 type Db = SupabaseClient<Database>;
@@ -30,6 +36,8 @@ export const CreateTaskSchema = z.object({
   status: StatusInput.default("todo"),
   priority: z.enum(Priorities).default("none"),
   assigneeId: z.string().uuid().nullable().optional(),
+  /** The full set (0115), primary first. Wins over `assigneeId` when given. */
+  assigneeIds: z.array(z.string().uuid()).max(MAX_ASSIGNEES).optional(),
   parentId: z.string().uuid().nullable().optional(),
   spaceId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
@@ -47,7 +55,11 @@ export const UpdateTaskSchema = z.object({
   /** Move to another list (0114); the status is remapped by category. */
   listId: z.string().uuid().optional(),
   priority: z.enum(Priorities).optional(),
+  /** Legacy: sets the PRIMARY (replaces the old primary, keeps the others);
+   *  null clears every assignee. */
   assigneeId: z.string().uuid().nullable().optional(),
+  /** The full set (0115), primary first; [] clears. Wins over `assigneeId`. */
+  assigneeIds: z.array(z.string().uuid()).max(MAX_ASSIGNEES).optional(),
   dueAt: z.string().nullable().optional(),
   labels: z.array(z.string().min(1).max(40)).optional(),
   projectName: z.string().max(120).nullable().optional(),
@@ -134,8 +146,8 @@ export async function emitTaskAssignmentNotifications(args: {
   propertyId: string;
   title: string;
   byUserId: string;
-  previousAssigneeId: string | null;
-  nextAssigneeId: string | null;
+  previousAssigneeIds: readonly string[];
+  nextAssigneeIds: readonly string[];
 }): Promise<void> {
   const service = createServiceClient();
   const { data: actor } = await service
@@ -145,17 +157,20 @@ export async function emitTaskAssignmentNotifications(args: {
     .maybeSingle();
   const byUserName = actor?.full_name ?? null;
 
-  const events: Array<{ userId: string; type: NotificationType }> = [];
-  if (args.nextAssigneeId && args.nextAssigneeId !== args.byUserId) {
-    events.push({ userId: args.nextAssigneeId, type: "task_assigned" });
-  }
-  if (
-    args.previousAssigneeId &&
-    args.previousAssigneeId !== args.byUserId &&
-    args.previousAssigneeId !== args.nextAssigneeId
-  ) {
-    events.push({ userId: args.previousAssigneeId, type: "task_unassigned" });
-  }
+  // One notification per person who joined / left — never the actor.
+  const { added, removed } = diffAssignees(
+    args.previousAssigneeIds,
+    args.nextAssigneeIds,
+  );
+  const events: Array<{ userId: string; type: NotificationType }> = [
+    ...added
+      .filter((id) => id !== args.byUserId)
+      .map((userId) => ({ userId, type: "task_assigned" as const })),
+    ...removed
+      .filter((id) => id !== args.byUserId)
+      .map((userId) => ({ userId, type: "task_unassigned" as const })),
+  ];
+  if (events.length === 0) return;
 
   await Promise.all(
     events.map((e) =>
@@ -172,6 +187,50 @@ export async function emitTaskAssignmentNotifications(args: {
       }),
     ),
   );
+}
+
+/** The current set, primary first (reads `task_assignees`). */
+export async function readAssigneeIds(supabase: Db, taskId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("task_assignees")
+    .select("user_id, position, created_at")
+    .eq("task_id", taskId);
+  return assigneeIdsFromEmbed(data);
+}
+
+/**
+ * Make the task's set exactly `next` (order = position). Writes ONLY
+ * `task_assignees` — the 0115 trigger derives `tasks.assignee_id` and logs /
+ * emits one activity row + workflow event per person added or removed.
+ * Upserts first so the primary hops straight to its new value, then deletes.
+ */
+export async function writeAssigneeSet(
+  supabase: Db,
+  args: { taskId: string; propertyId: string; previous: readonly string[]; next: readonly string[] },
+): Promise<{ error?: string }> {
+  const next = normalizeAssigneeIds(args.next);
+  const { removed } = diffAssignees(args.previous, next);
+  if (next.length > 0) {
+    const { error } = await supabase.from("task_assignees").upsert(
+      next.map((user_id, position) => ({
+        task_id: args.taskId,
+        user_id,
+        property_id: args.propertyId,
+        position,
+      })),
+      { onConflict: "task_id,user_id" },
+    );
+    if (error) return { error: error.message };
+  }
+  if (removed.length > 0) {
+    const { error } = await supabase
+      .from("task_assignees")
+      .delete()
+      .eq("task_id", args.taskId)
+      .in("user_id", removed);
+    if (error) return { error: error.message };
+  }
+  return {};
 }
 
 export async function createTaskFor(
@@ -204,6 +263,12 @@ export async function createTaskFor(
     parsed.data.status,
   );
 
+  const assigneeIds = parsed.data.assigneeIds
+    ? normalizeAssigneeIds(parsed.data.assigneeIds)
+    : parsed.data.assigneeId
+      ? [parsed.data.assigneeId]
+      : [];
+
   const { data, error } = await supabase
     .from("tasks")
     .insert({
@@ -212,7 +277,8 @@ export async function createTaskFor(
       description: parsed.data.description ?? null,
       ...statusPatch(parsed.data.status),
       priority: parsed.data.priority,
-      assignee_id: parsed.data.assigneeId ?? null,
+      // The primary seeds the set (0115 trigger); the rest follow below.
+      assignee_id: assigneeIds[0] ?? null,
       created_by: userId,
       position,
       parent_id: parsed.data.parentId ?? null,
@@ -228,20 +294,26 @@ export async function createTaskFor(
 
   if (error || !data) return { error: error?.message ?? "Insert failed" };
 
-  // Notify the assignee if it's not the creator themselves. A triage
-  // submission waits: `acceptTriageTaskFor` notifies once it's accepted.
-  if (
-    parsed.data.assigneeId &&
-    parsed.data.assigneeId !== userId &&
-    !parsed.data.triage
-  ) {
+  if (assigneeIds.length > 1) {
+    const res = await writeAssigneeSet(supabase, {
+      taskId: data.id,
+      propertyId: parsed.data.propertyId,
+      previous: assigneeIds.slice(0, 1),
+      next: assigneeIds,
+    });
+    if (res.error) console.error("[tasks] extra assignees failed", data.id, res.error);
+  }
+
+  // Notify the assignees (never the creator). A triage submission waits:
+  // `acceptTriageTaskFor` notifies once it's accepted.
+  if (assigneeIds.length > 0 && !parsed.data.triage) {
     await emitTaskAssignmentNotifications({
       taskId: data.id,
       propertyId: parsed.data.propertyId,
       title: parsed.data.title,
       byUserId: userId,
-      previousAssigneeId: null,
-      nextAssigneeId: parsed.data.assigneeId,
+      previousAssigneeIds: [],
+      nextAssigneeIds: assigneeIds,
     });
   }
 
@@ -250,7 +322,7 @@ export async function createTaskFor(
   // bot no-ops when nothing is missing.
   if (
     !parsed.data.spaceId ||
-    !parsed.data.assigneeId ||
+    assigneeIds.length === 0 ||
     parsed.data.priority === "none"
   ) {
     const taskId = data.id;
@@ -285,6 +357,9 @@ export async function updateTaskFor(
     )
     .eq("id", parsed.data.taskId)
     .maybeSingle();
+  const previousAssigneeIds = before
+    ? await readAssigneeIds(supabase, parsed.data.taskId)
+    : [];
 
   const patch: TaskUpdate = {};
   if (parsed.data.title !== undefined) patch.title = parsed.data.title;
@@ -306,7 +381,8 @@ export async function updateTaskFor(
     patch.list_id = parsed.data.listId;
   }
   if (parsed.data.priority !== undefined) patch.priority = parsed.data.priority;
-  if (parsed.data.assigneeId !== undefined)
+  // `assigneeIds` writes the set table instead (below); never both.
+  if (parsed.data.assigneeId !== undefined && parsed.data.assigneeIds === undefined)
     patch.assignee_id = parsed.data.assigneeId;
   if (parsed.data.dueAt !== undefined) patch.due_at = parsed.data.dueAt;
   if (parsed.data.labels !== undefined) patch.labels = parsed.data.labels;
@@ -361,14 +437,38 @@ export async function updateTaskFor(
     );
   }
 
-  const { data: row, error } = await supabase
-    .from("tasks")
-    .update(patch)
-    .eq("id", parsed.data.taskId)
-    .select("property_id, title, completed_at")
-    .single();
+  // A set-only change (`assigneeIds` alone) leaves the task row untouched;
+  // PostgREST rejects an empty PATCH, so read the row instead.
+  const { data: row, error } =
+    Object.keys(patch).length > 0
+      ? await supabase
+          .from("tasks")
+          .update(patch)
+          .eq("id", parsed.data.taskId)
+          .select("property_id, title, completed_at")
+          .single()
+      : await supabase
+          .from("tasks")
+          .select("property_id, title, completed_at")
+          .eq("id", parsed.data.taskId)
+          .single();
 
   if (error || !row) return { error: error?.message ?? "Update failed" };
+
+  if (parsed.data.assigneeIds !== undefined) {
+    const res = await writeAssigneeSet(supabase, {
+      taskId: parsed.data.taskId,
+      propertyId: row.property_id,
+      previous: previousAssigneeIds,
+      next: parsed.data.assigneeIds,
+    });
+    if (res.error) return { error: res.error };
+  }
+  const assigneesTouched =
+    parsed.data.assigneeIds !== undefined || parsed.data.assigneeId !== undefined;
+  const nextAssigneeIds = assigneesTouched
+    ? await readAssigneeIds(supabase, parsed.data.taskId)
+    : previousAssigneeIds;
 
   // Recurring task completed → roll the next occurrence forward (gr8r's
   // model, migration 0107). The finished one stays done with its history;
@@ -379,12 +479,11 @@ export async function updateTaskFor(
   const cadence = (parsed.data.recurrence ?? before?.recurrence) ?? null;
   if (cadence && before && !before.completed_at && row.completed_at) {
     const position = await topPositionFor(supabase, before.property_id, "todo");
-    const { error: rollError } = await supabase.from("tasks").insert({
+    const { data: rolled, error: rollError } = await supabase.from("tasks").insert({
       property_id: before.property_id,
       title: before.title,
       description: before.description ?? null,
       priority: before.priority,
-      assignee_id: before.assignee_id,
       created_by: userId,
       position,
       parent_id: before.parent_id ?? null,
@@ -396,24 +495,29 @@ export async function updateTaskFor(
       due_at: nextOccurrence(before.due_at, cadence),
       recurrence: cadence,
       recurrence_of: parsed.data.taskId,
-    });
+      // The whole set travels: primary here (seeds the set), the rest below.
+      assignee_id: nextAssigneeIds[0] ?? null,
+    }).select("id").single();
     if (rollError) {
       console.error("[tasks] recurrence roll-forward failed", parsed.data.taskId, rollError);
+    } else if (rolled && nextAssigneeIds.length > 1) {
+      await writeAssigneeSet(supabase, {
+        taskId: rolled.id,
+        propertyId: before.property_id,
+        previous: nextAssigneeIds.slice(0, 1),
+        next: nextAssigneeIds,
+      });
     }
   }
 
-  if (
-    parsed.data.assigneeId !== undefined &&
-    before &&
-    parsed.data.assigneeId !== before.assignee_id
-  ) {
+  if (assigneesTouched && before) {
     await emitTaskAssignmentNotifications({
       taskId: parsed.data.taskId,
       propertyId: row.property_id,
       title: row.title,
       byUserId: userId,
-      previousAssigneeId: before.assignee_id,
-      nextAssigneeId: parsed.data.assigneeId,
+      previousAssigneeIds,
+      nextAssigneeIds,
     });
   }
 

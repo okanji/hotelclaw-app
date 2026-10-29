@@ -3,12 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ShieldAlert, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Lock, ShieldAlert, Sparkles } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/ai-glyphs";
 import { AgentChat } from "@/components/agents/agent-chat";
 import {
   POD_TOOL_CATALOG,
@@ -126,57 +123,68 @@ export function BotDetail({
         ]}
         meta={<span className="font-mono text-xs">@{bot.bot_id}</span>}
         actions={
-          <div className="flex items-center gap-1.5">
-            <StatusBadge tone={clientStatus.tone}>{clientStatus.label}</StatusBadge>
+          <div className="row" style={{ gap: 6 }}>
+            <G8Badge tone={clientStatus.tone}>{clientStatus.label}</G8Badge>
             {canEdit ? (
-              <Button size="sm" onClick={save} disabled={saving || !dirty}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={saving || !dirty}>
                 {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-              </Button>
+              </button>
             ) : null}
           </div>
         }
       />
 
       {paused ? (
-        <div className="flex items-center gap-2 border-b border-border bg-warning/10 px-4 py-2 text-sm text-warning">
-          <ShieldAlert className="size-4 shrink-0" />
-          This pod is {client.status} — its bots don&apos;t answer in channels
-          or here until it&apos;s active again.
+        <div className="alert warn" style={{ borderRadius: 0, borderInline: 0, borderTop: 0 }}>
+          <Gi icon={ShieldAlert} size={15} />
+          <div>
+            This pod is {client.status} — its bots don&apos;t answer in channels
+            or here until it&apos;s active again.
+          </div>
         </div>
       ) : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(360px,480px)]">
-        <div className="flex min-h-0 flex-col gap-8 overflow-y-auto px-6 py-6">
+        <div className="flex min-h-0 flex-col overflow-y-auto" style={{ padding: "24px var(--g8-gutter) 48px" }}>
+          <div style={{ maxWidth: 720 }}>
           {!canEdit ? (
-            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-              Only owners can change pod bot configuration — shown here so the
-              whole team can see exactly what this bot can do.
-            </p>
+            <div className="alert info" style={{ marginBottom: 8 }}>
+              <Gi icon={Lock} size={15} />
+              <div>
+                Only owners can change pod bot configuration — shown here so the
+                whole team can see exactly what this bot can do.
+              </div>
+            </div>
           ) : null}
 
-          <section className="flex flex-col gap-2">
-            <Eyebrow>Identity</Eyebrow>
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-xs text-muted-foreground">Display name</span>
+          <section className="sblock" style={{ marginTop: canEdit ? 0 : undefined }}>
+            <h2>Identity</h2>
+            <div className="field" style={{ marginTop: 10, maxWidth: 380 }}>
+              <label className="label" htmlFor="pod-bot-name">Display name</label>
               <input
+                id="pod-bot-name"
+                className="input"
                 value={displayName}
                 onChange={(e) => {
                   setDisplayName(e.target.value);
                   setDirty(true);
                 }}
                 disabled={!canEdit}
-                className="h-9 w-full max-w-sm rounded-md bg-transparent px-3 text-sm outline-none focus-visible:shadow-focus disabled:opacity-60 shadow-ring"
               />
-            </label>
+            </div>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <Eyebrow>Model</Eyebrow>
-            <div className="flex gap-2">
+          <section className="sblock">
+            <h2>Model</h2>
+            <div className="seg" style={{ marginTop: 10 }} role="radiogroup" aria-label="Model">
               {(["standard", "advanced"] as const).map((tier) => (
-                <Chip
+                <button
                   key={tier}
-                  selected={modelTier === tier}
+                  type="button"
+                  role="radio"
+                  aria-checked={modelTier === tier}
+                  className={modelTier === tier ? "on" : undefined}
+                  disabled={!canEdit}
                   onClick={() => {
                     if (!canEdit) return;
                     setModelTier(tier);
@@ -184,14 +192,14 @@ export function BotDetail({
                   }}
                 >
                   {MODEL_TIER_UI[tier].label}
-                </Chip>
+                </button>
               ))}
             </div>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <Eyebrow>Tools</Eyebrow>
-            <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
+          <section className="sblock">
+            <h2>Tools</h2>
+            <p className="muted" style={{ margin: "8px 0 10px", fontSize: "var(--g8-fs-sm)", maxWidth: 640 }}>
               The bot&apos;s entire capability surface — a tool not granted
               here does not exist for it. Money-moving tools park every call
               for human approval (the Approvals inbox), no matter what the
@@ -199,35 +207,36 @@ export function BotDetail({
             </p>
             <div className="flex flex-col gap-4">
               {byCategory.map(([category, tools]) => (
-                <fieldset key={category} className="flex flex-col gap-1.5">
-                  <legend className="text-xs font-medium text-muted-foreground">
+                <fieldset key={category} className="flex flex-col" style={{ border: 0, margin: 0, padding: 0 }}>
+                  <legend className="eyebrow" style={{ marginBottom: 4 }}>
                     {category}
                   </legend>
                   {tools.map((tool) => (
                     <label
                       key={tool.id}
-                      className="flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent has-[input:disabled]:cursor-default"
+                      className="srow"
+                      style={{ padding: "8px 0", cursor: canEdit ? "pointer" : "default" }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={toolSet.has(tool.id)}
-                        onChange={() => toggleTool(tool.id)}
-                        disabled={!canEdit}
-                        className="mt-0.5 accent-foreground"
-                      />
-                      <span className="flex min-w-0 flex-col gap-0.5">
-                        <span className="flex items-center gap-2">
-                          <code className="font-mono text-xs">{tool.id}</code>
+                      <span className="min-w-0">
+                        <span className="t row" style={{ gap: 8 }}>
+                          <code className="mono" style={{ fontSize: "var(--g8-fs-xs)" }}>{tool.id}</code>
                           {tool.gated ? (
-                            <StatusBadge tone="warning" dot={false}>
+                            <G8Badge tone="warning" dot={false}>
                               requires approval
-                            </StatusBadge>
+                            </G8Badge>
                           ) : null}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="d" style={{ display: "block" }}>
                           {tool.description}
                         </span>
                       </span>
+                      <input
+                        type="checkbox"
+                        className="toggle"
+                        checked={toolSet.has(tool.id)}
+                        onChange={() => toggleTool(tool.id)}
+                        disabled={!canEdit}
+                      />
                     </label>
                   ))}
                 </fieldset>
@@ -235,14 +244,15 @@ export function BotDetail({
             </div>
           </section>
 
-          <section className="flex flex-col gap-2">
-            <Eyebrow>Fallback persona</Eyebrow>
-            <p className="max-w-2xl text-sm text-pretty text-muted-foreground">
+          <section className="sblock">
+            <h2>Fallback persona</h2>
+            <p className="muted" style={{ margin: "8px 0 10px", fontSize: "var(--g8-fs-sm)", maxWidth: 640 }}>
               The persona the bot runs with. It is resolved fresh each session,
               and property memory (Agents → Memory) is recalled on top of it
               every turn — put standing facts there, not in the persona.
             </p>
-            <Textarea
+            <textarea
+              className="textarea"
               value={personaFallback}
               onChange={(e) => {
                 setPersonaFallback(e.target.value);
@@ -251,26 +261,24 @@ export function BotDetail({
               disabled={!canEdit}
               rows={5}
               placeholder="e.g. You are the front-desk assistant for this property…"
-              className="max-w-2xl"
             />
           </section>
 
-          <section className="flex flex-col gap-2">
-            <Eyebrow>Provenance</Eyebrow>
-            <dl className="grid max-w-2xl grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-sm">
-              <dt className="text-xs text-muted-foreground">Persona source</dt>
-              <dd className="text-xs">the persona configured above (bots.persona_fallback)</dd>
-              <dt className="text-xs text-muted-foreground">Memory</dt>
-              <dd className="text-xs">
-                property memory, recalled every turn — browse it under Agents → Memory
-              </dd>
-              <dt className="text-xs text-muted-foreground">Chat address</dt>
-              <dd className="truncate font-mono text-xs">@{bot.bot_id} in any channel</dd>
+          <section className="sblock">
+            <h2>Provenance</h2>
+            <dl className="kv" style={{ marginTop: 8 }}>
+              <dt>Persona source</dt>
+              <dd>the persona configured above (bots.persona_fallback)</dd>
+              <dt>Memory</dt>
+              <dd>property memory, recalled every turn — browse it under Agents → Memory</dd>
+              <dt>Chat address</dt>
+              <dd className="mono trunc">@{bot.bot_id} in any channel</dd>
             </dl>
           </section>
+          </div>
         </div>
 
-        <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l">
+        <div className="min-h-0 border-t lg:border-t-0 lg:border-l" style={{ borderColor: "var(--g8-border)", background: "var(--g8-surface)" }}>
           <AgentChat
             propertyId={propertyId}
             target={{ botSlug: bot.bot_id }}

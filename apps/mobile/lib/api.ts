@@ -121,7 +121,10 @@ export type ApiTask = {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  /** The PRIMARY assignee (0115) — first of `assignee_ids`. */
   assignee_id: string | null;
+  /** Everyone on the task, primary first (0115). Optional: older servers. */
+  assignee_ids?: string[];
   created_by: string | null;
   due_at: string | null;
   labels: string[];
@@ -175,7 +178,7 @@ export type ApiDocument = {
   body_text: string;
 };
 
-export type CalendarSource = "meeting" | "task" | "external" | "booking";
+export type CalendarSource = "meeting" | "task" | "external";
 
 export type ApiCalendarEvent = {
   id: string;
@@ -191,7 +194,7 @@ export type ApiCalendarEvent = {
 };
 
 /** A single meeting row, as returned by `GET .../meetings/:id`. Only
- *  `source: "meeting"` events are editable — tasks, bookings and events synced
+ *  `source: "meeting"` events are editable — tasks and events synced
  *  from a connected external calendar are owned elsewhere. */
 export type ApiMeeting = {
   id: string;
@@ -216,3 +219,9 @@ export type SaveMeetingBody = {
   attendeeIds: string[];
   withVideoCall: boolean;
 };
+
+/** Everyone on a task, primary first — falls back to the legacy primary. */
+export function taskAssigneeIds(t: Pick<ApiTask, "assignee_id" | "assignee_ids">): string[] {
+  if (t.assignee_ids && t.assignee_ids.length > 0) return t.assignee_ids;
+  return t.assignee_id ? [t.assignee_id] : [];
+}

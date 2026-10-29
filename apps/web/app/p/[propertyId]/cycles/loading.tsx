@@ -1,20 +1,26 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { SkHead, SkPage, SkPanel, Sk } from "@/components/gr8r/route-skeleton";
 
-/** Shaped like the cycles timeline: compact header, current-cycle card, rows. */
+/** Shaped like the cycles timeline: `.ph`, the current cycle's panel, then
+ *  the past / upcoming cycle panels. */
 export default function CyclesLoading() {
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex h-11 shrink-0 items-center px-4">
-        <Skeleton className="h-4 w-24" />
+    <SkPage style={{ maxWidth: 1000 }} crumbs={[72]}>
+      <SkHead title={120} lede={280} acts={1} />
+      <div className="stack">
+        <section className="panel">
+          <div className="panel-h">
+            <Sk w={140} h={12} />
+            <span className="sp" />
+            <Sk w={80} h={10} />
+          </div>
+          <div className="panel-b stack" style={{ gap: 12 }}>
+            <Sk w="100%" h={6} r={6} />
+            <Sk w="100%" h={180} r={8} />
+          </div>
+        </section>
+        <SkPanel n={3} title={90} />
+        <SkPanel n={3} title={90} />
       </div>
-      <div className="w-full max-w-page px-(--page-gutter) pt-2">
-        <Skeleton className="h-72 w-full rounded-card" />
-        <div className="mt-6 flex flex-col gap-2">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      </div>
-    </div>
+    </SkPage>
   );
 }

@@ -21,12 +21,79 @@ export function isChoiceField(type: CustomFieldType): boolean {
 /** Human name per type — `multi_select` must never surface as raw snake_case. */
 export const FIELD_TYPE_LABEL: Record<CustomFieldType, string> = {
   text: "Text",
+  long_text: "Long text",
   number: "Number",
+  currency: "Money",
   select: "Dropdown",
   multi_select: "Labels",
   date: "Date",
   checkbox: "Checkbox",
+  url: "Website",
+  email: "Email",
+  phone: "Phone",
+  people: "People",
+  files: "Files",
+  relation: "Relationship",
+  progress: "Progress",
 };
+
+/** The creatable types, in the order the "New field" picker lists them. */
+export const FIELD_TYPE_ORDER: CustomFieldType[] = [
+  "text",
+  "long_text",
+  "number",
+  "currency",
+  "select",
+  "multi_select",
+  "date",
+  "checkbox",
+  "people",
+  "files",
+  "relation",
+  "url",
+  "email",
+  "phone",
+  "progress",
+];
+
+/** One-line hint per type for the picker. */
+export const FIELD_TYPE_HINT: Record<CustomFieldType, string> = {
+  text: "A short line of text",
+  long_text: "Paragraphs — notes, specs",
+  number: "A plain number",
+  currency: "An amount in KES, USD, EUR…",
+  select: "Pick one option",
+  multi_select: "Pick several options",
+  date: "A calendar day",
+  checkbox: "Yes or no",
+  url: "A web link",
+  email: "An email address",
+  phone: "A phone number",
+  people: "One or more members",
+  files: "A named file slot — Quote, LPO, GRN",
+  relation: "Links to other tasks",
+  progress: "Done sub-issues and checklist items",
+};
+
+/** Currency codes offered first in the picker (Temple Point's three lead). */
+export const COMMON_CURRENCIES = ["KES", "USD", "EUR", "GBP", "TZS", "UGX", "ZAR", "AED", "INR"];
+
+/** "KES 1,250.00" — Intl when the code is real, a plain prefix otherwise. */
+export function formatCurrency(
+  amount: number,
+  config?: { code?: string; precision?: number } | null,
+): string {
+  const precision =
+    typeof config?.precision === "number" && config.precision >= 0 && config.precision <= 4
+      ? config.precision
+      : 2;
+  const code = (config?.code ?? "").toUpperCase();
+  const num = amount.toLocaleString("en-US", {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
+  });
+  return code ? `${code} ${num}` : num;
+}
 
 /**
  * The colour an option renders in. Options created before 0099 have none, so
@@ -144,8 +211,20 @@ export function selectedOptions(
  * the fallback for anywhere a chip can't be drawn.
  */
 export function formatFieldValue(
-  field: { type: CustomFieldType; options: CustomFieldOption[] },
+  field: {
+    type: CustomFieldType;
+    options: CustomFieldOption[];
+    config?: { code?: string; precision?: number } | null;
+  },
   value: CustomFieldValue | null,
+  ctx?: {
+    /** member id → name (people). */
+    names?: Record<string, { name?: string } | undefined>;
+    /** task id → title (relation). */
+    taskTitles?: Record<string, string | undefined>;
+    /** attachment id → file name (files). */
+    fileNames?: Record<string, string | undefined>;
+  },
 ): string {
   if (value === null || value === undefined) return "";
   if (isChoiceField(field.type)) {
@@ -154,5 +233,22 @@ export function formatFieldValue(
       .join(", ");
   }
   if (field.type === "checkbox") return value === true ? "Yes" : "No";
+  if (field.type === "currency" && typeof value === "number") {
+    return formatCurrency(value, field.config);
+  }
+  if (Array.isArray(value)) {
+    const lookup =
+      field.type === "people"
+        ? (id: string) => ctx?.names?.[id]?.name
+        : field.type === "relation"
+          ? (id: string) => ctx?.taskTitles?.[id]
+          : field.type === "files"
+            ? (id: string) => ctx?.fileNames?.[id]
+            : () => undefined;
+    const noun = field.type === "files" ? "file" : field.type === "relation" ? "task" : "person";
+    const named = value.map((id) => lookup(id)).filter((s): s is string => !!s);
+    if (named.length === value.length) return named.join(", ");
+    return `${value.length} ${value.length === 1 ? noun : noun === "person" ? "people" : `${noun}s`}`;
+  }
   return String(value);
 }

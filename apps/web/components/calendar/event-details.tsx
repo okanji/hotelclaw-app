@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useTransition } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import { eventSwatch } from "@/lib/calendar/event-visuals";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,6 +17,7 @@ import {
   CircleDashed,
   Clock,
   ExternalLink,
+  Flag,
   HelpCircle,
   MapPin,
   Pencil,
@@ -21,16 +28,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, PR_NAME, PrIcon, StIcon } from "@/components/gr8r/home-glyphs";
 import { useMeeting } from "@/lib/stream/meeting-context";
 import { respondToMeeting, unscheduleTask } from "@/lib/calendar/actions";
-import { PRIORITY_META } from "@/components/tasks/kanban";
 import type {
   AttendeeResponse,
-  BookingEvent,
   CalendarEvent,
   MeetingEvent,
   TaskEvent,
@@ -45,6 +48,9 @@ import type { MeetingRecurrence } from "@/lib/db/types";
  * location/description rows, the guest list with RSVP states, and a
  * "Going?" bar for invited users. Editing lives behind the pencil icon
  * (`onEdit` flips the parent dialog to the form view).
+ *
+ * Drawn in gr8r's idiom (the dialog / popover hosts carry `g8 g8-port`):
+ * a `.kv` property list, `.badge` states, `.btn` / `.ibtn` actions.
  */
 
 // ---------------------------------------------------------------------------
@@ -112,31 +118,47 @@ function recurrenceLabel(
 // Shared scaffolding
 // ---------------------------------------------------------------------------
 
-/** Icon-gutter row — micro icon aligned with the first text line. */
-function DetailRow({
+/** One gr8r `.kv` row: icon + label in the `dt`, the value in the `dd`. */
+function KvRow({
   icon,
+  label,
   children,
+  top,
 }: {
-  icon: React.ReactNode;
+  icon: React.ComponentProps<typeof Gi>["icon"];
+  label: string;
   children: React.ReactNode;
+  /** Long values (descriptions, guest lists) align to the label's top. */
+  top?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1 text-sm">{children}</div>
-    </div>
+    <>
+      <dt style={top ? { alignSelf: "start" } : undefined}>
+        <Gi icon={icon} size={14} />
+        {label}
+      </dt>
+      <dd style={top ? { paddingTop: 6, paddingBottom: 4 } : undefined}>{children}</dd>
+    </>
   );
 }
 
 /**
- * The element used for the details title. Defaults to `DialogTitle` (the
+ * Which element renders the details title. Defaults to `DialogTitle` (the
  * details panel's original home was a modal). Rendered inside a non-modal
  * popover — where there is no Dialog to register a title id — the popover
- * overrides this with a plain `h2` via the provider so base-ui doesn't throw.
+ * provides `"h2"` so base-ui doesn't throw. Read as a flag, never rendered as
+ * a dynamic component (react-hooks/static-components).
  */
 export const DetailsTitleContext = createContext<React.ElementType>(DialogTitle);
+
+const TITLE_STYLE: CSSProperties = {
+  fontSize: "var(--g8-fs-md)",
+  fontWeight: 600,
+  lineHeight: 1.35,
+  letterSpacing: "-0.01em",
+  margin: 0,
+  textWrap: "balance",
+};
 
 function DetailsHeader({
   event,
@@ -147,61 +169,70 @@ function DetailsHeader({
   subtitle?: string | null;
   actions?: React.ReactNode;
 }) {
-  const TitleEl = useContext(DetailsTitleContext);
+  const plainHeading = useContext(DetailsTitleContext) !== DialogTitle;
   return (
-    <div className="flex items-start justify-between gap-2 pr-7">
-      <div className="flex min-w-0 items-start gap-3">
-        <span
-          aria-hidden
-          className="mt-1.5 size-3 shrink-0 rounded-full"
-          style={{ backgroundColor: eventSwatch(event) }}
-        />
-        <div className="min-w-0">
-          <TitleEl className="text-base leading-6 font-semibold text-balance">
-            {event.title}
-          </TitleEl>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {formatWhen(event)}
-          </p>
-          {subtitle ? (
-            <p className="text-sm text-faint-foreground">{subtitle}</p>
-          ) : null}
+    <div className="row" style={{ alignItems: "flex-start", gap: 10, paddingRight: 28 }}>
+      <span
+        aria-hidden
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: 4,
+          marginTop: 4,
+          flexShrink: 0,
+          background: eventSwatch(event),
+        }}
+      />
+      <div className="grow" style={{ minWidth: 0 }}>
+        {plainHeading ? (
+          <h2 style={TITLE_STYLE}>{event.title}</h2>
+        ) : (
+          <DialogTitle style={TITLE_STYLE}>{event.title}</DialogTitle>
+        )}
+        <div className="muted" style={{ fontSize: "var(--g8-fs-sm)", marginTop: 2 }}>
+          {formatWhen(event)}
         </div>
+        {subtitle ? (
+          <div className="faint" style={{ fontSize: "var(--g8-fs-sm)" }}>{subtitle}</div>
+        ) : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
+        <div className="row" style={{ gap: 2, flexShrink: 0 }}>{actions}</div>
       ) : null}
     </div>
   );
 }
 
+/** Footer: a hint on the left, the primary action on the right. */
+function DetailsFoot({
+  hint,
+  children,
+}: {
+  hint?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="row" style={{ gap: 8, marginTop: 14 }}>
+      {hint ? (
+        <span className="faint grow" style={{ fontSize: "var(--g8-fs-xs)" }}>{hint}</span>
+      ) : (
+        <span className="sp" />
+      )}
+      {children}
+    </div>
+  );
+}
+
+const KV_STYLE: CSSProperties = { marginTop: 12, gridTemplateColumns: "96px minmax(0, 1fr)" };
+
 const RESPONSE_META: Record<
   AttendeeResponse,
-  { label: string; icon: React.ReactNode; className: string }
+  { label: string; icon: React.ComponentProps<typeof Gi>["icon"]; tone: string }
 > = {
-  // An RSVP is a lifecycle STATE, so each tone is a `--pill-*` token PAIR
-  // (notion-spec-v2 §6) — never `/10` alpha maths over the status ramp, which
-  // drifts from the ramp and needs a `dark:` override the pair bakes in.
-  accepted: {
-    label: "Yes",
-    icon: <Check className="size-3" />,
-    className: "bg-pill-success text-pill-success-ink",
-  },
-  declined: {
-    label: "No",
-    icon: <X className="size-3" />,
-    className: "bg-pill-danger text-pill-danger-ink",
-  },
-  tentative: {
-    label: "Maybe",
-    icon: <HelpCircle className="size-3" />,
-    className: "bg-pill-warning text-pill-warning-ink",
-  },
-  pending: {
-    label: "Awaiting",
-    icon: <CircleDashed className="size-3" />,
-    className: "bg-pill-neutral text-pill-neutral-ink",
-  },
+  accepted: { label: "Yes", icon: Check, tone: "green" },
+  declined: { label: "No", icon: X, tone: "red" },
+  tentative: { label: "Maybe", icon: HelpCircle, tone: "amber" },
+  pending: { label: "Awaiting", icon: CircleDashed, tone: "gray" },
 };
 
 // ---------------------------------------------------------------------------
@@ -290,140 +321,121 @@ export function MeetingDetails({
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <DetailsHeader
         event={event}
         subtitle={recurrenceLabel(event.recurrence, new Date(event.start))}
         actions={
           <>
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon-sm"
+              className="ibtn ibtn-sm"
               onClick={onEdit}
               aria-label="Edit event"
+              title="Edit event"
             >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
+              <Gi icon={Pencil} size={14} />
+            </button>
+            <button
               type="button"
-              variant="ghost"
-              size="icon-sm"
+              className="ibtn ibtn-sm"
               onClick={onDelete}
               disabled={deletePending}
               aria-label="Delete event"
+              title="Delete event"
             >
-              <Trash2 className="size-4" />
-            </Button>
+              <Gi icon={Trash2} size={14} />
+            </button>
           </>
         }
       />
 
-      <div className="space-y-3">
-        {hasVideo ? (
-          <DetailRow icon={<Video />}>
-            {callEnded ? (
-              <p className="text-muted-foreground">
-                Video call ended
-                {event.ended_at
-                  ? ` · ${timeLabel(new Date(event.ended_at))}`
-                  : ""}
-              </p>
-            ) : (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={joinCall}
-                  disabled={!videoReady}
-                >
-                  <Video className="size-4" />
-                  Join video call
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  {event.started_at
-                    ? "In progress — others may already be in"
-                    : "Camera preview before you join"}
-                </span>
-              </div>
-            )}
-          </DetailRow>
+      {hasVideo && !callEnded ? (
+        <div className="row" style={{ gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={joinCall}
+            disabled={!videoReady}
+          >
+            <Gi icon={Video} size={14} />
+            Join video call
+          </button>
+          <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
+            {event.started_at
+              ? "In progress — others may already be in"
+              : "Camera preview before you join"}
+          </span>
+        </div>
+      ) : null}
+
+      <dl className="kv" style={KV_STYLE}>
+        {hasVideo && callEnded ? (
+          <KvRow icon={Video} label="Call">
+            <span className="muted">
+              Ended
+              {event.ended_at ? ` · ${timeLabel(new Date(event.ended_at))}` : ""}
+            </span>
+          </KvRow>
         ) : null}
 
         {event.location ? (
-          <DetailRow icon={<MapPin />}>
-            <p className="text-foreground">{event.location}</p>
-          </DetailRow>
+          <KvRow icon={MapPin} label="Location">
+            <span>{event.location}</span>
+          </KvRow>
         ) : null}
 
         {event.description ? (
-          <DetailRow icon={<AlignLeft />}>
-            <p className="whitespace-pre-wrap text-pretty text-muted-foreground">
+          <KvRow icon={AlignLeft} label="Notes" top>
+            <span className="muted" style={{ whiteSpace: "pre-wrap", textWrap: "pretty" }}>
               {event.description}
-            </p>
-          </DetailRow>
+            </span>
+          </KvRow>
         ) : null}
 
         {event.attendees.length > 0 ? (
-          <DetailRow icon={<Users />}>
-            <p className="font-medium">
-              {event.attendees.length}{" "}
-              {event.attendees.length === 1 ? "guest" : "guests"}
-            </p>
-            <p className="text-xs text-faint-foreground">
-              {accepted} yes
-              {awaiting > 0 ? `, ${awaiting} awaiting` : ""}
-            </p>
-            <ul role="list" className="mt-2 space-y-1.5">
+          <KvRow icon={Users} label="Guests" top>
+            <div className="stack" style={{ gap: 6, width: "100%" }}>
+              <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
+                {event.attendees.length}{" "}
+                {event.attendees.length === 1 ? "guest" : "guests"} · {accepted} yes
+                {awaiting > 0 ? `, ${awaiting} awaiting` : ""}
+              </span>
               {event.attendees
                 .slice()
-                .sort(
-                  (a, b) => Number(isOrganizer(b)) - Number(isOrganizer(a)),
-                )
+                .sort((a, b) => Number(isOrganizer(b)) - Number(isOrganizer(a)))
                 .map((a) => {
-                const meta = RESPONSE_META[effectiveResponse(a)];
-                return (
-                  <li key={a.user_id} className="flex items-center gap-2">
-                    <Avatar className="size-6">
-                      <AvatarImage src={a.avatar_url ?? undefined} />
-                      <AvatarFallback>
-                        {(a.name ?? "?").slice(0, 1).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="min-w-0 flex-1 truncate text-foreground">
-                      {a.name ?? "Unnamed"}
-                      {a.user_id === currentUserId ? " (you)" : ""}
-                    </span>
-                    {isOrganizer(a) ? (
-                      <span className="text-xs text-faint-foreground">
-                        Organizer
+                  const meta = RESPONSE_META[effectiveResponse(a)];
+                  return (
+                    <div key={a.user_id} className="row" style={{ gap: 8 }}>
+                      <Av
+                        member={{ id: a.user_id, name: a.name, avatarUrl: a.avatar_url }}
+                      />
+                      <span className="trunc grow" style={{ minWidth: 0 }}>
+                        {a.name ?? "Unnamed"}
+                        {a.user_id === currentUserId ? " (you)" : ""}
                       </span>
-                    ) : (
-                      <span
-                        className={cn(
-                          // The measured status pill: 20px tall, 4px radius,
-                          // `0 6px`, 14px weight 500 (notion-spec-v2 §6).
-                          "inline-flex h-5 shrink-0 items-center gap-1 rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
-                          meta.className,
-                        )}
-                      >
-                        {meta.icon}
-                        {meta.label}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </DetailRow>
+                      {isOrganizer(a) ? (
+                        <span className="faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
+                          Organizer
+                        </span>
+                      ) : (
+                        <span className={`badge ${meta.tone}`}>
+                          <Gi icon={meta.icon} size={11} />
+                          {meta.label}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </KvRow>
         ) : null}
-      </div>
+      </dl>
 
       {me && !iAmOrganizer ? (
-        // Action bars separate by whitespace, not by a filled, ruled tray.
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">Going?</span>
-          <div className="flex gap-1.5">
+        <DetailsFoot hint="Going?">
+          <div className="seg" role="group" aria-label="Your response">
             {(
               [
                 ["accepted", "Yes"],
@@ -431,23 +443,19 @@ export function MeetingDetails({
                 ["declined", "No"],
               ] as const
             ).map(([value, label]) => (
-              <Button
+              <button
                 key={value}
                 type="button"
-                size="sm"
-                variant="outline"
+                className={myResponse === value ? "on" : ""}
+                aria-pressed={myResponse === value}
                 disabled={rsvpPending}
                 onClick={() => rsvp(value)}
-                className={cn(
-                  myResponse === value &&
-                    "bg-accent-pressed text-foreground shadow-none",
-                )}
               >
                 {label}
-              </Button>
+              </button>
             ))}
           </div>
-        </div>
+        </DetailsFoot>
       ) : null}
     </div>
   );
@@ -477,7 +485,6 @@ export function TaskDetails({
 }) {
   const qc = useQueryClient();
   const [pending, startTransition] = useTransition();
-  const priorityMeta = PRIORITY_META[event.priority];
 
   function handleUnschedule() {
     startTransition(async () => {
@@ -495,161 +502,70 @@ export function TaskDetails({
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <DetailsHeader event={event} />
 
-      <div className="space-y-3">
-        <DetailRow icon={<CircleDashed />}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span
-              className={cn(
-                // Same measured status pill as the StatusBadge beside it, so
-                // the two read as one row of states (notion-spec-v2 §6). The
-                // fill comes from `PRIORITY_META.badgeClass`, which is now on
-                // the `--pill-*` token pairs too — geometry here, hue there.
-                "inline-flex h-5 shrink-0 items-center rounded-pill px-1.5 text-sm font-medium whitespace-nowrap",
-                priorityMeta.badgeClass,
-              )}
-            >
-              {priorityMeta.label}
-            </span>
-            <StatusBadge tone="neutral" dot={false}>
-              {TASK_STATUS_LABEL[event.status]}
-            </StatusBadge>
-          </div>
-        </DetailRow>
-
+      <dl className="kv" style={KV_STYLE}>
+        <KvRow icon={CircleDashed} label="Status">
+          <span className="row" style={{ gap: 6 }}>
+            <StIcon task={{ status: event.status }} />
+            {TASK_STATUS_LABEL[event.status]}
+          </span>
+        </KvRow>
+        <KvRow icon={Flag} label="Priority">
+          <span className="row" style={{ gap: 6 }}>
+            <PrIcon priority={event.priority} />
+            {PR_NAME[event.priority]}
+          </span>
+        </KvRow>
         {event.due_at ? (
-          <DetailRow icon={<CalendarClock />}>
-            <p className="text-foreground">
-              Due{" "}
+          <KvRow icon={CalendarClock} label="Due">
+            <span>
               {new Date(event.due_at).toLocaleDateString(undefined, {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
               })}
-            </p>
-          </DetailRow>
+            </span>
+          </KvRow>
         ) : null}
-
         {event.description ? (
-          <DetailRow icon={<AlignLeft />}>
-            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-muted-foreground">
+          <KvRow icon={AlignLeft} label="Notes" top>
+            <span
+              className="muted"
+              style={{
+                whiteSpace: "pre-wrap",
+                display: "-webkit-box",
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
               {event.description}
-            </p>
-          </DetailRow>
+            </span>
+          </KvRow>
         ) : null}
+      </dl>
 
-        <DetailRow icon={<Clock />}>
-          <p className="text-muted-foreground">
-            Drag the block on the grid to reschedule, or unschedule to send
-            it back to the rail.
-          </p>
-        </DetailRow>
+      <div className="faint row" style={{ gap: 6, marginTop: 8, fontSize: "var(--g8-fs-xs)", alignItems: "flex-start" }}>
+        <Gi icon={Clock} size={12} />
+        <span>Drag the block on the grid to reschedule, or unschedule to send it back to the rail.</span>
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <Button
+      <DetailsFoot>
+        <button
           type="button"
-          variant="outline"
-          size="sm"
+          className="btn btn-secondary btn-sm"
           onClick={handleUnschedule}
           disabled={pending}
         >
           Unschedule
-        </Button>
-        <Button
-          size="sm"
-          nativeButton={false}
-          render={<a href={`/p/${propertyId}/tasks/${event.id}`} />}
-        >
+        </button>
+        <a href={`/p/${propertyId}/tasks/${event.id}`} className="btn btn-primary btn-sm">
           Open task
-          <ArrowUpRight className="size-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Booking details (guest reservations — tables, spa, tours)
-// ---------------------------------------------------------------------------
-
-// Status→tone map matching the domain source of truth in
-// lib/bookings/status-colors.ts (pending=warning, confirmed=info,
-// seated=violet, completed/cancelled=neutral, no_show=danger).
-const BOOKING_STATUS_BADGE: Record<
-  BookingEvent["booking_status"],
-  { label: string; tone: React.ComponentProps<typeof StatusBadge>["tone"] }
-> = {
-  pending: { label: "Pending", tone: "warning" },
-  confirmed: { label: "Confirmed", tone: "info" },
-  seated: { label: "Seated", tone: "violet" },
-  completed: { label: "Completed", tone: "neutral" },
-  cancelled: { label: "Cancelled", tone: "neutral" },
-  no_show: { label: "No-show", tone: "danger" },
-};
-
-export function BookingDetails({
-  event,
-  propertyId,
-}: {
-  event: BookingEvent;
-  propertyId: string;
-}) {
-  const badge = BOOKING_STATUS_BADGE[event.booking_status];
-  return (
-    <div className="space-y-4">
-      <DetailsHeader event={event} subtitle={event.service_name} />
-
-      <div className="space-y-3">
-        <DetailRow icon={<Users />}>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-foreground">
-              {event.guest_name} · party of {event.party_size}
-            </p>
-            <StatusBadge tone={badge.tone} dot={false}>
-              {badge.label}
-            </StatusBadge>
-          </div>
-          {event.guest_phone ? (
-            <p className="text-xs text-faint-foreground">{event.guest_phone}</p>
-          ) : null}
-        </DetailRow>
-
-        <DetailRow icon={<CircleDashed />}>
-          <p className="text-foreground">{event.reference}</p>
-          <p className="text-xs text-muted-foreground">
-            {event.booking_source === "chatbot"
-              ? "Booked by a guest via chatbot"
-              : event.booking_source === "web"
-                ? "Booked online"
-              : "Booked by staff"}
-          </p>
-        </DetailRow>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-faint-foreground">
-          Confirm, cancel, or complete from Bookings.
-        </p>
-        <Button
-          size="sm"
-          nativeButton={false}
-          render={
-            <a
-              href={
-                event.booking_status === "pending"
-                  ? `/p/${propertyId}/bookings?view=pending`
-                  : `/p/${propertyId}/bookings`
-              }
-            />
-          }
-        >
-          Open Bookings
-          <ArrowUpRight className="size-4" />
-        </Button>
-      </div>
+          <Gi icon={ArrowUpRight} size={14} />
+        </a>
+      </DetailsFoot>
     </div>
   );
 }
@@ -660,50 +576,55 @@ export function BookingDetails({
 
 export function ExternalDetails({ event }: { event: ExternalEvent }) {
   const providerName = event.provider === "google" ? "Google" : "Outlook";
+  const hasRows = Boolean(event.location || event.description || event.organizer_email);
   return (
-    <div className="space-y-4">
+    <div>
       <DetailsHeader event={event} subtitle={`${providerName} Calendar`} />
 
-      <div className="space-y-3">
-        {event.location ? (
-          <DetailRow icon={<MapPin />}>
-            <p className="text-foreground">{event.location}</p>
-          </DetailRow>
-        ) : null}
+      {hasRows ? (
+        <dl className="kv" style={KV_STYLE}>
+          {event.location ? (
+            <KvRow icon={MapPin} label="Location">
+              <span>{event.location}</span>
+            </KvRow>
+          ) : null}
+          {event.description ? (
+            <KvRow icon={AlignLeft} label="Notes" top>
+              <span
+                className="muted"
+                style={{
+                  whiteSpace: "pre-wrap",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 4,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                {event.description}
+              </span>
+            </KvRow>
+          ) : null}
+          {event.organizer_email ? (
+            <KvRow icon={Users} label="Organizer">
+              <span className="trunc">{event.organizer_email}</span>
+            </KvRow>
+          ) : null}
+        </dl>
+      ) : null}
 
-        {event.description ? (
-          <DetailRow icon={<AlignLeft />}>
-            <p className="line-clamp-4 whitespace-pre-wrap text-pretty text-muted-foreground">
-              {event.description}
-            </p>
-          </DetailRow>
-        ) : null}
-
-        {event.organizer_email ? (
-          <DetailRow icon={<Users />}>
-            <p className="text-foreground">{event.organizer_email}</p>
-            <p className="text-xs text-faint-foreground">Organizer</p>
-          </DetailRow>
-        ) : null}
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-faint-foreground">
-          Editing happens in {providerName} Calendar.
-        </p>
+      <DetailsFoot hint={`Editing happens in ${providerName} Calendar.`}>
         {event.html_link ? (
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={
-              <a href={event.html_link} target="_blank" rel="noreferrer" />
-            }
+          <a
+            href={event.html_link}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary btn-sm"
           >
             Open in {providerName}
-            <ExternalLink className="size-4" />
-          </Button>
+            <Gi icon={ExternalLink} size={14} />
+          </a>
         ) : null}
-      </div>
+      </DetailsFoot>
     </div>
   );
 }

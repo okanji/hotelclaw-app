@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   buildBlockedTaskAlertSpec,
-  buildBookingAutoConfirmSpec,
   buildChatbotEscalationSpec,
   buildMaintenanceAutomationSpec,
 } from "../automation-specs";
@@ -50,17 +49,6 @@ describe("template-library automation specs", () => {
         "chatbot.escalated",
       );
     }
-  });
-
-  it("booking auto-confirm spec validates and filters pending small parties", () => {
-    const spec = buildBookingAutoConfirmSpec();
-    const result = validateSpec(spec);
-    expect(result.ok, JSON.stringify(!result.ok ? result.issues : [])).toBe(
-      true,
-    );
-    const parsed = WorkflowSpec.parse(spec);
-    expect(parsed.trigger.event_type).toBe("booking.created");
-    expect(JSON.stringify(parsed.trigger.filter)).toContain("party_size");
   });
 
   it("blocked-task alert spec validates", () => {

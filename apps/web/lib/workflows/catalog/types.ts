@@ -22,7 +22,6 @@ export type Surface =
   | "meetings"
   | "calendar"
   | "forms"
-  | "bookings"
   | "entities"
   | "system"
   | "ai"

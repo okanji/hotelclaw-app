@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
 import {
   insightsAlertRulesQueryOptions,
   insightsFollowsQueryOptions,
@@ -88,14 +89,10 @@ export function InsightsFollowButton({
       <Popover>
         <PopoverTrigger
           render={
-            <Button type="button" size="sm" variant="ghost">
-              {current ? (
-                <BellRing className="size-4" />
-              ) : (
-                <Bell className="size-4" />
-              )}
+            <button type="button" className="btn btn-ghost btn-sm">
+              <Gi icon={current ? BellRing : Bell} size={14} />
               Follow
-            </Button>
+            </button>
           }
         />
         <PopoverContent align="end" sideOffset={6} className="w-64 p-3">

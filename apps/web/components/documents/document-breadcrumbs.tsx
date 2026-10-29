@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, FileText } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { documentHref } from "@/lib/documents/document-href";
 import { useOpenDocument } from "@/lib/documents/use-open-document";
 
@@ -27,9 +28,9 @@ export function EmbedBackButton() {
           }
         ).ReactNativeWebView?.postMessage(JSON.stringify({ type: "back" }))
       }
-      className="hc-embed-back -ml-1.5 size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+      className="hc-embed-back ibtn"
     >
-      <ChevronLeft className="size-5" />
+      <Gi icon={ChevronLeft} size={18} />
     </button>
   );
 }
@@ -62,39 +63,38 @@ export function DocumentBreadcrumbs({
     openDocument(crumbId);
   }
 
+  // gr8r `.crumbs` (the topbar trail): `.crumb` links, `.sep` slashes and
+  // the `.cur` leaf. In narrow containers (mobile WebView, the chat's
+  // artifact side panel — hence the `doceditor` container, not viewport
+  // breakpoints) the trail is noise — only the leaf title survives.
   return (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-0.5 text-xs text-faint-foreground"
-    >
-      {/* In narrow containers (mobile WebView, the chat's artifact side
-          panel — hence the `doceditor` container, not viewport breakpoints)
-          the trail is noise — only the leaf title survives. */}
+    <nav aria-label="Breadcrumb" className="crumbs trunc">
       <Link
         href={`/p/${propertyId}/documents`}
-        className="shrink-0 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent @max-3xl/doceditor:hidden"
+        className="crumb @max-3xl/doceditor:hidden"
       >
-        All documents
+        <Gi icon={FileText} size={14} />
+        Docs
       </Link>
       {ancestors.map((crumb) => (
-        <span
-          key={crumb.id}
-          className="flex min-w-0 items-center gap-0.5 @max-3xl/doceditor:hidden"
-        >
-          <ChevronRight className="size-3 shrink-0 opacity-50" />
+        <span key={crumb.id} className="contents">
+          <span aria-hidden="true" className="sep @max-3xl/doceditor:hidden">
+            /
+          </span>
           <Link
             href={documentHref(propertyId, crumb.id)}
             onClick={(e) => handleAncestorClick(e, crumb.id)}
-            className="truncate rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
+            className="crumb trunc @max-3xl/doceditor:hidden"
+            style={{ maxWidth: 200 }}
           >
             {crumb.title || "Untitled"}
           </Link>
         </span>
       ))}
-      <ChevronRight className="size-3 shrink-0 opacity-50 @max-3xl/doceditor:hidden" />
-      <span className="truncate px-1.5 py-0.5 font-medium text-foreground">
-        {currentTitle || "Untitled"}
+      <span aria-hidden="true" className="sep @max-3xl/doceditor:hidden">
+        /
       </span>
+      <span className="crumb cur trunc">{currentTitle || "Untitled"}</span>
     </nav>
   );
 }

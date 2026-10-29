@@ -6,25 +6,51 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useTransition,
   type CSSProperties,
 } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserRound } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Calendar,
+  Check,
+  ListChecks,
+  Pencil,
+  Repeat,
+  RotateCcw,
+  Timer,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, AvStack, ProgBar } from "@/components/gr8r/home-glyphs";
+import {
+  G8StatusIcon,
+  cVar,
+  dayDiff,
+  g8Color,
+  relDate,
+  startOfDay,
+} from "@/components/gr8r/my-tasks-glyphs";
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
+import { isDone } from "@/lib/tasks/statuses";
+import { optionColor } from "@/lib/tasks/custom-field-options";
+import {
+  projectsQueryOptions,
+  spacesQueryOptions,
+} from "@/lib/query/project-queries";
+import { useAssigneesMapContext } from "@/lib/tasks/use-assignees";
 import { taskKey, type Task } from "./kanban";
+import { updateTask } from "./actions";
 import { WorkflowProvenanceBadge } from "@/components/workflows/provenance-badge";
-import { StatusIcon } from "./task-icons";
 import { PriorityChip } from "./priority-menu";
-import { TaskScopeChips } from "./task-scope-chips";
-import { OptionChip } from "./custom-field-chip";
-import { EstimateChip } from "@/components/cycles/estimate-chip";
 import { taskHref } from "@/lib/tasks/task-href";
 import { useOpenTask } from "@/lib/tasks/use-open-task";
 import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
-import type { CustomFieldOption, TaskStatus } from "@/lib/db/types";
+import type { CustomFieldOption, StatusCategory } from "@/lib/db/types";
 
 /* -------------------------------------------------------------------------- */
 /* FLIP — animates a card sliding to a new position when the board changes    */
@@ -64,10 +90,10 @@ function useFlip<T extends HTMLElement>(enabled: boolean) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Date helpers                                                               */
+/* gr8r card pieces (src/views/board.js `kcard`)                              */
 /* -------------------------------------------------------------------------- */
 
-/** Absolute "MMM D" / "MMM D, YY" for created timestamps — Linear-style. */
+/** Absolute "MMM D" / "MMM D, YY" for created timestamps. */
 function formatCreated(iso: string, now: number) {
   const d = new Date(iso);
   const today = new Date(now);
@@ -80,195 +106,239 @@ function formatCreated(iso: string, now: number) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Presentational pieces                                                      */
-/* -------------------------------------------------------------------------- */
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
-
-function AssigneeSlot({
-  info,
-  assigneeId,
-}: {
-  info: AssigneeInfo | undefined;
-  assigneeId: string | null;
-}) {
-  if (!assigneeId) {
-    // Linear's unassigned glyph: a dashed circular hairline ring with a
-    // centered person silhouette inside.
-    return (
-      <span
-        aria-label="Unassigned"
-        // The dashed ring here is a GLYPH standing in for an avatar, not a
-        // "dashed grey box" container — it is the only dashed stroke left in
-        // this surface and it earns its place by reading as an empty slot.
-        className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground"
-      >
-        <UserRound className="size-3" strokeWidth={1.75} />
-      </span>
-    );
+/** The task's status category — the 0114 row fields, else the legacy literal. */
+function categoryOf(task: Task): { category: StatusCategory; blocked: boolean } {
+  if (task.status_category)
+    return { category: task.status_category, blocked: Boolean(task.status_blocked) };
+  switch (task.status) {
+    case "done":
+      return { category: "closed", blocked: false };
+    case "in_progress":
+      return { category: "active", blocked: false };
+    case "blocked":
+      return { category: "active", blocked: true };
+    default:
+      return { category: "open", blocked: false };
   }
-  const name = info?.name ?? "Assigned";
-  return (
-    <Avatar
-      size="sm"
-      className="size-[22px] shrink-0"
-      title={`Assigned to ${name}`}
-    >
-      {info?.avatar ? <AvatarImage src={info.avatar} alt={name} /> : null}
-      <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-        {initials(name)}
-      </AvatarFallback>
-    </Avatar>
-  );
 }
 
-function CardPropertyRow({
+const RECURRENCE_NAME: Record<string, string> = {
+  daily: "daily",
+  weekly: "weekly",
+  biweekly: "every two weeks",
+  monthly: "monthly",
+};
+
+/**
+ * gr8r `.labels`: the task's team + project (a `.lbl` with its colour
+ * pip — our scope chips) then its label-field options, resolved board-level
+ * so a label looks identical across views.
+ */
+function CardLabels({
   task,
   labels,
-  onChanged,
 }: {
   task: Task;
   labels: CustomFieldOption[] | undefined;
-  onChanged: () => void;
 }) {
-  // Linear-style "properties" strip — the priority glyph rendered bare
-  // (no chip border) so it reads as inline metadata rather than its own
-  // affordance. `labels` are the task's label-field (multi_select custom
-  // field) options, resolved board-level — same chips the list view cells
-  // draw, so a label looks identical across views.
+  const pathname = usePathname();
+  const propertyId = pathname.match(/^\/p\/([^/]+)/)?.[1] ?? "";
+  const { data: spaces = [] } = useQuery({
+    ...spacesQueryOptions(propertyId),
+    enabled: !!propertyId && !!task.space_id,
+  });
+  const { data: projects = [] } = useQuery({
+    ...projectsQueryOptions(propertyId),
+    enabled: !!propertyId && !!task.project_id,
+  });
+  const space = task.space_id ? spaces.find((x) => x.id === task.space_id) : null;
+  const project = task.project_id
+    ? projects.find((x) => x.id === task.project_id)
+    : null;
+  if (!space && !project && !labels?.length) return null;
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1">
-      <PriorityChip
-        taskId={task.id}
-        priority={task.priority}
-        onChanged={onChanged}
-        appearance="bare"
-      />
-      <TaskScopeChips task={task} />
-      <EstimateChip estimate={task.estimate} />
-      {labels?.map((o) => <OptionChip key={o.id} option={o} />)}
+    <div className="labels">
+      {space ? (
+        <span className="lbl" title={`Team: ${space.name}`}>
+          <i style={cVar(g8Color(space.color))} />
+          <span className="truncate" style={{ maxWidth: 110 }}>{space.name}</span>
+        </span>
+      ) : null}
+      {project ? (
+        <span className="lbl" title={`Project: ${project.name}`}>
+          <i style={cVar(g8Color(project.color))} />
+          <span className="truncate" style={{ maxWidth: 110 }}>{project.name}</span>
+        </span>
+      ) : null}
+      {labels?.map((o) => (
+        <span key={o.id} className="lbl">
+          <i style={cVar(g8Color(optionColor(o)))} />
+          <span className="truncate" style={{ maxWidth: 110 }}>{o.label}</span>
+        </span>
+      ))}
     </div>
   );
 }
 
-function CardCreatedAt({ iso, now }: { iso: string | undefined; now: number }) {
-  if (!iso) return null;
+/** gr8r `.avs` over every assignee (0115), primary first; empty = dashed. */
+function CardAssignees({
+  info,
+  task,
+}: {
+  info: AssigneeInfo | undefined;
+  task: Task;
+}) {
+  const shared = useAssigneesMapContext();
+  const ids = taskAssigneeIds(task);
+  const infos =
+    info && task.assignee_id ? { ...shared, [task.assignee_id]: info } : shared;
+  if (ids.length === 0) return <Av member={null} />;
   return (
-    <div className="mt-2.5 text-xs leading-4 text-muted-foreground">
-      Created {formatCreated(iso, now)}
-    </div>
+    <AvStack
+      max={3}
+      members={ids.map((id) => ({
+        id,
+        name: infos[id]?.name ?? "Member",
+        avatarUrl: infos[id]?.avatar ?? null,
+      }))}
+    />
   );
 }
 
-const CARD_BASE = cn(
-  // A board card IS a page (notion-spec-v2 §5): the 10px `rounded-card` rung
-  // and the `shadow-card` tier — one very soft far layer whose LAST layer is
-  // the 1px warm ring. It used to be `rounded-md shadow-ring`, which is the
-  // recipe for a WELL, and that is why the cards read as list rows sitting in
-  // a grey trough rather than as pages floating on the page plane.
-  // Measured padding is `8px 10px`.
-  "relative rounded-card bg-card px-2.5 py-2 shadow-card",
-  // Offscreen cards skip paint entirely (content-visibility). On a full
-  // board the columns are thousands of px tall; painting all of it into
-  // Chrome's composited scroller textures is what pushed macOS GPU
-  // rasterization over the edge (cards/header going white until a scroll
-  // re-rasters). `contain-intrinsic-size` reserves the space a skipped card
-  // would have taken; `auto` then remembers its real size, so a card that
-  // has been seen once holds its exact height forever after and the column
-  // never reflows as you scroll. That stability is what dnd-kit's geometry
-  // rests on — it measures every droppable ONCE per drag and afterwards only
-  // offsets those rects by the scroll delta, so any reflow mid-drag puts the
-  // drop somewhere other than the cursor.
-  //
-  // REQUIRES the card's scroll container to be BLOCK, not flex — Chrome
-  // silently ignores `contain-intrinsic-size` on a flex item and collapses
-  // it to 26px of padding. See the comment in `kanban-column.tsx`.
-  //
-  // NB: the paint containment this implies clips children to the card's
-  // bounds — nothing inside a card may hang outside it.
-  //
-  // 8rem is the CONTENT box (the card adds 26px of padding + border on top),
-  // putting a never-yet-rendered card at ~154px against a real 134–176px —
-  // i.e. within ~24px. It only ever applies until a card has been seen once;
-  // after that `auto` pins it to its exact remembered height.
-  "[content-visibility:auto] [contain-intrinsic-size:auto_8rem]",
-);
+function CardBody({
+  task,
+  assignee,
+  labels,
+  onChanged,
+  now,
+  titleSlot,
+}: {
+  task: Task;
+  assignee: AssigneeInfo | undefined;
+  labels: CustomFieldOption[] | undefined;
+  onChanged: () => void;
+  now: number;
+  /** The title, wrapped in the task link on the live card. */
+  titleSlot: (title: React.ReactNode) => React.ReactNode;
+}) {
+  const { category, blocked } = categoryOf(task);
+  const today = startOfDay(now);
+  const dueIn = task.due_at ? dayDiff(task.due_at, today) : null;
+  const done = isDone(task);
+  const total = task.checklist_total ?? 0;
+  const ticked = task.checklist_done ?? 0;
+  return (
+    <>
+      <CardLabels task={task} labels={labels} />
+      <div className="top">
+        <span style={{ margin: "2px 7px 0 0", display: "inline-flex" }}>
+          <G8StatusIcon
+            category={category}
+            blocked={blocked}
+            color={task.status_color}
+          />
+        </span>
+        {titleSlot(<div className="title">{task.title}</div>)}
+      </div>
+      {total > 0 ? (
+        // gr8r's sub-task progress row, fed by the 0117 checklist counters.
+        <div
+          className="subp"
+          title={`${ticked} of ${total} checklist items done`}
+        >
+          <Gi icon={ListChecks} size={12} />
+          <span className="num">
+            {ticked}/{total}
+          </span>
+          <ProgBar
+            value={Math.round((ticked / total) * 100)}
+            tone={ticked >= total ? "green" : ""}
+          />
+        </div>
+      ) : null}
+      <div className="meta">
+        <span
+          className="key"
+          title={task.created_at ? `Created ${formatCreated(task.created_at, now)}` : undefined}
+        >
+          {taskKey(task)}
+        </span>
+        <WorkflowProvenanceBadge source={task.source} appearance="glyph" />
+        <span className="m">
+          <PriorityChip
+            taskId={task.id}
+            priority={task.priority}
+            onChanged={onChanged}
+            appearance="bare"
+          />
+        </span>
+        {task.due_at && dueIn !== null ? (
+          <span
+            className={cn(
+              "m due",
+              !done && dueIn < 0 && "over",
+              !done && dueIn >= 0 && dueIn <= 1 && "soon",
+            )}
+            title={`Due ${new Date(task.due_at).toLocaleDateString()}`}
+          >
+            <Gi icon={Calendar} size={12} />
+            {relDate(task.due_at, today)}
+          </span>
+        ) : null}
+        {task.recurrence ? (
+          <span
+            className="m"
+            title={`Repeats ${RECURRENCE_NAME[task.recurrence] ?? task.recurrence}`}
+          >
+            <Gi icon={Repeat} size={12} />
+          </span>
+        ) : null}
+        {task.estimate != null ? (
+          <span
+            className="m num"
+            title={`Estimate: ${task.estimate} ${task.estimate === 1 ? "point" : "points"}`}
+          >
+            <Gi icon={Timer} size={12} />
+            {task.estimate}
+          </span>
+        ) : null}
+        <span className="m" style={{ marginLeft: "auto" }}>
+          <CardAssignees info={assignee} task={task} />
+        </span>
+      </div>
+    </>
+  );
+}
 
 /**
- * The card rendered inside the `DragOverlay` — a detached, lifted copy that
- * follows the cursor while the real card stays dimmed in its column.
- *
- * `w-full`, never a fixed width: dnd-kit sizes the overlay wrapper to the
- * source card's measured rect (272px in a kanban column, 276px in the grouped
- * view), so a hardcoded `w-72` (288px) made the ghost overhang its own
- * wrapper by 12–16px.
+ * The card rendered inside the `DragOverlay` — gr8r's `.kcard.ghost`, a
+ * lifted, slightly tilted copy that follows the cursor while the real card
+ * stays dimmed in its column. `w-full`: dnd-kit sizes the overlay wrapper to
+ * the source card's measured rect.
  */
 export function TaskCardOverlay({
   task,
   assignee,
   labels,
+  lifted = true,
 }: {
   task: Task;
   assignee?: AssigneeInfo;
   labels?: CustomFieldOption[];
+  /** false = a resting card (the grouped board draws its cards with this). */
+  lifted?: boolean;
 }) {
   const [now] = useState(() => Date.now());
   return (
-    <div
-      className={cn(
-        CARD_BASE,
-        "w-full cursor-grabbing shadow-overlay",
-      )}
-    >
-      <CardHeader task={task} assignee={assignee} />
-      <CardTitle title={task.title} status={task.status} />
-      <CardPropertyRow task={task} labels={labels} onChanged={() => undefined} />
-      <CardCreatedAt iso={task.created_at} now={now} />
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Subcomponents                                                              */
-/* -------------------------------------------------------------------------- */
-
-function CardHeader({
-  task,
-  assignee,
-}: {
-  task: Task;
-  assignee: AssigneeInfo | undefined;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2 leading-4">
-      <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground tabular-nums">
-        {taskKey(task)}
-        <WorkflowProvenanceBadge source={task.source} appearance="glyph" />
-      </span>
-      <AssigneeSlot info={assignee} assigneeId={task.assignee_id} />
-    </div>
-  );
-}
-
-function CardTitle({ title, status }: { title: string; status: TaskStatus }) {
-  return (
-    // A database card's title is CONTENT, not a UI label — 16px / 24px weight
-    // 400 (notion-spec-v2 §2). v1 flattened it to `text-sm font-medium`, which
-    // is the sidebar-row rung, and that single decision is what made every
-    // card read as a list row instead of as a page.
-    <div className="mt-2 flex items-start gap-1.5">
-      <span className="flex h-6 shrink-0 items-center">
-        <StatusIcon status={status} className="size-3.5" />
-      </span>
-      <p className="line-clamp-3 text-base leading-6 font-normal text-foreground">
-        {title}
-      </p>
+    <div className={cn("kcard w-full", lifted && "ghost", isDone(task) && "done")}>
+      <CardBody
+        task={task}
+        assignee={assignee}
+        labels={labels}
+        onChanged={() => undefined}
+        now={now}
+        titleSlot={(t) => t}
+      />
     </div>
   );
 }
@@ -289,6 +359,8 @@ type Props = {
   /** Name of a teammate currently dragging this card, if any. */
   draggedByName: string | null;
   onChanged: () => void;
+  /** Where "Mark complete" sends the task — the board's closed status. */
+  doneTarget?: string;
 };
 
 /**
@@ -305,15 +377,32 @@ export const SortableTaskCard = memo(function SortableTaskCard({
   dragActive,
   draggedByName,
   onChanged,
+  doneTarget = "done",
 }: Props) {
   const [now] = useState(() => Date.now());
+  const [pending, startTransition] = useTransition();
   const lockedByOther = draggedByName != null;
   const openTask = useOpenTask(propertyId);
+  const done = isDone(task);
 
   function handleTitleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     openTask(task.id);
+  }
+
+  // gr8r's hover "Mark complete / Reopen". A legacy literal is resolved to
+  // the task's own list pipeline by the DB (0114), so "todo" reopens into
+  // the list's open status.
+  function toggleDone() {
+    startTransition(async () => {
+      const res = await updateTask({
+        taskId: task.id,
+        status: done ? "todo" : doneTarget,
+      });
+      if ("error" in res) toast.error(res.error);
+      else onChanged();
+    });
   }
 
   const {
@@ -337,7 +426,12 @@ export const SortableTaskCard = memo(function SortableTaskCard({
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...(lockedByOther
+      ? { boxShadow: "0 0 0 2px var(--g8-blue)", cursor: "default" }
+      : null),
   };
+
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
   return (
     <div
@@ -346,37 +440,73 @@ export const SortableTaskCard = memo(function SortableTaskCard({
       {...attributes}
       {...listeners}
       className={cn(
-        CARD_BASE,
-        "group outline-none transition-colors",
-        // Resting cursor is the default arrow (Linear-style). Only switch to
-        // the grabbing hand once the pointer is actively pressed/dragging.
-        "active:cursor-grabbing",
-        "focus-visible:shadow-focus",
-        isDragging && "opacity-40",
-        lockedByOther && "cursor-default ring-2 ring-info/50",
+        "kcard",
+        // Offscreen cards skip paint (content-visibility) and reserve their
+        // last-seen height (`auto`), so a long column never reflows mid-drag
+        // — dnd-kit measures droppables once per drag. Requires the BLOCK
+        // `.bcol-b.is-block` scroller (see kanban-column.tsx). Paint
+        // containment clips children to the card: nothing may hang outside.
+        "[content-visibility:auto] [contain-intrinsic-size:auto_6.5rem]",
+        "outline-none focus-visible:shadow-focus active:cursor-grabbing",
+        done && "done",
+        isDragging && "dragging",
+        pending && "opacity-60",
       )}
     >
       {lockedByOther ? (
-        // Sits inside the card (not overlapping its top edge): CARD_BASE's
-        // content-visibility implies paint containment, which clips children
-        // to the card bounds.
-        <div className="absolute top-1.5 left-2 rounded-md bg-info px-2 py-0.5 text-xs font-medium text-background">
+        <div
+          className="badge accent"
+          style={{ position: "absolute", top: 6, left: 8, zIndex: 1 }}
+        >
           {draggedByName} is moving this…
         </div>
       ) : null}
 
-      <CardHeader task={task} assignee={assignee} />
+      <CardBody
+        task={task}
+        assignee={assignee}
+        labels={labels}
+        onChanged={onChanged}
+        now={now}
+        titleSlot={(title) => (
+          <Link
+            href={taskHref(propertyId, task.id)}
+            onClick={handleTitleClick}
+            className="block min-w-0 flex-1 focus-visible:outline-none"
+            style={{ color: "inherit" }}
+          >
+            {title}
+          </Link>
+        )}
+      />
 
-      <Link
-        href={taskHref(propertyId, task.id)}
-        onClick={handleTitleClick}
-        className="block focus-visible:outline-none"
-      >
-        <CardTitle title={task.title} status={task.status} />
-      </Link>
-
-      <CardPropertyRow task={task} labels={labels} onChanged={onChanged} />
-      <CardCreatedAt iso={task.created_at} now={now} />
+      <div className="hacts" onPointerDown={stop}>
+        <button
+          type="button"
+          className="ibtn ibtn-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleDone();
+          }}
+          disabled={pending}
+          title={done ? "Reopen" : "Mark complete"}
+          aria-label={done ? "Reopen" : "Mark complete"}
+        >
+          <Gi icon={done ? RotateCcw : Check} size={13} />
+        </button>
+        <button
+          type="button"
+          className="ibtn ibtn-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            openTask(task.id);
+          }}
+          title="Open"
+          aria-label="Open task"
+        >
+          <Gi icon={Pencil} size={12} />
+        </button>
+      </div>
     </div>
   );
 });

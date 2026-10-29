@@ -3,24 +3,13 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, ListChecks, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
+import { Gi } from "@/components/gr8r/icon";
+import { Av, G8_COLOR } from "@/components/gr8r/home-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import type { OrgChart, OrgPerson, OrgTeam } from "@/lib/org/queries";
 import { PersonEditPopover } from "./person-edit-popover";
 import { TreeScroller } from "./tree-scroller";
 import { TeamEditPopover } from "./team-edit-popover";
-
-function initials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -85,36 +74,29 @@ export function TeamDetail({
 
   return (
     <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onBack}
-        className="mb-4 -ml-2 text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 12, marginLeft: -8 }}>
+        <Gi icon={ArrowLeft} size={14} />
         Org chart
-      </Button>
+      </button>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="ph">
+        <div className="row" style={{ alignItems: "flex-start", gap: 12, minWidth: 0 }}>
           {team.icon ? (
-            <span className="mt-0.5 shrink-0 text-2xl" aria-hidden="true">
+            <span className="shrink-0 text-2xl" aria-hidden="true">
               {team.icon}
             </span>
           ) : (
             <span
-              className={cn(
-                "mt-2 size-4 shrink-0 rounded-md",
-                LABEL_DOT[team.color],
-              )}
+              className="picon lg"
+              style={{ "--g8-c": G8_COLOR[team.color] } as React.CSSProperties}
               aria-hidden="true"
-            />
+            >
+              <Gi icon={Users} size={18} />
+            </span>
           )}
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[2.5rem] leading-[3rem] font-bold text-foreground">
-                {team.name}
-              </h2>
+          <div style={{ minWidth: 0 }}>
+            <div className="row" style={{ gap: 6 }}>
+              <h1>{team.name}</h1>
               {isManagement ? (
                 <span className="group">
                   <TeamEditPopover
@@ -125,60 +107,56 @@ export function TeamDetail({
                 </span>
               ) : null}
             </div>
-            {team.description ? (
-              <p className="mt-1 max-w-[60ch] text-sm text-pretty text-muted-foreground">
-                {team.description}
-              </p>
-            ) : null}
-            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
-              <span className="tabular-nums">
-                {members.length} {members.length === 1 ? "person" : "people"}
-              </span>
-              <span className="tabular-nums">{openTaskCount} open tasks</span>
-            </div>
+            {team.description ? <p style={{ maxWidth: "60ch" }}>{team.description}</p> : null}
+            <p className="num">
+              {members.length} {members.length === 1 ? "person" : "people"} ·{" "}
+              {openTaskCount} open tasks
+            </p>
           </div>
         </div>
-        <Button nativeButton={false}
-          variant="outline"
-          size="sm"
-          render={<Link href={`/p/${propertyId}/tasks?space=${team.id}`} />}
-        >
-          <ListChecks className="size-4" />
-          View board
-        </Button>
+        <div className="acts">
+          <Link href={`/p/${propertyId}/tasks?space=${team.id}`} className="btn btn-secondary">
+            <Gi icon={ListChecks} size={14} />
+            View board
+          </Link>
+        </div>
       </div>
 
-      {members.length === 0 ? (
-        <EmptyState icon={Users} title="No one on this team yet" className="mt-8">
-          Add people to {team.name} from the People directory or the team page,
-          then set who reports to whom here.
-        </EmptyState>
-      ) : (
-        <>
-          <Eyebrow className="mt-8 mb-3">
-            Reporting hierarchy
-          </Eyebrow>
-          <TreeScroller>
-            <div className="min-w-max py-2">
-              <ul role="list" className="flex items-start">
-                {roots.map((p) => (
-                  <PersonBranch
-                    key={p.id}
-                    person={p}
-                    childrenOf={childrenOf}
-                    head={head}
-                    propertyId={propertyId}
-                    org={org}
-                    teamMemberIds={team.memberIds}
-                    isManagement={isManagement}
-                    depth={0}
-                  />
-                ))}
-              </ul>
-            </div>
-          </TreeScroller>
-        </>
-      )}
+      <section className="panel">
+        <div className="panel-h">
+          <h2>Reporting hierarchy</h2>
+        </div>
+        {members.length === 0 ? (
+          <G8Empty
+            icon={Users}
+            title="No one on this team yet"
+            text={`Add people to ${team.name} from the People directory or the team page, then set who reports to whom here.`}
+            sm
+          />
+        ) : (
+          <div className="panel-b">
+            <TreeScroller>
+              <div className="min-w-max py-2">
+                <ul role="list" className="flex items-start">
+                  {roots.map((p) => (
+                    <PersonBranch
+                      key={p.id}
+                      person={p}
+                      childrenOf={childrenOf}
+                      head={head}
+                      propertyId={propertyId}
+                      org={org}
+                      teamMemberIds={team.memberIds}
+                      isManagement={isManagement}
+                      depth={0}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </TreeScroller>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -205,31 +183,31 @@ function PersonBranch({
 }) {
   const reports = depth > 8 ? [] : childrenOf(person.id);
   const rail =
-    "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-border after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-border first:after:left-1/2 last:after:right-1/2 only:after:hidden";
+    "relative flex flex-col items-center px-1 pt-4 before:absolute before:top-0 before:left-1/2 before:h-4 before:w-px before:bg-(--g8-border-strong) after:absolute after:top-0 after:right-0 after:left-0 after:h-px after:bg-(--g8-border-strong) first:after:left-1/2 last:after:right-1/2 only:after:hidden";
 
   return (
     <li className={depth === 0 ? "flex flex-col items-center" : rail}>
       <div className="flex flex-col items-center">
-        <div className="group relative flex w-48 items-center gap-2 rounded-md bg-background px-2.5 py-2 shadow-ring">
-          <Avatar className="size-8 shrink-0">
-            {person.avatarUrl ? (
-              <AvatarImage src={person.avatarUrl} alt={person.name ?? ""} />
-            ) : null}
-            <AvatarFallback>{initials(person.name)}</AvatarFallback>
-          </Avatar>
+        <div
+          className="group relative flex w-48 items-center gap-2"
+          style={{
+            padding: "8px 10px",
+            background: "var(--g8-surface)",
+            border: "1px solid var(--g8-border)",
+            borderRadius: "var(--g8-r)",
+            boxShadow: "var(--g8-shadow-sm)",
+          }}
+        >
+          <Av member={person} size="md" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">
+            <p className="trunc" style={{ margin: 0, fontWeight: 500 }}>
               {person.name ?? "Member"}
             </p>
-            <p className="truncate text-xs text-faint-foreground">
+            <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
               {person.title ?? ROLE_LABEL[person.role] ?? person.role}
             </p>
           </div>
-          {person.id === head ? (
-            <Badge variant="secondary" className="shrink-0 text-muted-foreground">
-              Head
-            </Badge>
-          ) : null}
+          {person.id === head ? <span className="badge accent">Head</span> : null}
           {isManagement ? (
             <PersonEditPopover
               propertyId={propertyId}
@@ -242,7 +220,7 @@ function PersonBranch({
 
         {reports.length > 0 ? (
           <>
-            <div className="h-4 w-px bg-border" aria-hidden="true" />
+            <div className="h-4 w-px bg-(--g8-border-strong)" aria-hidden="true" />
             <ul role="list" className="flex items-start">
               {reports.map((r) => (
                 <PersonBranch

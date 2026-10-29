@@ -14,11 +14,13 @@ export const TRIGGER_EVENT_TYPES = [
   "task.created",
   "task.status_changed",
   "task.assigned",
+  "task.unassigned",
   "task.overdue",
   "task.label_added",
   "task.added_to_space",
   "task.added_to_project",
   "task.moved_to_list",
+  "task.checklist_completed",
   "task.field_changed",
   "chat.message_posted",
   "chat.mention",
@@ -38,8 +40,6 @@ export const TRIGGER_EVENT_TYPES = [
   "chatbot.order_created",
   "chatbot.lead_captured",
   "chatbot.escalated",
-  "booking.created",
-  "booking.cancelled",
 ] as const;
 
 export type TriggerEventType = (typeof TRIGGER_EVENT_TYPES)[number];
@@ -119,6 +119,9 @@ const CreateTaskStep = z.object({
       .union([z.enum(["none", "low", "medium", "high", "urgent"]), TplString])
       .optional(),
     parent_id: z.string().optional(),
+    /** 0116 — custom-field id or name → value (template refs allowed; a
+     *  form file answer resolves to the uploaded file list). */
+    fields: z.record(z.string(), z.unknown()).optional(),
   }),
 });
 
@@ -166,33 +169,28 @@ const UpdateTaskStep = z.object({
   }),
 });
 
-const CreateBookingStep = z.object({
-  ...StepCommon,
-  type: z.literal("action.booking.create"),
-  config: z.object({
-    service_id: TplString,
-    /** ISO instant or "YYYY-MM-DDTHH:MM" wall time in the service tz. */
-    starts_at: TplString,
-    guest_name: TplString,
-    party_size: z.string().optional(),
-    guest_phone: z.string().optional(),
-    notes: z.string().optional(),
-  }),
-});
-
-const SetBookingStatusStep = z.object({
-  ...StepCommon,
-  type: z.literal("action.booking.set_status"),
-  config: z.object({
-    booking_id: TplString,
-    status: z.enum(["confirmed", "cancelled", "completed", "no_show"]),
-  }),
-});
-
 const AssignTaskStep = z.object({
   ...StepCommon,
   type: z.literal("action.task.assign"),
-  config: z.object({ task_id: TplString, assignee_id: TplString }),
+  config: z.object({
+    task_id: TplString,
+    assignee_id: TplString,
+    /** 0115: `replace` (default) makes them the primary in place of the old
+     *  one; `add` adds them alongside whoever is already on the task. */
+    mode: z.enum(["replace", "add"]).optional(),
+  }),
+});
+
+/** 0117 — add a named checklist (or append to one) on a task. `items` is
+ *  one item per line; "- [x] x" marks done; indented lines nest. */
+const AddChecklistStep = z.object({
+  ...StepCommon,
+  type: z.literal("action.task.add_checklist"),
+  config: z.object({
+    task_id: TplString,
+    name: TplString,
+    items: TplString,
+  }),
 });
 
 const AddLabelStep = z.object({
@@ -622,6 +620,7 @@ export const StepNode = z.discriminatedUnion("type", [
   CreateTaskStep,
   UpdateTaskStep,
   AssignTaskStep,
+  AddChecklistStep,
   AddLabelStep,
   RemoveLabelStep,
   SetTaskFieldStep,
@@ -629,8 +628,6 @@ export const StepNode = z.discriminatedUnion("type", [
   PostThreadReplyStep,
   MentionUserStep,
   FormSendStep,
-  CreateBookingStep,
-  SetBookingStatusStep,
   CreateDocStep,
   ArchiveDocStep,
   AddToBoardStep,

@@ -313,6 +313,16 @@ describe("knowledge discipline wiring (SOP incident 2026-07-22)", () => {
   });
 });
 
+describe("guest role never reaches the runtime (0118)", () => {
+  it("eve's single membership check refuses guests for every authenticator", () => {
+    const eveSrc = read(agentDir, "channels", "eve.ts");
+    const fn = eveSrc.slice(eveSrc.indexOf("async function verifyMembership"));
+    expect(fn.slice(0, 900)).toMatch(/role === "guest"\) return null/);
+    // Every authenticator funnels through it (cookie, service, Bearer).
+    expect([...eveSrc.matchAll(/await verifyMembership\(/g)].length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe("fleet pod-tool mirror (manual sync contract)", () => {
   it("every fleet catalog id has a pod-tools gate", () => {
     const fleetSrc = read(repoRoot, "apps", "web", "lib", "fleet", "tool-catalog.ts");

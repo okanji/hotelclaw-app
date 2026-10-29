@@ -31,10 +31,9 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        // Plain low-alpha scrim. The blur lives on the PANEL
-        // (`backdrop-blur-modal`), not on the backdrop — Notion dims the page
-        // and blurs only what shows through the translucent modal fill.
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // gr8r `.scrim` (overlays.css): fixed `--overlay` fill, fades in
+        // over 0.18s; quick fade out.
+        "fixed inset-0 isolate z-50 bg-(--overlay) duration-100 data-open:animate-[g-fade_180ms_ease_both] data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -56,12 +55,14 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          // MODAL TIER (notion-spec-v2 §5) — the signature Notion dialog:
-          // 20px radius, a TRANSLUCENT fill (`bg-modal-bg`, 90% opaque) over
-          // a 40px backdrop blur, and the deep two-layer modal shadow. This is
-          // the only tier with NO 1px ring: on a translucent blurred plane a
-          // ring reads as a seam. No border, no ring utility, fade only.
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-modal bg-modal-bg p-4 text-sm text-foreground shadow-modal backdrop-blur-modal duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          // gr8r `.modal` (overlays.css, SPEC §5.3): pinned 10vh from the
+          // top (not centred), solid surface, radius 12, shadow-pop (ring is
+          // its last layer — no border), max-height 80vh (scrolls). Header /
+          // body padding 14px 16px with 14px between sections; the footer
+          // (DialogFooter) bleeds to the edges with a top border. Default
+          // width is gr8r's `.modal.sm` (420); callers widen with max-w-*.
+          // Enter = modalIn (0.26s, translateY(8px) scale(.97)).
+          "fixed top-[10vh] left-1/2 z-50 grid max-h-[80vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 gap-[14px] overflow-y-auto rounded-[12px] bg-surface px-4 py-[14px] text-[13.5px] text-foreground shadow-popover duration-100 outline-none sm:max-w-[420px] data-open:animate-[g-modal-in_260ms_var(--ease-g)_both] data-closed:animate-out data-closed:fade-out-0",
           className
         )}
         {...props}
@@ -73,7 +74,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="absolute top-[10px] right-3"
                 size="icon-sm"
               />
             }
@@ -92,7 +93,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex flex-col gap-1", className)}
       {...props}
     />
   )
@@ -110,8 +111,9 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        // The footer separates by whitespace — no rule, no filled bar.
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        // gr8r `.modal-f`: padding 12px 16px, top border, gap 8, buttons
+        // right. Bleeds to the modal edges (cancels the content padding).
+        "-mx-4 -mb-[14px] flex flex-col-reverse gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-end",
         className
       )}
       {...props}
@@ -131,8 +133,8 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        // 16px / weight 600, one type voice (no separate heading family).
-        "text-base font-semibold",
+        // gr8r `.modal-h h2`: 14.5px / 600.
+        "text-[14.5px] font-semibold",
         className
       )}
       {...props}
@@ -148,7 +150,8 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        // gr8r modal subtitle: 12.5px muted.
+        "text-[12.5px] text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className
       )}
       {...props}

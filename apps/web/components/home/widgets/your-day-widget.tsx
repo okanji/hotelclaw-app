@@ -14,7 +14,6 @@ const SOURCE_DOT: Record<CalendarEvent["source"], string> = {
   meeting: "bg-pill-violet-ink",
   task: "bg-info",
   external: "bg-faint-foreground",
-  booking: "bg-success",
 };
 
 /** The current user's schedule: today first, then the next few days. Range is

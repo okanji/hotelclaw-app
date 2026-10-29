@@ -82,7 +82,7 @@ async function main() {
   const chB = stream.channel("team", CH_B);
 
   // Non-addressed messages are not handled.
-  const miss = await trigger(CH_A, "how many bookings do we have?");
+  const miss = await trigger(CH_A, "how many tasks do we have?");
   check("non-addressed message not handled", miss.handled === false);
   const missBot = await trigger(CH_A, "@notabot are you there?");
   check("unknown bot slug not handled", missBot.handled === false);

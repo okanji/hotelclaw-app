@@ -16675,13 +16675,13 @@ function parseAgentConfig(raw) {
 }
 const AGENT_TIER_MODELS = {
 	standard: "claude-haiku-4-5-20251001",
-	advanced: "claude-opus-5"
+	advanced: "claude-sonnet-5-5"
 };
 new Set([
 	{
 		id: "list_open_tasks",
 		label: "Read tasks",
-		summary: "List open tasks (title, status, priority, assignee).",
+		summary: "List open tasks (title, list, the list's own status name, priority, assignee).",
 		category: "read"
 	},
 	{
@@ -16693,13 +16693,13 @@ new Set([
 	{
 		id: "create_task",
 		label: "Create tasks",
-		summary: "File new tasks into the property's board.",
+		summary: "File new tasks into the property's board — into a named team, list and pipeline status.",
 		category: "write"
 	},
 	{
 		id: "update_task",
 		label: "Update tasks",
-		summary: "Change a task's status, priority, due date, assignee, title, or description.",
+		summary: "Change a task's status (by its list's status name), list, priority, due date, assignee, title, or description.",
 		category: "write"
 	},
 	{
@@ -16838,6 +16838,30 @@ new Set([
 		id: "delete_task",
 		label: "Delete tasks (approval-gated)",
 		summary: "Permanently delete a task — every call parks for human approval first.",
+		category: "write"
+	},
+	{
+		id: "list_custom_fields",
+		label: "Read custom fields",
+		summary: "List the property's custom task fields (Cost, Requester, Quote…) with their types and options, and read one task's values.",
+		category: "read"
+	},
+	{
+		id: "set_task_field",
+		label: "Set custom fields",
+		summary: "Set or clear a custom field on a task — money, people, dates, dropdowns, links, related tasks.",
+		category: "write"
+	},
+	{
+		id: "add_checklist_items",
+		label: "Add checklists",
+		summary: "Add a named checklist to a task (or append items to one) — Task Prep, opening checks.",
+		category: "write"
+	},
+	{
+		id: "check_checklist_item",
+		label: "Tick checklist items",
+		summary: "Tick or untick an item on a task's checklist.",
 		category: "write"
 	},
 	{
@@ -28620,6 +28644,10 @@ function channelBotConfig() {
 			"update_task",
 			"delete_task",
 			"escalate_task",
+			"list_custom_fields",
+			"set_task_field",
+			"add_checklist_items",
+			"check_checklist_item",
 			"create_project",
 			"search_documents",
 			"list_documents",
@@ -28685,6 +28713,10 @@ function assistantConfig() {
 			"update_task",
 			"delete_task",
 			"escalate_task",
+			"list_custom_fields",
+			"set_task_field",
+			"add_checklist_items",
+			"check_checklist_item",
 			"create_project",
 			"search_documents",
 			"list_documents",
@@ -68315,7 +68347,8 @@ const CHANNEL_HEADER = "x-hotelclaw-channel";
 const SENDER_HEADER = "x-hotelclaw-sender";
 async function verifyMembership(userId, propertyId) {
 	const { data } = await serviceClient().from("memberships").select("role").eq("property_id", propertyId).eq("user_id", userId).maybeSingle();
-	return data ?? null;
+	if (!data || data.role === "guest") return null;
+	return data;
 }
 function principal(authenticator, userId, propertyId, role, agentId, botSlug = null, channelId = null, senderId = null, projectId = null) {
 	return {
@@ -82196,7 +82229,7 @@ createIdGenerator({
 	prefix: "call",
 	size: 24
 });
-const CAPTURE_MODEL = process.env.AI_FAST_MODEL ?? "claude-haiku-5-5";
+const CAPTURE_MODEL = process.env.AI_FAST_MODEL || "claude-haiku-5-5";
 const MIN_TEXT_WITHOUT_TOOLS = 300;
 const MAX_TRANSCRIPT_CHARS = 14e3;
 const Extraction = object({ memories: array(object({
@@ -82721,7 +82754,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	const resourceIds = config.resources.documentIds;
 	const tools = {};
 	if (grants.has("list_open_tasks")) tools.list_open_tasks = defineTool({
-		description: "List open tasks (not done) in this property. Returns count and tasks (title, status, priority, due, assignee). If empty, say so plainly — don't fabricate.",
+		description: "List open (unfinished) tasks in this property. Returns count and tasks (title, status — the list's own status name, status_category, list, priority, due, assignee = the primary, assignees = everyone on it). `status` filters by CATEGORY (todo = not started, in_progress = active, blocked); `list` narrows to one list by name (on no match you get the valid list names back). If empty, say so plainly — don't fabricate.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_1$7,
 			closure: {}
@@ -82729,7 +82762,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_0$7({ propertyId }, ...__args), __eve_dynamic_exec_0$7, { propertyId })
 	});
 	if (grants.has("create_task")) tools.create_task = defineTool({
-		description: "Create a task in this property's board. NEVER call this on a vague ask — first make sure you know the concrete deliverable, which team it belongs to, and any specifics the assignee will need (ask ONE short clarifying question if not); a task without context gets lost. Pass `team` when the user named one (fuzzy name match; on no match you get the valid team names back — re-ask, don't guess). Returns the task plus a `url` — always include it in your reply as a markdown link so people can open the task.",
+		description: "Create a task in this property's board. NEVER call this on a vague ask — first make sure you know the concrete deliverable, which team it belongs to, and any specifics the assignee will need (ask ONE short clarifying question if not); a task without context gets lost. Pass `team` when the user named one (fuzzy name match; on no match you get the valid team names back — re-ask, don't guess). Pass `list` when they named a list (lists have their own status pipelines; a miss returns the valid list names) and `status` only when they asked for a specific status of that list — otherwise the task starts in the list's first status. Returns the task plus a `url` — always include it in your reply as a markdown link so people can open the task.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_3$2,
 			closure: {}
@@ -82793,7 +82826,7 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		})
 	});
 	if (grants.has("update_task")) tools.update_task = defineTool({
-		description: "Update a task's status, priority, due date, assignee, title, description, labels, or project. Get the task id from list_open_tasks/search_tasks first. Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
+		description: "Update a task's status, priority, due date, assignee, title, description, labels, project, or list. Get the task id from list_open_tasks/search_tasks first. `status` is a status NAME of the task's list (each list has its own pipeline — on no match you get the valid names back; the legacy words todo / in_progress / blocked / done also work and map onto the pipeline). `list` moves the task to another list by name (its status is remapped by category). Tasks can have SEVERAL assignees: `assignee_name` sets the PRIMARY (replacing the old primary, others stay; null clears everyone), `assignees_add` / `assignees_remove` add or take people off without touching the rest. Names are fuzzy-matched (on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_15$1,
 			closure: {}
@@ -83017,16 +83050,60 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 		}),
 		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_50({ propertyId }, ...__args), __eve_dynamic_exec_50, { propertyId })
 	});
-	if (grants.has("escalate_task")) tools.escalate_task = defineTool({
-		description: "Escalate a task: notifies the right person up the chain (the assignee's manager, else the task's team lead, else the property owners/managers) with your note. Use when someone reports a task is stuck/urgent and needs management attention. Returns who was notified.",
+	if (grants.has("list_custom_fields")) tools.list_custom_fields = defineTool({
+		description: "List this property's custom task fields — name, type (text, long_text, number, currency, select, multi_select, date, checkbox, url, email, phone, people, files, relation, progress), options for dropdowns/labels, currency code, and which team/list a field is scoped to. Pass task_id to also get that task's current values as readable labels. Use before set_task_field so you use a real field name and a valid option.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_53,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_52({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_52({ propertyId }, ...__args), __eve_dynamic_exec_52, { propertyId })
+	});
+	if (grants.has("set_task_field")) tools.set_task_field = defineTool({
+		description: "Set or clear ONE custom field on a task. `field` is the field's name (from list_custom_fields). `value` is plain text the app coerces by type: currency/number \"12,500\"; date YYYY-MM-DD; checkbox yes/no; select = one option label; multi_select = comma-separated labels; people = comma-separated member names; relation = task keys (GHV-12) or exact titles; url/email/phone as written. Empty string clears it. Files and progress fields are read-only (files are attached in the app). On a bad value you get the reason back — fix it, don't guess.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_55,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_54({
 			propertyId,
 			senderId
-		}, ...__args), __eve_dynamic_exec_52, {
+		}, ...__args), __eve_dynamic_exec_54, {
+			propertyId,
+			senderId
+		})
+	});
+	if (grants.has("add_checklist_items")) tools.add_checklist_items = defineTool({
+		description: "Add items to a named checklist on a task — creates the checklist if the task has none by that name (e.g. \"Task Prep\"), otherwise appends. Items are short imperative lines (\"Collect keys\", \"Check radios\"). Get the task id from list_open_tasks/search_tasks first. Returns the checklist and how many items were added.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_57,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_56({
+			propertyId,
+			senderId
+		}, ...__args), __eve_dynamic_exec_56, {
+			propertyId,
+			senderId
+		})
+	});
+	if (grants.has("check_checklist_item")) tools.check_checklist_item = defineTool({
+		description: "Tick (done=true) or untick an item on one of a task's checklists, matched by its text (exact, then partial). Ticking the last open item completes the checklist, which fires the 'checklist completed' automation. On no match you get the task's items back. If you are also adding items to the same task this turn, call add_checklist_items FIRST and wait for it — never in parallel — or the progress you report will miss them.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_59,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_58({ propertyId }, ...__args), __eve_dynamic_exec_58, { propertyId })
+	});
+	if (grants.has("escalate_task")) tools.escalate_task = defineTool({
+		description: "Escalate a task: notifies the right person up the chain (the assignee's manager, else the task's team lead, else the property owners/managers) with your note. Use when someone reports a task is stuck/urgent and needs management attention. Returns who was notified.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_61,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_60({
+			propertyId,
+			senderId
+		}, ...__args), __eve_dynamic_exec_60, {
 			propertyId,
 			senderId
 		})
@@ -83034,13 +83111,13 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("create_project")) tools.create_project = defineTool({
 		description: "Create a new project on the board. Optionally place it in a team (fuzzy team-name match) and set color/status. Returns the project link — include it in your reply.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_55,
+			schema: __eve_dynamic_input_schema_63,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_54({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_62({
 			propertyId,
 			userId
-		}, ...__args), __eve_dynamic_exec_54, {
+		}, ...__args), __eve_dynamic_exec_62, {
 			propertyId,
 			userId
 		})
@@ -83048,14 +83125,14 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("schedule_meeting")) tools.schedule_meeting = defineTool({
 		description: "Schedule a meeting on the property calendar (title, start time, optional end time and location). Times must include a timezone offset. The sender becomes the host when they're a member. Returns the meeting link.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_57,
+			schema: __eve_dynamic_input_schema_65,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_56({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_64({
 			propertyId,
 			userId,
 			senderId
-		}, ...__args), __eve_dynamic_exec_56, {
+		}, ...__args), __eve_dynamic_exec_64, {
 			propertyId,
 			userId,
 			senderId
@@ -83064,56 +83141,56 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("update_meeting")) tools.update_meeting = defineTool({
 		description: "Reschedule, retitle, or relocate an UPCOMING meeting (get the id from list_meetings). Meetings that already happened can't be changed.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_59,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_58({ propertyId }, ...__args), __eve_dynamic_exec_58, { propertyId })
-	});
-	if (grants.has("cancel_meeting")) tools.cancel_meeting = defineTool({
-		approval: always(),
-		description: "Cancel (delete) an UPCOMING meeting from the calendar. Confirm with the requester before calling — this removes the meeting for everyone. Meetings that already happened can't be cancelled.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_61,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_60({ propertyId }, ...__args), __eve_dynamic_exec_60, { propertyId })
-	});
-	if (grants.has("create_booking")) tools.create_booking = defineTool({
-		description: "Create a booking through the REAL availability engine (revalidates the slot, assigns tables, emits workflow events — never a raw insert). service_name is fuzzy-matched against the property's bookable services. starts_at without an offset is wall time in the SERVICE's timezone. On a full slot you get alternatives back — offer them. Confirm details with the requester before booking.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_63,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_62({ propertyId }, ...__args), __eve_dynamic_exec_62, { propertyId })
-	});
-	if (grants.has("update_booking_status")) tools.update_booking_status = defineTool({
-		approval: always(),
-		description: "Move a booking through its lifecycle by reference (BKG-XXXXXX): pending→confirmed/cancelled, confirmed→seated/completed/no_show/cancelled, seated→completed. Get references from list_bookings. Cancelling emits the booking.cancelled workflow event.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_65,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_64({ propertyId }, ...__args), __eve_dynamic_exec_64, { propertyId })
-	});
-	if (grants.has("read_sheet")) tools.read_sheet = defineTool({
-		description: "Read a SPREADSHEET document's live cells as an A1 grid (list_documents shows which docs are sheets). Use before answering questions about sheet data and ALWAYS before update_sheet_cells. sheet_title picks a tab; omit for the first tab.",
-		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_67,
 			closure: {}
 		}),
 		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_66({ propertyId }, ...__args), __eve_dynamic_exec_66, { propertyId })
 	});
-	if (grants.has("update_sheet_cells")) tools.update_sheet_cells = defineTool({
-		description: "Write values into a SPREADSHEET document's cells (A1 references, ≤200 per call) — changes land LIVE for anyone viewing the sheet. ALWAYS read_sheet first so you write the right cells. An artifact card appears in the channel so people can watch. Values are plain strings; formulas are written as-is.",
+	if (grants.has("cancel_meeting")) tools.cancel_meeting = defineTool({
+		approval: always(),
+		description: "Cancel (delete) an UPCOMING meeting from the calendar. Confirm with the requester before calling — this removes the meeting for everyone. Meetings that already happened can't be cancelled.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_69,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_68({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_68({ propertyId }, ...__args), __eve_dynamic_exec_68, { propertyId })
+	});
+	if (grants.has("create_booking")) tools.create_booking = defineTool({
+		description: "Create a booking through the REAL availability engine (revalidates the slot, assigns tables, emits workflow events — never a raw insert). service_name is fuzzy-matched against the property's bookable services. starts_at without an offset is wall time in the SERVICE's timezone. On a full slot you get alternatives back — offer them. Confirm details with the requester before booking.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_71,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_70({ propertyId }, ...__args), __eve_dynamic_exec_70, { propertyId })
+	});
+	if (grants.has("update_booking_status")) tools.update_booking_status = defineTool({
+		approval: always(),
+		description: "Move a booking through its lifecycle by reference (BKG-XXXXXX): pending→confirmed/cancelled, confirmed→seated/completed/no_show/cancelled, seated→completed. Get references from list_bookings. Cancelling emits the booking.cancelled workflow event.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_73,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_72({ propertyId }, ...__args), __eve_dynamic_exec_72, { propertyId })
+	});
+	if (grants.has("read_sheet")) tools.read_sheet = defineTool({
+		description: "Read a SPREADSHEET document's live cells as an A1 grid (list_documents shows which docs are sheets). Use before answering questions about sheet data and ALWAYS before update_sheet_cells. sheet_title picks a tab; omit for the first tab.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_75,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_74({ propertyId }, ...__args), __eve_dynamic_exec_74, { propertyId })
+	});
+	if (grants.has("update_sheet_cells")) tools.update_sheet_cells = defineTool({
+		description: "Write values into a SPREADSHEET document's cells (A1 references, ≤200 per call) — changes land LIVE for anyone viewing the sheet. ALWAYS read_sheet first so you write the right cells. An artifact card appears in the channel so people can watch. Values are plain strings; formulas are written as-is.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_77,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_76({
 			propertyId,
 			sessionChannelId,
 			eveSessionId
-		}, ...__args), __eve_dynamic_exec_68, {
+		}, ...__args), __eve_dynamic_exec_76, {
 			propertyId,
 			sessionChannelId,
 			eveSessionId
@@ -83122,13 +83199,13 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("create_form")) tools.create_form = defineTool({
 		description: "Create a form with typed fields (short_text, long_text, email, phone, number, select, multi_select, yes_no, rating, date, section, consent). select/multi_select need options; consent is an \"I agree\" tickbox whose label is the statement (waivers, house rules). Created as DRAFT unless publish=true. Returns the builder link.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_71,
+			schema: __eve_dynamic_input_schema_79,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_70({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_78({
 			propertyId,
 			userId
-		}, ...__args), __eve_dynamic_exec_70, {
+		}, ...__args), __eve_dynamic_exec_78, {
 			propertyId,
 			userId
 		})
@@ -83136,22 +83213,22 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("set_form_status")) tools.set_form_status = defineTool({
 		description: "Publish, close, or re-draft a form (get the id from list_forms). Published forms accept responses; closed forms stop accepting them.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_73,
+			schema: __eve_dynamic_input_schema_81,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_72({ propertyId }, ...__args), __eve_dynamic_exec_72, { propertyId })
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_80({ propertyId }, ...__args), __eve_dynamic_exec_80, { propertyId })
 	});
 	if (grants.has("share_form_to_channel") && sessionChannelId) tools.share_form_to_channel = defineTool({
 		description: "Post a PUBLISHED form into this channel as a fill-in-place card (same card the app's Share button posts). Get the id from list_forms; publish drafts first with set_form_status.",
 		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_75,
+			schema: __eve_dynamic_input_schema_83,
 			closure: {}
 		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_74({
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_82({
 			propertyId,
 			sessionChannelId,
 			eveSessionId
-		}, ...__args), __eve_dynamic_exec_74, {
+		}, ...__args), __eve_dynamic_exec_82, {
 			propertyId,
 			sessionChannelId,
 			eveSessionId
@@ -83160,51 +83237,6 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 	if (grants.has("send_notification")) tools.send_notification = defineTool({
 		approval: always(),
 		description: "Send an in-app notification to a named person or a whole team (fuzzy name match; on no match you get valid names back). Use for 'remind X to…', 'let the kitchen team know…'. The notification shows who asked for it.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_77,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_76({
-			propertyId,
-			senderId
-		}, ...__args), __eve_dynamic_exec_76, {
-			propertyId,
-			senderId
-		})
-	});
-	if (grants.has("list_channels")) tools.list_channels = defineTool({
-		description: "List this property's chat channels — name and channel_id — scoped to channels the REQUESTING PERSON is a member of. Use this to turn a channel NAME the person said ('post it in #announcements') into the channel_id that post_to_channel needs. Without it there is no way to address any channel but the current one.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_79,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_78({
-			propertyId,
-			senderId
-		}, ...__args), __eve_dynamic_exec_78, {
-			propertyId,
-			senderId
-		})
-	});
-	if (grants.has("post_to_channel")) tools.post_to_channel = defineTool({
-		approval: always(),
-		description: "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — when the person names a channel rather than giving an id, call list_channels first to resolve it. Only this property's channels are allowed.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_81,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_80({ propertyId }, ...__args), __eve_dynamic_exec_80, { propertyId })
-	});
-	if (grants.has("list_workflows")) tools.list_workflows = defineTool({
-		description: "List the property's workflow automations: name, enabled, trigger, last run. Workflows whose trigger is 'Manual run' can be started with trigger_workflow.",
-		inputSchema: defineDurableSchema({
-			schema: __eve_dynamic_input_schema_83,
-			closure: {}
-		}),
-		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_82({ propertyId }, ...__args), __eve_dynamic_exec_82, { propertyId })
-	});
-	if (grants.has("trigger_workflow")) tools.trigger_workflow = defineTool({
-		description: "Start a workflow whose trigger is 'Manual run' (check list_workflows — only enabled + manual.run workflows can be triggered). The run is queued through the same dispatcher the app's Run button uses.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_85,
 			closure: {}
@@ -83217,30 +83249,87 @@ var catalog_default = defineDynamic({ events: { "session.started": async (_event
 			senderId
 		})
 	});
-	if (grants.has("restore_document_revision")) tools.restore_document_revision = defineTool({
-		description: "UNDO an AI document replace: list a doc's stashed pre-replace revisions (call without revision_id) and restore one (call with revision_id — the current body is stashed first, so a restore is itself undoable). Only docs the AI has replaced have revisions.",
+	if (grants.has("list_channels")) tools.list_channels = defineTool({
+		description: "List this property's chat channels — name and channel_id — scoped to channels the REQUESTING PERSON is a member of. Use this to turn a channel NAME the person said ('post it in #announcements') into the channel_id that post_to_channel needs. Without it there is no way to address any channel but the current one.",
 		inputSchema: defineDurableSchema({
 			schema: __eve_dynamic_input_schema_87,
 			closure: {}
 		}),
 		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_86({
 			propertyId,
-			userId
+			senderId
 		}, ...__args), __eve_dynamic_exec_86, {
+			propertyId,
+			senderId
+		})
+	});
+	if (grants.has("post_to_channel")) tools.post_to_channel = defineTool({
+		approval: always(),
+		description: "Post a message to ANOTHER channel in this property as the AI (e.g. relay an announcement to #general). channel_id is the Stream channel id — when the person names a channel rather than giving an id, call list_channels first to resolve it. Only this property's channels are allowed.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_89,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_88({ propertyId }, ...__args), __eve_dynamic_exec_88, { propertyId })
+	});
+	if (grants.has("list_workflows")) tools.list_workflows = defineTool({
+		description: "List the property's workflow automations: name, enabled, trigger, last run. Workflows whose trigger is 'Manual run' can be started with trigger_workflow.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_91,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_90({ propertyId }, ...__args), __eve_dynamic_exec_90, { propertyId })
+	});
+	if (grants.has("trigger_workflow")) tools.trigger_workflow = defineTool({
+		description: "Start a workflow whose trigger is 'Manual run' (check list_workflows — only enabled + manual.run workflows can be triggered). The run is queued through the same dispatcher the app's Run button uses.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_93,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_92({
+			propertyId,
+			senderId
+		}, ...__args), __eve_dynamic_exec_92, {
+			propertyId,
+			senderId
+		})
+	});
+	if (grants.has("restore_document_revision")) tools.restore_document_revision = defineTool({
+		description: "UNDO an AI document replace: list a doc's stashed pre-replace revisions (call without revision_id) and restore one (call with revision_id — the current body is stashed first, so a restore is itself undoable). Only docs the AI has replaced have revisions.",
+		inputSchema: defineDurableSchema({
+			schema: __eve_dynamic_input_schema_95,
+			closure: {}
+		}),
+		execute: __eveStampDynamicCallback$7(async (...__args) => await __eve_dynamic_exec_94({
+			propertyId,
+			userId
+		}, ...__args), __eve_dynamic_exec_94, {
 			propertyId,
 			userId
 		})
 	});
 	return tools;
 } } });
-async function __eve_dynamic_exec_0$7({ propertyId }, { status, limit }) {
+async function __eve_dynamic_exec_0$7({ propertyId }, { status, list, limit }) {
 	const supabase = serviceClient();
-	let query = supabase.from("tasks").select("id, title, status, priority, due_at, assignee_id").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
+	let listId = null;
+	if (list) {
+		const { data: lists } = await supabase.from("lists").select("id, name").eq("property_id", propertyId).is("archived_at", null);
+		const listNeedle = list.trim().toLowerCase();
+		const listMatch = (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ?? (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+		if (!listMatch) return {
+			error: `No list matches "${list}".`,
+			lists: (lists ?? []).map((l) => l.name)
+		};
+		listId = listMatch.id;
+	}
+	let query = supabase.from("tasks").select("id, title, status, priority, due_at, assignee_id, list_id, status_ref:statuses!tasks_status_id_fkey(name, category), list_ref:lists!tasks_list_id_fkey(name), task_assignees(user_id, position)").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
 	if (status) query = query.eq("status", status);
-	else query = query.neq("status", "done");
+	else query = query.is("completed_at", null);
+	if (listId) query = query.eq("list_id", listId);
 	const { data: tasks, error } = await query;
 	if (error) return { error: error.message };
-	const assigneeIds = Array.from(new Set((tasks ?? []).map((t) => t.assignee_id).filter((id) => !!id)));
+	const assigneeIds = Array.from(new Set((tasks ?? []).flatMap((t) => [t.assignee_id, ...(t.task_assignees ?? []).map((a) => a.user_id)]).filter((id) => !!id)));
 	const nameById = /* @__PURE__ */ new Map();
 	if (assigneeIds.length > 0) {
 		const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", assigneeIds);
@@ -83248,14 +83337,21 @@ async function __eve_dynamic_exec_0$7({ propertyId }, { status, limit }) {
 	}
 	return {
 		count: (tasks ?? []).length,
-		tasks: (tasks ?? []).map((t) => ({
-			id: t.id,
-			title: t.title,
-			status: STATUS_LABELS$1[t.status] ?? t.status,
-			priority: t.priority,
-			due: t.due_at,
-			assignee: t.assignee_id ? nameById.get(t.assignee_id) ?? null : null
-		}))
+		tasks: (tasks ?? []).map((t) => {
+			const sref = Array.isArray(t.status_ref) ? t.status_ref[0] : t.status_ref;
+			const lref = Array.isArray(t.list_ref) ? t.list_ref[0] : t.list_ref;
+			return {
+				id: t.id,
+				title: t.title,
+				status: sref?.name ?? STATUS_LABELS$1[t.status] ?? t.status,
+				status_category: sref?.category ?? null,
+				list: lref?.name ?? null,
+				priority: t.priority,
+				due: t.due_at,
+				assignee: t.assignee_id ? nameById.get(t.assignee_id) ?? null : null,
+				assignees: (t.task_assignees ?? []).slice().sort((a, b) => a.position - b.position).map((a) => nameById.get(a.user_id) ?? null).filter((n) => !!n)
+			};
+		})
 	};
 }
 function __eve_dynamic_input_schema_1$7(__vars) {
@@ -83265,10 +83361,11 @@ function __eve_dynamic_input_schema_1$7(__vars) {
 			"in_progress",
 			"blocked"
 		]).optional(),
+		list: string().max(120).optional().describe("List name to narrow to (fuzzy match)."),
 		limit: number().int().min(1).max(20).default(10)
 	});
 }
-async function __eve_dynamic_exec_2$2({ propertyId, userId, sessionChannelId, eveSessionId }, { title, description, priority, team, due_at }, toolCtx) {
+async function __eve_dynamic_exec_2$2({ propertyId, userId, sessionChannelId, eveSessionId }, { title, description, priority, team, due_at, list, status }, toolCtx) {
 	const supabase = serviceClient();
 	let spaceId = null;
 	if (team) {
@@ -83281,15 +83378,41 @@ async function __eve_dynamic_exec_2$2({ propertyId, userId, sessionChannelId, ev
 		};
 		spaceId = match.id;
 	}
+	let listId = null;
+	let statusId = null;
+	if (list) {
+		let listQuery = supabase.from("lists").select("id, name, space_id, status_set_id").eq("property_id", propertyId).is("archived_at", null);
+		if (spaceId) listQuery = listQuery.eq("space_id", spaceId);
+		const { data: lists } = await listQuery;
+		const listNeedle = list.trim().toLowerCase();
+		const listMatch = (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ?? (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+		if (!listMatch) return {
+			error: `No list matches "${list}"${spaceId ? " in that team" : ""}.`,
+			lists: (lists ?? []).map((l) => l.name)
+		};
+		listId = listMatch.id;
+		if (!spaceId && listMatch.space_id) spaceId = listMatch.space_id;
+		if (status) {
+			const { data: statuses } = await supabase.from("statuses").select("id, name").eq("status_set_id", listMatch.status_set_id).is("archived_at", null).order("position", { ascending: true });
+			const statusNeedle = status.trim().toLowerCase();
+			const statusMatch = (statuses ?? []).find((s) => s.name.toLowerCase() === statusNeedle) ?? (statuses ?? []).find((s) => s.name.toLowerCase().startsWith(statusNeedle));
+			if (!statusMatch) return {
+				error: `No status "${status}" in list "${listMatch.name}".`,
+				statuses: (statuses ?? []).map((s) => s.name)
+			};
+			statusId = statusMatch.id;
+		}
+	} else if (status) return { error: "Pass `list` together with `status` — statuses belong to a list's pipeline." };
 	const { data, error } = await supabase.from("tasks").insert({
 		property_id: propertyId,
 		title,
 		description: description ?? null,
 		priority,
-		status: "todo",
 		source: "ai",
 		created_by: userId,
 		...spaceId ? { space_id: spaceId } : {},
+		...listId ? { list_id: listId } : {},
+		...statusId ? { status_id: statusId } : {},
 		...due_at ? { due_at } : {}
 	}).select("id, title, space_id").single();
 	if (error) return { error: error.message };
@@ -83333,7 +83456,9 @@ function __eve_dynamic_input_schema_3$2(__vars) {
 			"urgent"
 		]).default("medium"),
 		team: string().max(120).optional().describe("Team (space) name to file the task under."),
-		due_at: datetime({ offset: true }).optional().describe("Due date-time, ISO 8601 with offset.")
+		due_at: datetime({ offset: true }).optional().describe("Due date-time, ISO 8601 with offset."),
+		list: string().max(120).optional().describe("List name to file the task in (fuzzy match, scoped to the team when one is given)."),
+		status: string().max(60).optional().describe("A status NAME of that list's pipeline (e.g. 'Quoting'). Omit to start at the list's first status.")
 	});
 }
 async function __eve_dynamic_exec_4$1({ propertyId }, { query, limit }) {
@@ -83442,12 +83567,40 @@ async function __eve_dynamic_exec_12$1({ propertyId, resourceIds }, { document_i
 function __eve_dynamic_input_schema_13$1(__vars) {
 	return object({ document_id: string().optional().describe("Omit to list attached resources; pass an id to read one.") });
 }
-async function __eve_dynamic_exec_14$1({ propertyId, senderId }, { task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
+async function __eve_dynamic_exec_14$1({ propertyId, senderId }, { task_id, status, list, priority, due_at, assignee_name, assignees_add, assignees_remove, title, description, labels_add, labels_remove, project_name }) {
 	const supabase = serviceClient();
-	const { data: task } = await supabase.from("tasks").select("id, title, assignee_id, labels").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
+	const { data: task } = await supabase.from("tasks").select("id, title, assignee_id, labels, list_id").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
 	if (!task) return { error: "Task not found in this property." };
 	const patch = {};
-	if (status) patch.status = status;
+	let targetListId = task.list_id ?? null;
+	if (list) {
+		const { data: lists } = await supabase.from("lists").select("id, name").eq("property_id", propertyId).is("archived_at", null);
+		const listNeedle = list.trim().toLowerCase();
+		const listMatch = (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ?? (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+		if (!listMatch) return {
+			error: `No list matches "${list}".`,
+			lists: (lists ?? []).map((l) => l.name)
+		};
+		patch.list_id = listMatch.id;
+		targetListId = listMatch.id;
+	}
+	if (status) {
+		const legacy = status.trim().toLowerCase();
+		const { data: targetList } = targetListId ? await supabase.from("lists").select("status_set_id").eq("id", targetListId).maybeSingle() : { data: null };
+		const { data: statuses } = targetList ? await supabase.from("statuses").select("id, name").eq("status_set_id", targetList.status_set_id).is("archived_at", null).order("position", { ascending: true }) : { data: [] };
+		const statusMatch = (statuses ?? []).find((s) => s.name.toLowerCase() === legacy) ?? (statuses ?? []).find((s) => s.name.toLowerCase().startsWith(legacy));
+		if (statusMatch) patch.status_id = statusMatch.id;
+		else if ([
+			"todo",
+			"in_progress",
+			"blocked",
+			"done"
+		].includes(legacy)) patch.status = legacy;
+		else return {
+			error: `No status "${status}" in this task's list.`,
+			statuses: (statuses ?? []).map((s) => s.name)
+		};
+	}
 	if (priority) patch.priority = priority;
 	if (due_at !== void 0) patch.due_at = due_at;
 	if (title) patch.title = title;
@@ -83473,28 +83626,72 @@ async function __eve_dynamic_exec_14$1({ propertyId, senderId }, { task_id, stat
 		};
 		patch.project_id = proj.id;
 	}
+	let roster = null;
+	const findMember = async (name) => {
+		if (!roster) {
+			const { data: members } = await supabase.from("memberships").select("user_id").eq("property_id", propertyId);
+			const ids = (members ?? []).map((m) => m.user_id);
+			const { data: profiles } = ids.length ? await supabase.from("profiles").select("id, full_name").in("id", ids) : { data: [] };
+			roster = profiles ?? [];
+		}
+		const needle = name.trim().toLowerCase();
+		return roster.find((p) => (p.full_name ?? "").toLowerCase() === needle) ?? roster.find((p) => (p.full_name ?? "").toLowerCase().includes(needle)) ?? null;
+	};
+	const noMatch = (name) => ({
+		error: `No member matches "${name}".`,
+		members: (roster ?? []).map((p) => p.full_name).filter(Boolean)
+	});
 	let assigneeId;
 	if (assignee_name === null) assigneeId = null;
 	else if (typeof assignee_name === "string") {
-		const { data: members } = await supabase.from("memberships").select("user_id").eq("property_id", propertyId);
-		const ids = (members ?? []).map((m) => m.user_id);
-		const { data: profiles } = ids.length ? await supabase.from("profiles").select("id, full_name").in("id", ids) : { data: [] };
-		const needle = assignee_name.trim().toLowerCase();
-		const match = (profiles ?? []).find((p) => (p.full_name ?? "").toLowerCase() === needle) ?? (profiles ?? []).find((p) => (p.full_name ?? "").toLowerCase().includes(needle));
-		if (!match) return {
-			error: `No member matches "${assignee_name}".`,
-			members: (profiles ?? []).map((p) => p.full_name).filter(Boolean)
-		};
+		const match = await findMember(assignee_name);
+		if (!match) return noMatch(assignee_name);
 		assigneeId = match.id;
 	}
+	const addIds = [];
+	for (const name of assignees_add ?? []) {
+		const match = await findMember(name);
+		if (!match) return noMatch(name);
+		addIds.push(match.id);
+	}
+	const removeIds = [];
+	for (const name of assignees_remove ?? []) {
+		const match = await findMember(name);
+		if (!match) return noMatch(name);
+		removeIds.push(match.id);
+	}
 	if (assigneeId !== void 0) patch.assignee_id = assigneeId;
-	if (Object.keys(patch).length === 0) return { error: "Nothing to update — pass at least one field." };
-	const { error } = await supabase.from("tasks").update(patch).eq("id", task_id).eq("property_id", propertyId);
-	if (error) return { error: error.message };
-	if (assigneeId && assigneeId !== task.assignee_id) {
+	if (Object.keys(patch).length === 0 && addIds.length === 0 && removeIds.length === 0) return { error: "Nothing to update — pass at least one field." };
+	const { data: beforeSet } = await supabase.from("task_assignees").select("user_id").eq("task_id", task_id);
+	const before = new Set((beforeSet ?? []).map((r) => r.user_id));
+	if (Object.keys(patch).length > 0) {
+		const { error } = await supabase.from("tasks").update(patch).eq("id", task_id).eq("property_id", propertyId);
+		if (error) return { error: error.message };
+	}
+	if (addIds.length > 0) {
+		const { data: last } = await supabase.from("task_assignees").select("position").eq("task_id", task_id).order("position", { ascending: false }).limit(1).maybeSingle();
+		const start = (last?.position ?? -1) + 1;
+		const { error: addErr } = await supabase.from("task_assignees").upsert(addIds.map((user_id, i) => ({
+			task_id,
+			user_id,
+			property_id: propertyId,
+			position: start + i
+		})), {
+			onConflict: "task_id,user_id",
+			ignoreDuplicates: true
+		});
+		if (addErr) return { error: addErr.message };
+	}
+	if (removeIds.length > 0) {
+		const { error: rmErr } = await supabase.from("task_assignees").delete().eq("task_id", task_id).in("user_id", removeIds);
+		if (rmErr) return { error: rmErr.message };
+	}
+	const { data: afterSet } = await supabase.from("task_assignees").select("user_id").eq("task_id", task_id);
+	const joined = (afterSet ?? []).map((r) => r.user_id).filter((id) => !before.has(id) && id !== senderId);
+	if (joined.length > 0) {
 		const { data: senderProfile } = await supabase.from("profiles").select("full_name").eq("id", senderId).maybeSingle();
-		await supabase.from("notifications").insert({
-			user_id: assigneeId,
+		await supabase.from("notifications").insert(joined.map((user_id) => ({
+			user_id,
 			property_id: propertyId,
 			type: "task_assigned",
 			payload: {
@@ -83503,24 +83700,20 @@ async function __eve_dynamic_exec_14$1({ propertyId, senderId }, { task_id, stat
 				byUserId: senderId,
 				byUserName: senderProfile?.full_name ?? "Hotelclaw AI"
 			}
-		});
+		})));
 	}
 	return {
 		updated: true,
 		task_id,
-		changed: Object.keys(patch),
+		changed: [...Object.keys(patch), ...addIds.length || removeIds.length ? ["assignees"] : []],
 		link: `/p/${propertyId}/tasks/${task_id}`
 	};
 }
 function __eve_dynamic_input_schema_15$1(__vars) {
 	return object({
 		task_id: string().uuid(),
-		status: _enum([
-			"todo",
-			"in_progress",
-			"blocked",
-			"done"
-		]).optional(),
+		status: string().max(60).optional().describe("Status name of the task's list (or todo / in_progress / blocked / done)."),
+		list: string().max(120).optional().describe("List name to move the task to (fuzzy match)."),
 		priority: _enum([
 			"none",
 			"low",
@@ -83529,7 +83722,9 @@ function __eve_dynamic_input_schema_15$1(__vars) {
 			"urgent"
 		]).optional(),
 		due_at: datetime({ offset: true }).nullish(),
-		assignee_name: string().max(120).nullish().describe("Person to assign (fuzzy name match); null to unassign."),
+		assignee_name: string().max(120).nullish().describe("Person to make the PRIMARY assignee (fuzzy name match); null to unassign everyone."),
+		assignees_add: array(string().min(1).max(120)).max(10).optional().describe("People to ADD as assignees, keeping whoever is already on it."),
+		assignees_remove: array(string().min(1).max(120)).max(10).optional().describe("People to take OFF the task."),
 		title: string().min(3).max(200).optional(),
 		description: string().max(4e3).optional(),
 		labels_add: array(string().min(1).max(40)).max(10).optional(),
@@ -84159,7 +84354,170 @@ function __eve_dynamic_input_schema_51(__vars) {
 		reason: string().min(5).max(300)
 	});
 }
-async function __eve_dynamic_exec_52({ propertyId, senderId }, { task_id, note }) {
+async function __eve_dynamic_exec_52({ propertyId }, { task_id }) {
+	const supabase = serviceClient();
+	const { data: fields, error } = await supabase.from("custom_fields").select("id, name, type, options, config, space_id, list_id").eq("property_id", propertyId).is("archived_at", null).order("position", { ascending: true });
+	if (error) return { error: error.message };
+	const rows = fields ?? [];
+	const out = {
+		count: rows.length,
+		fields: rows.map((f) => ({
+			name: f.name,
+			type: f.type,
+			...f.options && f.options.length ? { options: f.options.map((o) => o.label) } : {},
+			...f.type === "currency" && f.config?.code ? { currency: f.config.code } : {},
+			...f.type === "people" && f.config?.multiple === false ? { single_person: true } : {},
+			...f.type === "files" || f.type === "progress" ? { read_only: true } : {},
+			scoped: f.list_id ? "one list" : f.space_id ? "one team" : "every task"
+		}))
+	};
+	if (task_id) {
+		const { data: task } = await supabase.from("tasks").select("id").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
+		if (!task) return { error: "Task not found." };
+		const { data: values } = await supabase.from("task_field_values").select("field_id, value").eq("task_id", task_id);
+		const personIds = /* @__PURE__ */ new Set();
+		const taskIds = /* @__PURE__ */ new Set();
+		const fileIds = /* @__PURE__ */ new Set();
+		for (const v of values ?? []) {
+			const f = rows.find((r) => r.id === v.field_id);
+			if (!f || !Array.isArray(v.value)) continue;
+			const bucket = f.type === "people" ? personIds : f.type === "relation" ? taskIds : f.type === "files" ? fileIds : null;
+			for (const id of v.value) bucket?.add(id);
+		}
+		const [people, linked, files] = await Promise.all([
+			personIds.size ? supabase.from("profiles").select("id, full_name").in("id", [...personIds]) : Promise.resolve({ data: [] }),
+			taskIds.size ? supabase.from("tasks").select("id, title").in("id", [...taskIds]) : Promise.resolve({ data: [] }),
+			fileIds.size ? supabase.from("task_attachments").select("id, file_name").in("id", [...fileIds]) : Promise.resolve({ data: [] })
+		]);
+		const nameOf = /* @__PURE__ */ new Map();
+		for (const p of people.data ?? []) nameOf.set(p.id, p.full_name ?? "Member");
+		for (const t of linked.data ?? []) nameOf.set(t.id, t.title);
+		for (const a of files.data ?? []) nameOf.set(a.id, a.file_name);
+		out.values = Object.fromEntries((values ?? []).flatMap((v) => {
+			const f = rows.find((r) => r.id === v.field_id);
+			if (!f) return [];
+			const raw = v.value;
+			let shown = raw;
+			if (f.type === "select") shown = (f.options ?? []).find((o) => o.id === raw)?.label ?? raw;
+			else if (f.type === "multi_select" && Array.isArray(raw)) shown = raw.map((id) => (f.options ?? []).find((o) => o.id === id)?.label ?? id);
+			else if (Array.isArray(raw)) shown = raw.map((id) => nameOf.get(id) ?? id);
+			else if (f.type === "currency" && typeof raw === "number") shown = `${f.config?.code ?? ""} ${raw.toLocaleString("en-US")}`.trim();
+			return [[f.name, shown]];
+		}));
+	}
+	return out;
+}
+function __eve_dynamic_input_schema_53(__vars) {
+	return object({ task_id: string().uuid().optional() });
+}
+async function __eve_dynamic_exec_54({ propertyId, senderId }, { task_id, field, value }) {
+	const response = await fetch(`${eveSelfOrigin()}/api/internal/tasks/${task_id}/fields`, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`
+		},
+		body: JSON.stringify({
+			propertyId,
+			field,
+			value,
+			actorId: senderId ?? null
+		}),
+		signal: AbortSignal.timeout(3e4)
+	}).catch(() => null);
+	if (!response) return { error: "Field service unreachable." };
+	const body = await response.json().catch(() => null);
+	if (!response.ok) return { error: body?.error ?? `Update failed (${response.status}).` };
+	return {
+		updated: true,
+		task_id,
+		field: body?.fieldName ?? field,
+		cleared: body?.value === null,
+		link: `/p/${propertyId}/tasks/${task_id}`
+	};
+}
+function __eve_dynamic_input_schema_55(__vars) {
+	return object({
+		task_id: string().uuid(),
+		field: string().min(1).max(120),
+		value: string().max(5e3)
+	});
+}
+async function __eve_dynamic_exec_56({ propertyId, senderId }, { task_id, checklist_name, items }) {
+	const supabase = serviceClient();
+	const { data: task } = await supabase.from("tasks").select("id").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
+	if (!task) return { error: "Task not found." };
+	const name = checklist_name.trim();
+	const { data: lists } = await supabase.from("task_checklists").select("id, name, position").eq("task_id", task_id).order("position", { ascending: true });
+	let checklist = (lists ?? []).find((c) => c.name.toLowerCase() === name.toLowerCase());
+	let created = false;
+	if (!checklist) {
+		const last = (lists ?? []).at(-1)?.position ?? 0;
+		const { data, error } = await supabase.from("task_checklists").insert({
+			task_id,
+			property_id: propertyId,
+			name,
+			position: last + 1024,
+			created_by: senderId ?? null
+		}).select("id, name").single();
+		if (error || !data) return { error: error?.message ?? "Couldn't create the checklist." };
+		checklist = data;
+		created = true;
+	}
+	const { data: lastItem } = await supabase.from("task_checklist_items").select("position").eq("checklist_id", checklist.id).is("parent_item_id", null).order("position", { ascending: false }).limit(1).maybeSingle();
+	const start = (lastItem?.position ?? 0) + 1024;
+	const { error: insErr } = await supabase.from("task_checklist_items").insert(items.map((text, i) => ({
+		checklist_id: checklist.id,
+		task_id,
+		property_id: propertyId,
+		text: text.trim(),
+		position: start + i * 1024,
+		created_by: senderId ?? null
+	})));
+	if (insErr) return { error: insErr.message };
+	return {
+		checklist: checklist.name,
+		created,
+		added: items.length,
+		link: `/p/${propertyId}/tasks/${task_id}`
+	};
+}
+function __eve_dynamic_input_schema_57(__vars) {
+	return object({
+		task_id: string().uuid(),
+		checklist_name: string().min(1).max(120),
+		items: array(string().min(1).max(500)).min(1).max(50)
+	});
+}
+async function __eve_dynamic_exec_58({ propertyId }, { task_id, item_text, done }) {
+	const supabase = serviceClient();
+	const { data: rows } = await supabase.from("task_checklist_items").select("id, text, done, checklist_id").eq("task_id", task_id).eq("property_id", propertyId);
+	const items = rows ?? [];
+	if (items.length === 0) return { error: "This task has no checklist items." };
+	const needle = item_text.trim().toLowerCase();
+	const hit = items.find((i) => i.text.toLowerCase() === needle) ?? items.find((i) => i.text.toLowerCase().includes(needle));
+	if (!hit) return {
+		error: `No item matches "${item_text}".`,
+		items: items.map((i) => i.text)
+	};
+	const { error } = await supabase.from("task_checklist_items").update({ done }).eq("id", hit.id);
+	if (error) return { error: error.message };
+	const { data: t } = await supabase.from("tasks").select("checklist_done, checklist_total").eq("id", task_id).maybeSingle();
+	return {
+		item: hit.text,
+		done,
+		progress: t ? `${t.checklist_done}/${t.checklist_total}` : null,
+		link: `/p/${propertyId}/tasks/${task_id}`
+	};
+}
+function __eve_dynamic_input_schema_59(__vars) {
+	return object({
+		task_id: string().uuid(),
+		item_text: string().min(1).max(500),
+		done: boolean().default(true)
+	});
+}
+async function __eve_dynamic_exec_60({ propertyId, senderId }, { task_id, note }) {
 	const supabase = serviceClient();
 	const { data: task } = await supabase.from("tasks").select("id, title, assignee_id, space_id").eq("id", task_id).eq("property_id", propertyId).maybeSingle();
 	if (!task) return { error: "Task not found in this property." };
@@ -84202,13 +84560,13 @@ async function __eve_dynamic_exec_52({ propertyId, senderId }, { task_id, note }
 		link: `/p/${propertyId}/tasks/${task_id}`
 	};
 }
-function __eve_dynamic_input_schema_53(__vars) {
+function __eve_dynamic_input_schema_61(__vars) {
 	return object({
 		task_id: string().uuid(),
 		note: string().min(5).max(500)
 	});
 }
-async function __eve_dynamic_exec_54({ propertyId, userId }, { name, description, team_name, color, status }) {
+async function __eve_dynamic_exec_62({ propertyId, userId }, { name, description, team_name, color, status }) {
 	const supabase = serviceClient();
 	let teamId = null;
 	if (team_name) {
@@ -84243,7 +84601,7 @@ async function __eve_dynamic_exec_54({ propertyId, userId }, { name, description
 		link: `/p/${propertyId}/projects/${proj.id}`
 	};
 }
-function __eve_dynamic_input_schema_55(__vars) {
+function __eve_dynamic_input_schema_63(__vars) {
 	return object({
 		name: string().min(2).max(200),
 		description: string().max(2e3).optional(),
@@ -84259,7 +84617,7 @@ function __eve_dynamic_input_schema_55(__vars) {
 		status: _enum(["active", "planned"]).default("active")
 	});
 }
-async function __eve_dynamic_exec_56({ propertyId, userId, senderId }, { title, starts_at, ends_at, location }) {
+async function __eve_dynamic_exec_64({ propertyId, userId, senderId }, { title, starts_at, ends_at, location }) {
 	const supabase = serviceClient();
 	const { data: senderMember } = await supabase.from("memberships").select("user_id").eq("property_id", propertyId).eq("user_id", senderId).maybeSingle();
 	const { data: meeting, error } = await supabase.from("meetings").insert({
@@ -84281,7 +84639,7 @@ async function __eve_dynamic_exec_56({ propertyId, userId, senderId }, { title, 
 		link: `/p/${propertyId}/meetings/${meeting.id}`
 	};
 }
-function __eve_dynamic_input_schema_57(__vars) {
+function __eve_dynamic_input_schema_65(__vars) {
 	return object({
 		title: string().min(2).max(200),
 		starts_at: datetime({ offset: true }),
@@ -84289,7 +84647,7 @@ function __eve_dynamic_input_schema_57(__vars) {
 		location: string().max(300).optional()
 	});
 }
-async function __eve_dynamic_exec_58({ propertyId }, { meeting_id, title, starts_at, ends_at, location }) {
+async function __eve_dynamic_exec_66({ propertyId }, { meeting_id, title, starts_at, ends_at, location }) {
 	const supabase = serviceClient();
 	const { data: meeting } = await supabase.from("meetings").select("id, title, scheduled_start, ended_at").eq("id", meeting_id).eq("property_id", propertyId).maybeSingle();
 	if (!meeting) return { error: "Meeting not found in this property." };
@@ -84312,7 +84670,7 @@ async function __eve_dynamic_exec_58({ propertyId }, { meeting_id, title, starts
 		link: `/p/${propertyId}/meetings/${meeting_id}`
 	};
 }
-function __eve_dynamic_input_schema_59(__vars) {
+function __eve_dynamic_input_schema_67(__vars) {
 	return object({
 		meeting_id: string().uuid(),
 		title: string().min(2).max(200).optional(),
@@ -84321,7 +84679,7 @@ function __eve_dynamic_input_schema_59(__vars) {
 		location: string().max(300).nullish()
 	});
 }
-async function __eve_dynamic_exec_60({ propertyId }, { meeting_id }) {
+async function __eve_dynamic_exec_68({ propertyId }, { meeting_id }) {
 	const supabase = serviceClient();
 	const { data: meeting } = await supabase.from("meetings").select("id, title, ended_at").eq("id", meeting_id).eq("property_id", propertyId).maybeSingle();
 	if (!meeting) return { error: "Meeting not found in this property." };
@@ -84333,10 +84691,10 @@ async function __eve_dynamic_exec_60({ propertyId }, { meeting_id }) {
 		title: meeting.title
 	};
 }
-function __eve_dynamic_input_schema_61(__vars) {
+function __eve_dynamic_input_schema_69(__vars) {
 	return object({ meeting_id: string().uuid() });
 }
-async function __eve_dynamic_exec_62({ propertyId }, { service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
+async function __eve_dynamic_exec_70({ propertyId }, { service_name, starts_at, party_size, guest_name, guest_phone, notes, duration_minutes }) {
 	const { data: services } = await serviceClient().from("bookable_services").select("id, name").eq("property_id", propertyId).eq("active", true);
 	const svcNeedle = service_name.trim().toLowerCase();
 	const svc = (services ?? []).find((s) => s.name.toLowerCase() === svcNeedle) ?? (services ?? []).find((s) => s.name.toLowerCase().includes(svcNeedle));
@@ -84375,7 +84733,7 @@ async function __eve_dynamic_exec_62({ propertyId }, { service_name, starts_at, 
 		link: `/p/${propertyId}/bookings`
 	};
 }
-function __eve_dynamic_input_schema_63(__vars) {
+function __eve_dynamic_input_schema_71(__vars) {
 	return object({
 		service_name: string().min(2).max(200),
 		starts_at: string().min(10).describe("ISO start, e.g. 2026-07-24T19:00 (service-local) or with offset"),
@@ -84386,7 +84744,7 @@ function __eve_dynamic_input_schema_63(__vars) {
 		duration_minutes: number().int().min(15).max(1440).optional()
 	});
 }
-async function __eve_dynamic_exec_64({ propertyId }, { reference, status }) {
+async function __eve_dynamic_exec_72({ propertyId }, { reference, status }) {
 	const response = await fetch(`${eveSelfOrigin()}/api/internal/bookings`, {
 		method: "PATCH",
 		headers: {
@@ -84410,7 +84768,7 @@ async function __eve_dynamic_exec_64({ propertyId }, { reference, status }) {
 		link: `/p/${propertyId}/bookings`
 	};
 }
-function __eve_dynamic_input_schema_65(__vars) {
+function __eve_dynamic_input_schema_73(__vars) {
 	return object({
 		reference: string().min(4).max(20),
 		status: _enum([
@@ -84422,7 +84780,7 @@ function __eve_dynamic_input_schema_65(__vars) {
 		])
 	});
 }
-async function __eve_dynamic_exec_66({ propertyId }, { document_id, sheet_title }) {
+async function __eve_dynamic_exec_74({ propertyId }, { document_id, sheet_title }) {
 	const response = await fetch(`${eveSelfOrigin()}/api/internal/sheets?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}`, {
 		headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` },
 		signal: AbortSignal.timeout(25e3)
@@ -84469,13 +84827,13 @@ async function __eve_dynamic_exec_66({ propertyId }, { document_id, sheet_title 
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-function __eve_dynamic_input_schema_67(__vars) {
+function __eve_dynamic_input_schema_75(__vars) {
 	return object({
 		document_id: string().uuid(),
 		sheet_title: string().max(120).optional()
 	});
 }
-async function __eve_dynamic_exec_68({ propertyId, sessionChannelId, eveSessionId }, { document_id, sheet_title, cells }, toolCtx) {
+async function __eve_dynamic_exec_76({ propertyId, sessionChannelId, eveSessionId }, { document_id, sheet_title, cells }, toolCtx) {
 	const supabase = serviceClient();
 	const { data: doc } = await supabase.from("documents").select("id, title, kind").eq("id", document_id).eq("property_id", propertyId).maybeSingle();
 	if (!doc || doc.kind !== "sheet") return { error: "Spreadsheet not found in this property." };
@@ -84535,7 +84893,7 @@ async function __eve_dynamic_exec_68({ propertyId, sessionChannelId, eveSessionI
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-function __eve_dynamic_input_schema_69(__vars) {
+function __eve_dynamic_input_schema_77(__vars) {
 	return object({
 		document_id: string().uuid(),
 		sheet_title: string().max(120).optional(),
@@ -84545,7 +84903,7 @@ function __eve_dynamic_input_schema_69(__vars) {
 		})).min(1).max(200)
 	});
 }
-async function __eve_dynamic_exec_70({ propertyId, userId }, { title, description, publish, fields }) {
+async function __eve_dynamic_exec_78({ propertyId, userId }, { title, description, publish, fields }) {
 	const supabase = serviceClient();
 	for (const f of fields) if ((f.type === "select" || f.type === "multi_select") && (!f.options || f.options.length < 2)) return { error: `Field "${f.label}" is a ${f.type} and needs at least 2 options.` };
 	const schemaFields = fields.map((f, i) => ({
@@ -84578,7 +84936,7 @@ async function __eve_dynamic_exec_70({ propertyId, userId }, { title, descriptio
 		link: `/p/${propertyId}/forms/${form.id}`
 	};
 }
-function __eve_dynamic_input_schema_71(__vars) {
+function __eve_dynamic_input_schema_79(__vars) {
 	return object({
 		title: string().min(2).max(200),
 		description: string().max(1e3).optional(),
@@ -84604,7 +84962,7 @@ function __eve_dynamic_input_schema_71(__vars) {
 		})).min(1).max(30)
 	});
 }
-async function __eve_dynamic_exec_72({ propertyId }, { form_id, status }) {
+async function __eve_dynamic_exec_80({ propertyId }, { form_id, status }) {
 	const supabase = serviceClient();
 	const { data: form } = await supabase.from("forms").select("id, title, status").eq("id", form_id).eq("property_id", propertyId).is("archived_at", null).maybeSingle();
 	if (!form) return { error: "Form not found in this property." };
@@ -84622,7 +84980,7 @@ async function __eve_dynamic_exec_72({ propertyId }, { form_id, status }) {
 		link: `/p/${propertyId}/forms/${form_id}`
 	};
 }
-function __eve_dynamic_input_schema_73(__vars) {
+function __eve_dynamic_input_schema_81(__vars) {
 	return object({
 		form_id: string().uuid(),
 		status: _enum([
@@ -84632,7 +84990,7 @@ function __eve_dynamic_input_schema_73(__vars) {
 		])
 	});
 }
-async function __eve_dynamic_exec_74({ propertyId, sessionChannelId, eveSessionId }, { form_id, message }) {
+async function __eve_dynamic_exec_82({ propertyId, sessionChannelId, eveSessionId }, { form_id, message }) {
 	const supabase = serviceClient();
 	const { data: form } = await supabase.from("forms").select("id, title, description, status, schema").eq("id", form_id).eq("property_id", propertyId).is("archived_at", null).maybeSingle();
 	if (!form) return { error: "Form not found in this property." };
@@ -84664,13 +85022,13 @@ async function __eve_dynamic_exec_74({ propertyId, sessionChannelId, eveSessionI
 		field_count: fieldTotal
 	};
 }
-function __eve_dynamic_input_schema_75(__vars) {
+function __eve_dynamic_input_schema_83(__vars) {
 	return object({
 		form_id: string().uuid(),
 		message: string().max(300).optional().describe("Optional line above the card.")
 	});
 }
-async function __eve_dynamic_exec_76({ propertyId, senderId }, { person_name, team_name, message }) {
+async function __eve_dynamic_exec_84({ propertyId, senderId }, { person_name, team_name, message }) {
 	if (!person_name && !team_name) return { error: "Pass person_name or team_name." };
 	const supabase = serviceClient();
 	const targetIds = /* @__PURE__ */ new Set();
@@ -84720,14 +85078,14 @@ async function __eve_dynamic_exec_76({ propertyId, senderId }, { person_name, te
 		recipients: targetIds.size
 	};
 }
-function __eve_dynamic_input_schema_77(__vars) {
+function __eve_dynamic_input_schema_85(__vars) {
 	return object({
 		person_name: string().max(120).optional(),
 		team_name: string().max(120).optional(),
 		message: string().min(3).max(500)
 	});
 }
-async function __eve_dynamic_exec_78({ propertyId, senderId }, { name_contains, limit }) {
+async function __eve_dynamic_exec_86({ propertyId, senderId }, { name_contains, limit }) {
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const secret = process.env.STREAM_API_SECRET;
 	if (!apiKey || !secret) return { error: "Chat not configured." };
@@ -84754,13 +85112,13 @@ async function __eve_dynamic_exec_78({ propertyId, senderId }, { name_contains, 
 		return { error: e instanceof Error ? e.message : "channel list failed" };
 	}
 }
-function __eve_dynamic_input_schema_79(__vars) {
+function __eve_dynamic_input_schema_87(__vars) {
 	return object({
 		name_contains: string().max(80).optional().describe("Optional filter on the channel name, e.g. 'announce'"),
 		limit: number().int().min(1).max(50).default(25)
 	});
 }
-async function __eve_dynamic_exec_80({ propertyId }, { channel_id, message }) {
+async function __eve_dynamic_exec_88({ propertyId }, { channel_id, message }) {
 	if (!channel_id.startsWith(`prop-${propertyId.slice(0, 8)}`)) return { error: "That channel doesn't belong to this property." };
 	const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 	const streamSecret = process.env.STREAM_API_SECRET;
@@ -84778,13 +85136,13 @@ async function __eve_dynamic_exec_80({ propertyId }, { channel_id, message }) {
 		channel_id
 	};
 }
-function __eve_dynamic_input_schema_81(__vars) {
+function __eve_dynamic_input_schema_89(__vars) {
 	return object({
 		channel_id: string().min(6).max(120),
 		message: string().min(1).max(3e3)
 	});
 }
-async function __eve_dynamic_exec_82({ propertyId }) {
+async function __eve_dynamic_exec_90({ propertyId }) {
 	const supabase = serviceClient();
 	const { data: rows, error } = await supabase.from("workflows").select("id, name, description, enabled, current_version_id, last_run_at, last_run_status").eq("property_id", propertyId).is("archived_at", null).order("updated_at", { ascending: false }).limit(40);
 	if (error) return { error: error.message };
@@ -84804,10 +85162,10 @@ async function __eve_dynamic_exec_82({ propertyId }) {
 		}))
 	};
 }
-function __eve_dynamic_input_schema_83(__vars) {
+function __eve_dynamic_input_schema_91(__vars) {
 	return object({});
 }
-async function __eve_dynamic_exec_84({ propertyId, senderId }, { workflow_name }) {
+async function __eve_dynamic_exec_92({ propertyId, senderId }, { workflow_name }) {
 	const supabase = serviceClient();
 	const { data: rows } = await supabase.from("workflows").select("id, name, enabled, current_version_id").eq("property_id", propertyId).is("archived_at", null);
 	const wfNeedle = workflow_name.trim().toLowerCase();
@@ -84840,10 +85198,10 @@ async function __eve_dynamic_exec_84({ propertyId, senderId }, { workflow_name }
 		link: `/p/${propertyId}/workflows/${wf.id}`
 	};
 }
-function __eve_dynamic_input_schema_85(__vars) {
+function __eve_dynamic_input_schema_93(__vars) {
 	return object({ workflow_name: string().min(2).max(200) });
 }
-async function __eve_dynamic_exec_86({ propertyId, userId }, { document_id, revision_id }) {
+async function __eve_dynamic_exec_94({ propertyId, userId }, { document_id, revision_id }) {
 	const listResponse = await fetch(`${eveSelfOrigin()}/api/internal/documents/read?propertyId=${encodeURIComponent(propertyId)}&documentId=${encodeURIComponent(document_id)}&revisions=1`, {
 		headers: { authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}` },
 		signal: AbortSignal.timeout(2e4)
@@ -84887,7 +85245,7 @@ async function __eve_dynamic_exec_86({ propertyId, userId }, { document_id, revi
 		link: `/p/${propertyId}/documents/${document_id}`
 	};
 }
-function __eve_dynamic_input_schema_87(__vars) {
+function __eve_dynamic_input_schema_95(__vars) {
 	return object({
 		document_id: string().uuid(),
 		revision_id: string().uuid().optional()
@@ -85286,7 +85644,7 @@ async function __eve_dynamic_exec_0$4(__vars, { dry_run }, ctx) {
 		const [{ data: arrivals }, { data: stale }, { data: critical }] = await Promise.all([
 			supabase.from("bookings").select("reference, guest_name, party_size, starts_at, status").eq("property_id", property.id).gte("starts_at", dayStart).lte("starts_at", dayEnd).not("status", "in", "(cancelled,no_show)").order("starts_at"),
 			supabase.from("tasks").select("title, updated_at").eq("property_id", property.id).eq("status", "in_progress").lt("updated_at", (/* @__PURE__ */ new Date(Date.now() - 2592e5)).toISOString()).limit(8),
-			supabase.from("tasks").select("title, status, priority").eq("property_id", property.id).neq("status", "done").in("priority", ["high", "urgent"]).limit(10)
+			supabase.from("tasks").select("title, status, priority").eq("property_id", property.id).is("completed_at", null).in("priority", ["high", "urgent"]).limit(10)
 		]);
 		const lines = [
 			`🌅 **Morning brief — ${property.name}** (${today})`,
@@ -85487,19 +85845,23 @@ var pod_tools_default = defineDynamic({ events: { "session.started": async (_eve
 	return tools;
 } } });
 async function __eve_dynamic_exec_0$3({ propertyId }, { status, limit }) {
-	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
+	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at, status_ref:statuses!tasks_status_id_fkey(name)").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
 	if (status) query = query.eq("status", status);
 	const { data, error } = await query;
 	if (error) return { error: error.message };
 	return {
 		count: (data ?? []).length,
-		tasks: (data ?? []).map((t) => ({
-			id: t.id,
-			title: t.title,
-			status: STATUS_LABELS[t.status] ?? t.status,
-			priority: t.priority,
-			due: t.due_at
-		}))
+		tasks: (data ?? []).map((t) => {
+			const sref = Array.isArray(t.status_ref) ? t.status_ref[0] : t.status_ref;
+			return {
+				id: t.id,
+				title: t.title,
+				status: sref?.name ?? STATUS_LABELS[t.status] ?? t.status,
+				status_category: t.status,
+				priority: t.priority,
+				due: t.due_at
+			};
+		})
 	};
 }
 function __eve_dynamic_input_schema_1$3(__vars) {
@@ -85519,7 +85881,6 @@ async function __eve_dynamic_exec_2({ propertyId, userId }, { title, description
 		title,
 		description: description ?? null,
 		priority,
-		status: "todo",
 		source: "ai",
 		created_by: userId
 	}).select("id, title").single();
@@ -85682,7 +86043,6 @@ async function __eve_dynamic_exec_16({ bot, propertyId, userId }, { reference, r
 		title: `Process refund for ${booking.reference} (${booking.guest_name ?? "guest"})`,
 		description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
 		priority: "high",
-		status: "todo",
 		source: "ai",
 		created_by: userId
 	});
@@ -85704,7 +86064,6 @@ async function __eve_dynamic_exec_18({ bot, propertyId, userId }, { booking_refe
 		title: `Rate override approved: ${new_rate}${booking_reference ? ` (${booking_reference})` : ""}`,
 		description: `Approved via ${bot.displayName} bot. ${description}`,
 		priority: "high",
-		status: "todo",
 		source: "ai",
 		created_by: userId
 	}).select("id").single();
@@ -85729,7 +86088,6 @@ async function __eve_dynamic_exec_20({ bot, propertyId, userId }, { booking_refe
 		title: `Comp night approved for ${booking.reference} (${booking.guest_name ?? "guest"})`,
 		description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
 		priority: "high",
-		status: "todo",
 		source: "ai",
 		created_by: userId
 	}).select("id").single();
@@ -85849,7 +86207,7 @@ function __eveStampDynamicCallback(callback, impl, closure) {
 	return callback;
 }
 var list_tasks_default = defineTool({
-	description: "List tasks in this property, optionally filtered by status. Returns title, status, priority, due date, last update.",
+	description: "List tasks in this property, optionally filtered by status CATEGORY (todo = not started, in_progress = active, blocked, done = finished). Returns title, status (the list's own status name), priority, due date, last update.",
 	inputSchema: defineDurableSchema({
 		schema: __eve_dynamic_input_schema_1,
 		closure: {}
@@ -85858,13 +86216,21 @@ var list_tasks_default = defineTool({
 });
 async function __eve_dynamic_exec_0(__vars, { status, limit }, ctx) {
 	const { propertyId } = await resolveTenantCaller(ctx);
-	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at, updated_at").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
+	let query = serviceClient().from("tasks").select("id, title, status, priority, due_at, updated_at, status_ref:statuses!tasks_status_id_fkey(name)").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(limit);
 	if (status) query = query.eq("status", status);
 	const { data, error } = await query;
 	if (error) return { error: error.message };
+	const tasks = (data ?? []).map(({ status_ref, ...t }) => {
+		const ref = Array.isArray(status_ref) ? status_ref[0] : status_ref;
+		return {
+			...t,
+			status: ref?.name ?? t.status,
+			status_category: t.status
+		};
+	});
 	return {
-		count: (data ?? []).length,
-		tasks: data ?? []
+		count: tasks.length,
+		tasks
 	};
 }
 function __eve_dynamic_input_schema_1(__vars) {
@@ -86058,7 +86424,7 @@ const metadata = {
 	"compile": {
 		"manifest": {
 			"path": ".output/.eve/compile/compiled-agent-manifest.json",
-			"sha256": "a7a1933a2e40de3d0869682ebf2758d62ace517e7565042f5a1c216d2cb47159"
+			"sha256": "fc310af5dc99a5dc8283de9f8f293530348cbf9a29bd4df1dc1e0367d5c76b88"
 		},
 		"moduleMap": {
 			"path": ".output/.eve/compile/module-map.mjs",
@@ -86074,7 +86440,7 @@ const metadata = {
 			"path": ".output/.eve/discovery/agent-discovery-manifest.json",
 			"sha256": "4068c6f67f389c7d3097317699a2a5511385440abd92997dec15ea57b9a251cf"
 		},
-		"sourceGraphHash": "0478fc19bce9df394e9ba59efe8b3a7110c0926942df852e953020a7b1f2416c",
+		"sourceGraphHash": "7de6f36069a54ca0191e3e0ee63b2431051e1115a6ccc00c01bbaadcbd36feac",
 		"summary": {
 			"errors": 0,
 			"warnings": 0
@@ -88574,7 +88940,7 @@ const manifest = {
 						"availability": [],
 						"shape": { "suspend": "none" }
 					},
-					"description": "List tasks in this property, optionally filtered by status. Returns title, status, priority, due date, last update.",
+					"description": "List tasks in this property, optionally filtered by status CATEGORY (todo = not started, in_progress = active, blocked, done = finished). Returns title, status (the list's own status name), priority, due date, last update.",
 					"hasExecute": true,
 					"hasModelOutputProjection": false,
 					"inputSchema": {
@@ -89155,7 +89521,7 @@ async function error_handler_default(error, event) {
 		console.error(error);
 	}
 }
-installWorkflowDeploymentId("eve_2104121e8aa61d90895e12f726659549");
+installWorkflowDeploymentId("eve_be782c1e9fc1e1926d809bc3420b6edc");
 applyLocalWorkflowWorldDeliveryTimeoutDefaults();
 const workflowWorld = authenticateLocalWorkflowDeliveries(await aa({
 	dataDir: resolveLocalWorkflowWorldDataDirectory(process.cwd()),

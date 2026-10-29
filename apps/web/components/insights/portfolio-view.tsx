@@ -3,11 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { useOpenProject } from "@/lib/projects/use-open-project";
-import {
-  DividerList,
-  WidgetEmpty,
-} from "@/components/home/editorial-section";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { ProgBar } from "@/components/gr8r/home-glyphs";
+import { G8Note, G8Rows } from "./g8-insights";
 import type { InsightsMetrics, PortfolioRow } from "@/lib/insights/metrics";
 import { insightsAnnotationsQueryOptions } from "@/lib/query/insights-queries";
 
@@ -33,9 +31,9 @@ export function PortfolioBody({
   const noteFor = new Map(annotations.map((a) => [a.projectId, a.note]));
 
   return metrics.portfolio.length === 0 ? (
-    <WidgetEmpty>No active projects yet.</WidgetEmpty>
+    <G8Note>No active projects yet.</G8Note>
   ) : (
-    <DividerList>
+    <G8Rows>
       {metrics.portfolio.map((p) => (
         <ProjectRow
           key={p.projectId}
@@ -44,7 +42,7 @@ export function PortfolioBody({
           aiNote={noteFor.get(p.projectId) ?? null}
         />
       ))}
-    </DividerList>
+    </G8Rows>
   );
 }
 
@@ -59,70 +57,52 @@ function ProjectRow({
 }) {
   const openProject = useOpenProject(propertyId);
   return (
-    <li>
-      <button
-        type="button"
-        onClick={() => openProject(row.projectId)}
-        className="group flex w-full flex-col gap-1.5 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-accent"
-      >
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-sm font-medium text-foreground group-hover:underline">
-              {row.name}
-            </span>
-            <PaceBadge pace={row.pace} />
+    <button
+      type="button"
+      onClick={() => openProject(row.projectId)}
+      className="mini tall"
+    >
+      <span className="row" style={{ gap: 10, alignItems: "baseline" }}>
+        <span className="row" style={{ gap: 8, minWidth: 0, flex: 1, alignItems: "baseline" }}>
+          <span className="trunc" style={{ fontWeight: 500 }}>
+            {row.name}
           </span>
-          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-            {row.done}/{row.total} done
-            {row.blocked > 0 ? (
-              <span className="text-destructive"> · {row.blocked} blocked</span>
-            ) : null}
-            {row.overdue > 0 ? (
-              <span className="text-destructive"> · {row.overdue} overdue</span>
-            ) : null}
-            {row.targetDate ? <span> · due {shortDate(row.targetDate)}</span> : null}
-          </span>
-        </div>
-        <div className="h-[3px] overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full rounded-full",
-              row.pace === "on_pace" ? "bg-success" : "bg-warning",
-            )}
-            style={{ width: `${row.completionPct}%` }}
-          />
-        </div>
-        {row.paceReasons.length > 0 ? (
-          <p className="text-xs text-pretty text-warning">
-            {row.paceReasons.join(" · ")}
-          </p>
-        ) : null}
-        {aiNote ? (
-          <p className="flex items-start gap-1.5 text-xs text-pretty text-muted-foreground">
-            <Sparkles className="mt-0.5 size-3 shrink-0" />
-            {aiNote}
-          </p>
-        ) : null}
-      </button>
-    </li>
+          <PaceBadge pace={row.pace} />
+        </span>
+        <span className="m">
+          {row.done}/{row.total} done
+          {row.blocked > 0 ? <span style={{ color: "var(--g8-red)" }}> · {row.blocked} blocked</span> : null}
+          {row.overdue > 0 ? <span style={{ color: "var(--g8-red)" }}> · {row.overdue} overdue</span> : null}
+          {row.targetDate ? <span> · due {shortDate(row.targetDate)}</span> : null}
+        </span>
+      </span>
+      <span className="row">
+        <ProgBar
+          value={row.completionPct}
+          tone={row.pace === "on_pace" ? "green" : "amber"}
+        />
+      </span>
+      {row.paceReasons.length > 0 ? (
+        <span style={{ fontSize: "var(--g8-fs-xs)", color: "var(--g8-amber)" }}>
+          {row.paceReasons.join(" · ")}
+        </span>
+      ) : null}
+      {aiNote ? (
+        <span className="row muted" style={{ gap: 6, alignItems: "flex-start", fontSize: "var(--g8-fs-xs)" }}>
+          <Gi icon={Sparkles} size={12} />
+          {aiNote}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
 function PaceBadge({ pace }: { pace: PortfolioRow["pace"] }) {
-  if (pace === "on_pace")
-    return (
-      <span className="shrink-0 text-xs text-faint-foreground">
-        on pace
-      </span>
-    );
+  if (pace === "on_pace") return <span className="badge green">On pace</span>;
   return (
-    <span
-      className={cn(
-        "shrink-0 text-xs font-medium",
-        pace === "behind" ? "text-warning" : "text-destructive",
-      )}
-    >
-      {pace === "behind" ? "behind" : "at risk"}
+    <span className={pace === "behind" ? "badge amber" : "badge red"}>
+      <span className="dot" />
+      {pace === "behind" ? "Behind" : "At risk"}
     </span>
   );
 }

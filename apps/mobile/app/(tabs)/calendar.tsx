@@ -38,14 +38,12 @@ const LIST_DAYS = 60;
 const SOURCE_COLOR: Record<CalendarSource, string> = {
   meeting: "#2563eb",
   task: "#7c3aed",
-  booking: "#8b5cf6",
   external: "#6b7280",
 };
 
 const SOURCE_LABEL: Record<CalendarSource, string> = {
   meeting: "Meeting",
   task: "Task",
-  booking: "Booking",
   external: "External",
 };
 

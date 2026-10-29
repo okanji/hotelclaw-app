@@ -12,6 +12,8 @@ import { validateSpec } from "@/lib/workflows/validate";
 import { STEP_FIELDS } from "@/lib/workflows/field-defs";
 import { canRunNow } from "@/lib/workflows/summary";
 import { runWorkflowNowRequest } from "../workflow-actions";
+import { Gi } from "@/components/gr8r/icon";
+import { Tog } from "@/components/gr8r/settings-ui";
 import { PageShell } from "@/components/ui/page-shell";
 import { AiCopilot } from "./ai-copilot";
 import { WorkflowCanvas } from "./canvas/workflow-canvas";
@@ -365,33 +367,29 @@ export function BuilderShell({
     {/* The builder is a canvas surface: the graph, the step tree and the
         banners all share the full pane width (PageShell width="bleed"). */}
     <PageShell width="bleed" className="flex h-full min-h-0 flex-col">
-      <header
-        className={cn(
-          "flex shrink-0 flex-col items-stretch gap-2 border-b border-border bg-background/60 px-4 py-2 sm:flex-row sm:items-center sm:justify-between",
-          !isMap && "border-transparent bg-transparent",
-        )}
-      >
-        <p
-          className={cn(
-            "text-xs",
-            saveError ? "text-destructive" : "text-muted-foreground",
-            !isMap && "px-6 pt-2",
-          )}
+      {/* gr8r `.toolbar`: save status left; history, Test, Run now, the
+          Live toggle, the Steps / Map `.seg` and Save right. */}
+      <header className="toolbar" style={{ flexShrink: 0, gap: 8 }}>
+        <span
+          className={saveError ? "" : "muted"}
+          style={{ fontSize: 12, color: saveError ? "var(--g8-red)" : undefined }}
         >
           {statusMessage}
           {currentIsDurable !== initialIsDurable
             ? " · This workflow now waits for events (you added a step that pauses or delays it)."
             : ""}
-        </p>
-        <div className={cn("flex items-center justify-end gap-2", !isMap && "px-6 pt-2")}>
+        </span>
+        <span className="sp" />
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {enableCoEditing ? (
             // The fallback mirrors the co-editing toolbar's footprint (undo/redo
             // pair) so the header doesn't pop when Liveblocks finishes connecting
             // — a null fallback made the buttons appear to vanish.
             <ClientSideSuspense
               fallback={
-                <div
-                  className="h-7 w-[60px] animate-pulse rounded-md bg-muted"
+                <span
+                  className="sk"
+                  style={{ width: 60, height: 28 }}
                   aria-label="Connecting live editing…"
                   role="status"
                 />
@@ -404,7 +402,7 @@ export function BuilderShell({
               />
             </ClientSideSuspense>
           ) : null}
-          <div className="inline-flex rounded-md bg-background p-0.5">
+          <div className="row" style={{ gap: 2 }}>
             {/* In co-edit mode undo/redo live in the co-editing layer
                 (Liveblocks history, per-user). Solo mode uses the local stack. */}
             {!enableCoEditing ? (
@@ -414,28 +412,28 @@ export function BuilderShell({
                   disabled={history.past.length === 0}
                   onClick={undo}
                 >
-                  <Undo2 className="size-3.5" />
+                  <Gi icon={Undo2} size={15} />
                 </IconButton>
                 <IconButton
                   label="Redo (⌘⇧Z)"
                   disabled={history.future.length === 0}
                   onClick={redo}
                 >
-                  <Redo2 className="size-3.5" />
+                  <Gi icon={Redo2} size={15} />
                 </IconButton>
               </>
             ) : null}
             <IconButton label="Version history" onClick={() => setHistoryOpen(true)}>
-              <History className="size-3.5" />
+              <Gi icon={History} size={15} />
             </IconButton>
           </div>
           <button
             type="button"
             onClick={() => setTestOpen(true)}
             title="Dry-run the saved workflow with sample trigger data — no side effects"
-            className="inline-flex items-center gap-1.5 rounded-md bg-background px-2.5 py-1 text-xs hover:bg-accent"
+            className="btn btn-ghost btn-sm"
           >
-            <FlaskConical className="size-3.5" aria-hidden />
+            <Gi icon={FlaskConical} size={14} />
             Test
           </button>
           {canRunNow(savedSpec.trigger.event_type) ? (
@@ -448,9 +446,9 @@ export function BuilderShell({
                   ? "Run the saved workflow now, for real — same as its trigger firing"
                   : "Turn the workflow on to run it"
               }
-              className="inline-flex items-center gap-1.5 rounded-md bg-background px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+              className="btn btn-ghost btn-sm"
             >
-              <Play className="size-3.5" aria-hidden />
+              <Gi icon={Play} size={14} />
               {runningNow ? "Starting…" : "Run now"}
             </button>
           ) : null}
@@ -460,44 +458,35 @@ export function BuilderShell({
             nothing here to turn on and you had to go find the row in the
             workflows list.
           */}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={liveEnabled}
-            aria-label={liveEnabled ? "Turn workflow off" : "Turn workflow on"}
-            disabled={togglingLive}
-            onClick={() => void toggleLive()}
+          <label
+            className="row"
+            style={{ gap: 6, fontSize: 12, padding: "0 4px" }}
             title={
               liveEnabled
                 ? "Live — running on real events. Click to pause."
                 : "Off — this workflow ignores its trigger. Click to turn it on."
             }
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors disabled:opacity-60",
-              liveEnabled
-                ? "bg-pill-green text-pill-green-ink"
-                : "bg-background text-muted-foreground hover:bg-accent",
-            )}
           >
-            <span
-              className={cn(
-                "size-1.5 rounded-full",
-                liveEnabled ? "bg-pill-green-ink" : "bg-muted-foreground/40",
-              )}
-              aria-hidden
+            <Tog
+              label={liveEnabled ? "Turn workflow off" : "Turn workflow on"}
+              checked={liveEnabled}
+              disabled={togglingLive}
+              onChange={() => void toggleLive()}
             />
-            {liveEnabled ? "Live" : "Off"}
-          </button>
-          <div className="inline-flex rounded-md bg-background p-0.5 text-xs">
+            <span style={{ color: liveEnabled ? "var(--g8-green)" : "var(--g8-text-3)", fontWeight: 500 }}>
+              {liveEnabled ? "Live" : "Off"}
+            </span>
+          </label>
+          <div className="seg" role="group" aria-label="Builder view">
             <ViewTab
-              icon={<List className="size-3" />}
+              icon={<Gi icon={List} size={13} />}
               label="Steps"
               shortcut="⌘G"
               active={view === "flow"}
               onClick={() => setView("flow")}
             />
             <ViewTab
-              icon={<LayoutPanelLeft className="size-3" />}
+              icon={<Gi icon={LayoutPanelLeft} size={13} />}
               label="Map"
               shortcut="⌘G"
               active={view === "map"}
@@ -531,21 +520,19 @@ export function BuilderShell({
             isMap ? "px-4 pt-2" : "px-10 pt-4",
           )}
         >
-          <div className="flex items-start justify-between gap-3 rounded-md bg-destructive/10 px-3 py-2 text-sm">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-              <div>
-                <p className="font-medium text-foreground">This workflow changed elsewhere</p>
-                <p className="text-muted-foreground">
-                  Someone else (or another tab) saved a newer version. Autosave is paused to avoid
-                  overwriting it — reload to get the latest.
-                </p>
+          <div className="alert danger" style={{ alignItems: "flex-start" }}>
+            <Gi icon={AlertTriangle} size={16} />
+            <div className="grow">
+              <b>This workflow changed elsewhere</b>
+              <div className="muted">
+                Someone else (or another tab) saved a newer version. Autosave is paused to avoid
+                overwriting it — reload to get the latest.
               </div>
             </div>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="shrink-0 rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background hover:opacity-90"
+              className="btn btn-secondary btn-sm"
             >
               Reload
             </button>
@@ -712,10 +699,8 @@ function ViewTab({
       type="button"
       onClick={onClick}
       title={shortcut ? `${label} (${shortcut})` : label}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors",
-        active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
-      )}
+      aria-pressed={active}
+      className={active ? "on" : ""}
     >
       {icon}
       {label}
@@ -741,7 +726,7 @@ function IconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+      className="ibtn ibtn-sm"
     >
       {children}
     </button>
@@ -775,18 +760,9 @@ function SaveButton({
             ? "Resolve the issues above to save"
             : "Save now (⌘S)"
       }
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-        !dirty
-          ? "text-muted-foreground"
-          : canPersist
-            ? "bg-foreground text-background hover:opacity-90"
-            : "cursor-not-allowed text-muted-foreground opacity-70",
-      )}
+      className={dirty && canPersist ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
     >
-      {!dirty && !saving ? (
-        <Check className="size-3.5" aria-hidden />
-      ) : null}
+      {!dirty && !saving ? <Gi icon={Check} size={14} /> : null}
       {label}
     </button>
   );
@@ -794,11 +770,11 @@ function SaveButton({
 
 function SpecErrorBanner({ messages }: { messages: string[] }) {
   return (
-    <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
-      <div className="min-w-0">
-        <p className="font-medium text-foreground">This workflow can&apos;t be saved yet</p>
-        <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">
+    <div className="alert danger" style={{ alignItems: "flex-start" }}>
+      <Gi icon={AlertTriangle} size={16} />
+      <div style={{ minWidth: 0 }}>
+        <b>This workflow can&apos;t be saved yet</b>
+        <ul className="muted" style={{ margin: "2px 0 0", paddingLeft: 16, listStyle: "disc" }}>
           {messages.map((m, i) => (
             <li key={i}>{m}</li>
           ))}
@@ -810,11 +786,11 @@ function SpecErrorBanner({ messages }: { messages: string[] }) {
 
 function WarningBanner({ messages }: { messages: string[] }) {
   return (
-    <div className="flex items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-sm">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-      <div className="min-w-0">
-        <p className="font-medium text-foreground">Heads up — this still saves</p>
-        <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-muted-foreground">
+    <div className="alert warn" style={{ alignItems: "flex-start" }}>
+      <Gi icon={AlertTriangle} size={16} />
+      <div style={{ minWidth: 0 }}>
+        <b>Heads up — this still saves</b>
+        <ul className="muted" style={{ margin: "2px 0 0", paddingLeft: 16, listStyle: "disc" }}>
           {messages.map((m, i) => (
             <li key={i}>{m}</li>
           ))}
@@ -834,28 +810,18 @@ function AcceptBar({
   onReject: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md bg-info/10 px-3 py-2 text-sm">
-      <span className="font-medium text-foreground">
+    <div className="alert info sticky top-0 z-10" style={{ alignItems: "center" }}>
+      <b className="grow">
         AI added {count} {count === 1 ? "step" : "steps"}
-      </span>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onReject}
-          className="inline-flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs hover:bg-accent"
-        >
-          <X className="size-3" aria-hidden />
-          Reject
-        </button>
-        <button
-          type="button"
-          onClick={onAccept}
-          className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background hover:opacity-90"
-        >
-          <Check className="size-3" aria-hidden />
-          Accept all
-        </button>
-      </div>
+      </b>
+      <button type="button" onClick={onReject} className="btn btn-secondary btn-sm">
+        <Gi icon={X} size={13} />
+        Reject
+      </button>
+      <button type="button" onClick={onAccept} className="btn btn-primary btn-sm">
+        <Gi icon={Check} size={13} />
+        Accept all
+      </button>
     </div>
   );
 }

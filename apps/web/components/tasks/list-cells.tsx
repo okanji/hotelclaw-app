@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { taskAssigneeIds } from "@/lib/tasks/assignees";
+import { AssigneeStack } from "./assignee-stack";
+import { AssigneeMenuContent } from "./task-property-menus";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Check, Plus, X } from "lucide-react";
+import { CalendarDays, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -100,6 +102,7 @@ export function ListCell({
         align="start"
         placeholder="—"
         singleLine
+        context={{ propertyId: ctx.propertyId, taskId: task.id }}
         onSave={async (value) => {
           const res = await setTaskFieldValue({
             propertyId: ctx.propertyId,
@@ -338,15 +341,23 @@ function AssigneeCell({
   ctx: CellContext;
   disabled?: boolean;
 }) {
-  const assignee = task.assignee_id ? ctx.assignees[task.assignee_id] : undefined;
+  // Every assignee (0115). Optimistic so ticking several people in a row
+  // reads the set you just built, not the stale cached one.
+  const [ids, setIds] = useState<string[]>(() => taskAssigneeIds(task));
+  const serverIds = taskAssigneeIds(task).join(",");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIds(serverIds ? serverIds.split(",") : []);
+  }, [serverIds]);
 
-  async function set(assigneeId: string | null) {
-    if (assigneeId === (task.assignee_id ?? null)) return;
-    const res = await updateTask({ taskId: task.id, assigneeId });
+  async function change(next: string[]) {
+    setIds(next);
+    const res = await updateTask({ taskId: task.id, assigneeIds: next });
     if ("error" in res) toast.error(res.error);
     ctx.onChanged();
   }
 
+  const first = ids[0] ? ctx.assignees[ids[0]] : undefined;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -358,46 +369,23 @@ function AssigneeCell({
           />
         }
       >
-        {task.assignee_id ? (
+        {ids.length > 0 ? (
           <>
-            <Avatar size="sm" className="size-5">
-              {assignee?.avatar ? (
-                <AvatarImage src={assignee.avatar} alt={assignee.name} />
-              ) : null}
-              <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-                {initials(assignee?.name ?? "??")}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate">{assignee?.name ?? "—"}</span>
+            <AssigneeStack ids={ids} infos={ctx.assignees} size={20} max={3} />
+            <span className="truncate">
+              {ids.length === 1 ? (first?.name ?? "—") : `${first?.name ?? "—"} +${ids.length - 1}`}
+            </span>
           </>
         ) : (
           <span className="text-faint-foreground">Unassigned</span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-        {ctx.members.map((m) => (
-          <DropdownMenuItem key={m.id} onClick={() => void set(m.id)}>
-            <Avatar size="sm" className="size-5">
-              {m.avatarUrl ? (
-                <AvatarImage src={m.avatarUrl} alt={m.name ?? ""} />
-              ) : null}
-              <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-                {initials(m.name ?? "?")}
-              </AvatarFallback>
-            </Avatar>
-            {m.name ?? "Unknown"}
-          </DropdownMenuItem>
-        ))}
-        {task.assignee_id ? (
-          <DropdownMenuItem
-            onClick={() => void set(null)}
-            className="text-muted-foreground"
-          >
-            <X className="size-3.5" />
-            Unassign
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
+      <AssigneeMenuContent
+        align="start"
+        members={ctx.members}
+        selectedIds={ids}
+        onChange={(next) => void change(next)}
+      />
     </DropdownMenu>
   );
 }

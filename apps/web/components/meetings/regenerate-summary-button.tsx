@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { createClient } from "@/lib/supabase/client";
 
 /** The model call is ~10–60s; past this, assume the background run died. */
@@ -80,15 +80,14 @@ export function RegenerateSummaryButton({
   }
 
   return (
-    <Button
+    <button
       type="button"
-      size="sm"
-      variant={variant}
+      className={variant === "ghost" ? "btn btn-ghost btn-sm" : "btn btn-secondary btn-sm"}
       disabled={busy}
       onClick={() => void start()}
     >
-      <RefreshCw className={busy ? "animate-spin" : undefined} />
+      <Gi icon={RefreshCw} size={13} className={busy ? "animate-spin" : undefined} />
       {busy ? "Regenerating…" : label}
-    </Button>
+    </button>
   );
 }

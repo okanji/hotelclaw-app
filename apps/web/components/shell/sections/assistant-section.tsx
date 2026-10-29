@@ -13,16 +13,8 @@ import {
   assistantProjectsQueryOptions,
 } from "@/lib/query/assistant-queries";
 import { asTint } from "@/lib/assistant/types";
-import { TintIcon } from "@/components/ui/tint-card";
-import {
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { Gi } from "@/components/gr8r/icon";
+import { tintVar } from "@/components/gr8r/ai-glyphs";
 
 /**
  * Secondary sidebar for the Assistant section — new chat, then projects
@@ -87,112 +79,100 @@ export function AssistantSection({ propertyId }: { propertyId: string }) {
 
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={base} />}
-                isActive={pathname === base}
-                tooltip="Start a new conversation"
-              >
-                <SquarePen />
-                <span>New chat</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <Link
+        href={base}
+        className={pathname === base ? "sitem on" : "sitem"}
+        title="Start a new conversation"
+        aria-current={pathname === base ? "page" : undefined}
+      >
+        <Gi icon={SquarePen} />
+        <span className="trunc">New chat</span>
+      </Link>
 
-      <SidebarGroup>
-        <SidebarGroupLabel>Projects</SidebarGroupLabel>
-        <SidebarGroupAction
-          render={<Link href={`${projectsBase}?new=1`} />}
-          title="New project"
+      <div className="sgroup" style={{ marginTop: 8 }}>
+        <div className="sgroup-h">
+          <span className="trunc">Projects</span>
+          <Link
+            href={`${projectsBase}?new=1`}
+            className="ibtn ibtn-xs"
+            title="New project"
+            aria-label="New project"
+            style={{ marginLeft: "auto" }}
+          >
+            <Gi icon={Plus} size={13} />
+          </Link>
+        </div>
+        {projects.slice(0, 5).map((project) => {
+          const href = `${projectsBase}/${project.id}`;
+          return (
+            <Link
+              key={project.id}
+              href={href}
+              className={pathname === href ? "sitem on" : "sitem"}
+              title={project.name}
+              aria-current={pathname === href ? "page" : undefined}
+            >
+              <span className="pico" style={tintVar(asTint(project.tint))}>
+                <span style={{ fontSize: 10, lineHeight: 1 }}>{project.emoji}</span>
+              </span>
+              <span className="trunc">{project.name}</span>
+            </Link>
+          );
+        })}
+        <Link
+          href={projectsBase}
+          className={pathname === projectsBase ? "sitem on" : "sitem"}
+          title="Standing work with its own instructions and memory"
+          aria-current={pathname === projectsBase ? "page" : undefined}
         >
-          <Plus />
-        </SidebarGroupAction>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            {projects.slice(0, 5).map((project) => (
-              <SidebarMenuItem key={project.id}>
-                <SidebarMenuButton
-                  render={<Link href={`${projectsBase}/${project.id}`} />}
-                  isActive={pathname === `${projectsBase}/${project.id}`}
-                  tooltip={project.name}
-                >
-                  {/* Icon-sized tint chip so project rows share the menu's
-                      16px icon column instead of growing the row. */}
-                  <TintIcon
-                    tone={asTint(project.tint)}
-                    className="size-4 rounded-[4px] text-[0.5625rem] leading-none"
-                  >
-                    {project.emoji}
-                  </TintIcon>
-                  <span className="truncate">{project.name}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={projectsBase} />}
-                isActive={pathname === projectsBase}
-                tooltip="Standing work with its own instructions and memory"
-                className="text-muted-foreground"
-              >
-                <FolderOpen />
-                <span>
-                  {projects.length > 5 ? `All projects (${projects.length})` : "All projects"}
-                </span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+          <Gi icon={FolderOpen} />
+          <span className="trunc">All projects</span>
+          {projects.length > 5 ? <span className="ct">{projects.length}</span> : null}
+        </Link>
+      </div>
 
-      <SidebarGroup>
-        <SidebarGroupLabel>Recents</SidebarGroupLabel>
-        <SidebarGroupContent>
-          {chats.length > 8 ? (
-            <div className="relative mb-1 px-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-faint-foreground" />
-              <input
-                type="search"
-                value={chatFilter}
-                onChange={(e) => setChatFilter(e.target.value)}
-                placeholder="Filter conversations…"
-                aria-label="Filter conversations"
-                className="h-7 w-full rounded-md bg-muted pr-2 pl-7 text-sm outline-none placeholder:text-faint-foreground focus-visible:shadow-ring"
-              />
-            </div>
-          ) : null}
-          <SidebarMenu>
-            {chats.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-faint-foreground">
-                No conversations yet.
-              </p>
-            ) : filteredChats.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-faint-foreground">
-                Nothing matches.
-              </p>
-            ) : (
-              filteredChats.slice(0, 25).map((chat) => (
-                <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton
-                    // A real navigation here, not the workspace's pushState:
-                    // the sidebar can be clicked from a project page too, and
-                    // the destination has to mount the workspace either way.
-                    render={<Link href={`${base}?c=${chat.id}`} />}
-                    tooltip={chat.title}
-                  >
-                    <span className="truncate">{chat.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))
-            )}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <div className="sgroup" style={{ marginTop: 8 }}>
+        <div className="sgroup-h">
+          <span className="trunc">Recents</span>
+        </div>
+        {chats.length > 8 ? (
+          <div className="inwrap" style={{ margin: "2px 0 4px" }}>
+            <Gi icon={Search} size={13} />
+            <input
+              type="search"
+              value={chatFilter}
+              onChange={(e) => setChatFilter(e.target.value)}
+              placeholder="Filter conversations…"
+              aria-label="Filter conversations"
+              className="input"
+              style={{ height: 28, fontSize: "var(--g8-fs-sm)" }}
+            />
+          </div>
+        ) : null}
+        {chats.length === 0 ? (
+          <p className="faint" style={{ padding: "4px 8px", fontSize: "var(--g8-fs-xs)", margin: 0 }}>
+            No conversations yet.
+          </p>
+        ) : filteredChats.length === 0 ? (
+          <p className="faint" style={{ padding: "4px 8px", fontSize: "var(--g8-fs-xs)", margin: 0 }}>
+            Nothing matches.
+          </p>
+        ) : (
+          filteredChats.slice(0, 25).map((chat) => (
+            // A real navigation here, not the workspace's pushState: the
+            // sidebar can be clicked from a project page too, and the
+            // destination has to mount the workspace either way.
+            <Link
+              key={chat.id}
+              href={`${base}?c=${chat.id}`}
+              className="sitem"
+              title={chat.title}
+            >
+              <span className="trunc">{chat.title}</span>
+            </Link>
+          ))
+        )}
+      </div>
     </>
   );
 }

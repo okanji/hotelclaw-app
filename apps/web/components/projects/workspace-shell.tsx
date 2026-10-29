@@ -76,7 +76,11 @@ export function WorkspaceShell({
   defaultTab,
   activeTab,
   onActiveTabChange,
+  tabAliases,
 }: {
+  /** URL tab ids that open another tab (the gr8r sidebar's Board / List /
+   *  Files links on a project resolve onto Tasks / Docs until phase 5). */
+  tabAliases?: Record<string, string>;
   /** Breadcrumb trail — the left side of the compact page header. */
   breadcrumb?: React.ReactNode;
   header: React.ReactNode;
@@ -90,7 +94,7 @@ export function WorkspaceShell({
   onActiveTabChange?: (id: string) => void;
 }) {
   const [urlTab, setUrlTab] = useUrlTab(defaultTab ?? tabs[0]?.id ?? "");
-  const active = activeTab ?? urlTab;
+  const active = activeTab ?? (tabAliases?.[urlTab] ?? urlTab);
   const setActive = onActiveTabChange ?? setUrlTab;
   const current = tabs.find((t) => t.id === active) ?? tabs[0];
 

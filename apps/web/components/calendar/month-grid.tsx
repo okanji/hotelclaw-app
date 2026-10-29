@@ -3,8 +3,10 @@
 import { isDone } from "@/lib/tasks/statuses";
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { cn } from "@/lib/utils";
-import { eventChipClass } from "@/lib/calendar/event-visuals";
+import { Plus } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { PrIcon } from "@/components/gr8r/home-glyphs";
+import { evStyle, shortTime } from "@/components/gr8r/calendar-glyphs";
 import {
   isSameDay,
   monthGrid,
@@ -18,9 +20,14 @@ import type { TaskDragData } from "./task-schedule-rail";
 const MAX_EVENTS_PER_CELL = 3;
 
 /**
- * Month view: 6×7 grid of day cells with up to three event chips per cell
- * and an "N more" pill when overflowing. Clicking a day jumps the
- * focusDate; clicking an event opens the event dialog (delegated up).
+ * Month view — gr8r's `.cal` month (`calendarHtml`, src/views/calendar.js):
+ * `.cal-h` weekday row, `.cal-g` 6×7 grid of `.cday` cells (`.out` for the
+ * spill-over days, `.today`, `.over` while a drag hovers), a hover `+` that
+ * creates an event on that day, up to three `.cev` chips and a `.cmore`
+ * "+N more" that opens Day view. Timed sources (meetings,
+ * external) read as gr8r's dashed `.cev.event` with a time prefix; tasks are
+ * the solid tinted chip. Clicking a cell jumps the focusDate; clicking an
+ * event opens the event dialog (delegated up).
  *
  * Every cell is a dnd-kit droppable (`calendar-month-day:<date>`): a
  * deadline chip (due-only task) dragged onto another day moves its due date,
@@ -30,11 +37,17 @@ export function MonthGrid({
   focusDate,
   events,
   onSelectDay,
+  onOpenDay,
+  onCreateOnDay,
   onSelectEvent,
 }: {
   focusDate: Date;
   events: CalendarEvent[];
   onSelectDay: (d: Date) => void;
+  /** "+N more" / the date number — opens Day view on that day. */
+  onOpenDay: (d: Date) => void;
+  /** The cell's hover `+` — a new event on that day. */
+  onCreateOnDay: (d: Date) => void;
   onSelectEvent: (event: CalendarEvent) => void;
 }) {
   const cells = monthGrid(focusDate);
@@ -61,31 +74,32 @@ export function MonthGrid({
   }, [cells, events]);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      {/* Weekday header — labels derive from the grid's first row so they
-          always match the configured week start. */}
-      <div className="grid grid-cols-7 border-b border-border">
-        {cells.slice(0, 7).map((d) => (
-          <div
-            key={d.toDateString()}
-            className="px-2 py-1.5 text-right text-xs leading-3 font-medium text-faint-foreground"
-          >
-            {d.toLocaleDateString(undefined, { weekday: "short" })}
-          </div>
-        ))}
-      </div>
-      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-auto">
-        {cells.map((cell) => (
-          <MonthCell
-            key={cell.toISOString()}
-            cell={cell}
-            inMonth={cell.getMonth() === focusDate.getMonth()}
-            isToday={isSameDay(cell, today)}
-            list={eventsByDay.get(cell.toDateString()) ?? []}
-            onSelectDay={onSelectDay}
-            onSelectEvent={onSelectEvent}
-          />
-        ))}
+    <div className="cal-scroll">
+      <div className="cal">
+        {/* Weekday header — labels derive from the grid's first row so they
+            always match the configured week start. */}
+        <div className="cal-h">
+          {cells.slice(0, 7).map((d) => (
+            <div key={d.toDateString()}>
+              {d.toLocaleDateString(undefined, { weekday: "short" })}
+            </div>
+          ))}
+        </div>
+        <div className="cal-g">
+          {cells.map((cell) => (
+            <MonthCell
+              key={cell.toISOString()}
+              cell={cell}
+              inMonth={cell.getMonth() === focusDate.getMonth()}
+              isToday={isSameDay(cell, today)}
+              list={eventsByDay.get(cell.toDateString()) ?? []}
+              onSelectDay={onSelectDay}
+              onOpenDay={onOpenDay}
+              onCreateOnDay={onCreateOnDay}
+              onSelectEvent={onSelectEvent}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -97,6 +111,8 @@ function MonthCell({
   isToday,
   list,
   onSelectDay,
+  onOpenDay,
+  onCreateOnDay,
   onSelectEvent,
 }: {
   cell: Date;
@@ -104,92 +120,115 @@ function MonthCell({
   isToday: boolean;
   list: CalendarEvent[];
   onSelectDay: (d: Date) => void;
+  onOpenDay: (d: Date) => void;
+  onCreateOnDay: (d: Date) => void;
   onSelectEvent: (event: CalendarEvent) => void;
 }) {
-  const isWeekend = cell.getDay() === 0 || cell.getDay() === 6;
   const visible = list.slice(0, MAX_EVENTS_PER_CELL);
   const overflow = list.length - visible.length;
   const { setNodeRef, isOver } = useDroppable({
     id: `calendar-month-day:${cell.toDateString()}`,
     data: { kind: "calendar-month-day", date: cell.toISOString() },
   });
+  const dayLabel = cell.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
+  const cls = ["cday", !inMonth && "out", isToday && "today", isOver && "over"]
+    .filter(Boolean)
+    .join(" ");
   return (
-    // The cell surface is a pointer shortcut; the date number is the
-    // real (keyboard-reachable) control. Event chips are buttons too —
-    // interactive elements must not nest inside one another.
-    <div
-      ref={setNodeRef}
-      onClick={() => onSelectDay(cell)}
-      className={cn(
-        "flex min-h-24 cursor-pointer flex-col gap-1 border-r border-b border-border p-1.5 text-left transition-colors hover:bg-accent",
-        !inMonth && "bg-muted text-faint-foreground",
-        inMonth && isWeekend && "bg-muted",
-        isToday && "bg-accent",
-        isOver && "bg-accent-pressed ring-1 ring-inset ring-primary/40",
-      )}
-    >
+    // The cell surface is a pointer shortcut (jumps the focus date); the
+    // date number, the `+` and the chips are the real controls — interactive
+    // elements must not nest inside one another.
+    <div ref={setNodeRef} onClick={() => onSelectDay(cell)} className={cls}>
       <button
         type="button"
-        aria-label={`Open ${cell.toLocaleDateString(undefined, {
-          month: "long",
-          day: "numeric",
-        })}`}
+        className="dn"
+        aria-current={isToday ? "date" : undefined}
+        aria-label={`Open ${dayLabel} in Day view`}
         onClick={(e) => {
           e.stopPropagation();
-          onSelectDay(cell);
+          onOpenDay(cell);
         }}
-        className={cn(
-          "ml-auto inline-flex size-5 items-center justify-center rounded-full text-xs tabular-nums focus-visible:shadow-focus focus-visible:outline-none",
-          isToday && "bg-primary font-medium text-primary-foreground",
-        )}
       >
         {cell.getDate()}
       </button>
-      <div className="flex flex-col gap-0.5">
-        {visible.map((ev) =>
-          ev.source === "task" && ev.due_only ? (
-            <DeadlineChip
-              key={`${ev.source}:${ev.id}`}
-              event={ev}
-              onSelect={() => onSelectEvent(ev)}
-            />
-          ) : (
-            <button
-              key={`${ev.source}:${ev.id}`}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectEvent(ev);
-              }}
-              className={cn(chipClass, eventChipClass(ev))}
-            >
-              {ev.title}
-            </button>
-          ),
-        )}
-        {overflow > 0 ? (
-          <span className="px-1 text-xs text-faint-foreground">
-            +{overflow} more
-          </span>
-        ) : null}
-      </div>
+      <button
+        type="button"
+        className="ibtn ibtn-xs add"
+        aria-label={`New event on ${dayLabel}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCreateOnDay(cell);
+        }}
+      >
+        <Gi icon={Plus} size={13} />
+      </button>
+      {visible.map((ev) =>
+        ev.source === "task" && ev.due_only ? (
+          <DeadlineChip
+            key={`${ev.source}:${ev.id}`}
+            event={ev}
+            onSelect={() => onSelectEvent(ev)}
+          />
+        ) : ev.source === "task" ? (
+          <button
+            key={`${ev.source}:${ev.id}`}
+            type="button"
+            className={isDone(ev) ? "cev done" : "cev"}
+            style={evStyle(ev)}
+            title={ev.title}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectEvent(ev);
+            }}
+          >
+            <PrIcon priority={ev.priority} size={11} />
+            <span className="trunc">{ev.title}</span>
+          </button>
+        ) : (
+          <button
+            key={`${ev.source}:${ev.id}`}
+            type="button"
+            className="cev event"
+            style={evStyle(ev)}
+            title={ev.all_day ? ev.title : `${ev.title} · ${shortTime(ev.start)}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectEvent(ev);
+            }}
+          >
+            {ev.all_day ? null : (
+              <span className="num faint" style={{ fontSize: 11 }}>
+                {shortTime(ev.start)}
+              </span>
+            )}
+            <span className="trunc">{ev.title}</span>
+          </button>
+        ),
+      )}
+      {overflow > 0 ? (
+        <button
+          type="button"
+          className="cmore"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDay(cell);
+          }}
+        >
+          +{overflow} more
+        </button>
+      ) : null}
     </div>
   );
 }
 
-// A month chip IS the measured select/status pill (notion-spec-v2 §6): 4px
-// radius, `0 6px` padding, weight 500, tinted fill + same-hue ink from
-// `lib/calendar/event-visuals.ts` — never a stroke. It holds 12px rather than
-// the pill's 14px because six rows of seven day-cells is the one place in the
-// app where the metadata rung wins over the UI rung.
-const chipClass =
-  "truncate rounded-pill px-1.5 py-0.5 text-left text-xs leading-tight font-medium transition-opacity hover:opacity-85 focus-visible:shadow-focus focus-visible:outline-none";
-
 /**
- * A due-only task's chip — same pill as every other event, but draggable:
- * drop it on another day to move the due date. The chip itself stays in
- * place while dragging (the room's `DragOverlay` carries the ghost) and dims
- * so the origin reads as "leaving".
+ * A due-only task's chip — gr8r's draggable task `.cev` (priority glyph +
+ * title, a quiet "Due" tag): drop it on another day to move the due date.
+ * The chip stays in place while dragging (the room's DragOverlay carries
+ * the ghost) and dims so the origin reads as "leaving".
  */
 function DeadlineChip({
   event,
@@ -209,6 +248,9 @@ function DeadlineChip({
     id: `deadline:${event.id}`,
     data,
   });
+  const cls = ["cev drag", isDone(event) && "done", isDragging && "dragging"]
+    .filter(Boolean)
+    .join(" ");
   return (
     <button
       ref={setNodeRef}
@@ -220,16 +262,12 @@ function DeadlineChip({
         onSelect();
       }}
       title={`${event.title} · due — drag to another day to move`}
-      className={cn(
-        chipClass,
-        eventChipClass(event),
-        "flex items-center gap-1 cursor-grab touch-none",
-        isDragging && "opacity-40",
-        isDone(event) && "line-through opacity-70",
-      )}
+      className={cls}
+      style={evStyle(event)}
     >
-      <span className="shrink-0 text-[10px] uppercase tracking-wide opacity-70">Due</span>
-      <span className="truncate">{event.title}</span>
+      <PrIcon priority={event.priority} size={11} />
+      <span className="trunc">{event.title}</span>
+      <span className="due-tag">Due</span>
     </button>
   );
 }

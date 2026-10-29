@@ -15,7 +15,6 @@ import { SheetSurface, timeOfDay } from "./ui";
 const SOURCE_LABEL: Record<ApiCalendarEvent["source"], string> = {
   meeting: "Meeting",
   task: "Scheduled task",
-  booking: "Booking",
   external: "External calendar",
 };
 
@@ -36,7 +35,7 @@ function whenLabel(event: ApiCalendarEvent): string {
 
 /**
  * Read view for any calendar entry, with edit/delete only for meetings —
- * scheduled tasks, bookings and events synced from a connected external
+ * scheduled tasks and events synced from a connected external
  * calendar are owned by other surfaces and must not be editable here.
  */
 export function EventDetailSheet({
@@ -140,9 +139,7 @@ export function EventDetailSheet({
             <Text style={styles.note}>
               {event.source === "task"
                 ? "Open it in Tasks to make changes."
-                : event.source === "booking"
-                  ? "Bookings are managed on the web app."
-                  : "This event comes from a connected calendar."}
+                : "This event comes from a connected calendar."}
             </Text>
           ) : null}
 

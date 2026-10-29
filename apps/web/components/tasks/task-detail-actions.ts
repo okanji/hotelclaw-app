@@ -446,6 +446,8 @@ export async function registerTaskAttachment(args: {
   storagePath: string;
   mimeType: string | null;
   byteSize: number;
+  /** 0116 — the files custom field this upload fills (checked by the route). */
+  fieldId?: string | null;
 }): Promise<{ ok: true; attachmentId: string } | { error: string }> {
   const supabase = await createClient();
   const {
@@ -464,6 +466,7 @@ export async function registerTaskAttachment(args: {
       storage_path: args.storagePath,
       mime_type: args.mimeType,
       byte_size: args.byteSize,
+      field_id: args.fieldId ?? null,
       created_by: user.id,
     })
     .select("id")

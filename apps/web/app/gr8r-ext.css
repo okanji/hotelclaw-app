@@ -1,0 +1,1777 @@
+/* Hand-written additions to gr8r-studio's system (app/gr8r.css is generated —
+   never edit it). Same conventions: scoped under .g8, gr8r tokens as
+   --g8-*, inside @layer components so Tailwind utilities still win. Each
+   rule here exists because our markup differs from gr8r's (a Link where
+   gr8r renders a <button>), not to restyle gr8r. */
+@layer components {
+  /* gr8r's crumbs are <button>s; ours are links / spans / an <h1>. */
+  .g8 .crumbs .crumb {
+    padding: 3px 0;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    font: inherit;
+    transition: color var(--g8-dur);
+  }
+  .g8 .crumbs a.crumb:hover {
+    color: var(--g8-text);
+  }
+  .g8 .crumbs .crumb.cur {
+    color: var(--g8-text);
+    font-weight: 500;
+  }
+}
+
+@layer components {
+  /* gr8r's bottom-nav tabs are <button>s; ours are links (+ one button). */
+  @media (max-width: 640px) {
+    .g8 .bottomnav a {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 5px 0;
+      min-height: 48px;
+      font-size: 11px;
+      color: var(--g8-text-3);
+      border-radius: var(--g8-r-sm);
+      position: relative;
+    }
+    .g8 .bottomnav a.on {
+      color: var(--g8-text);
+    }
+    /* Keep the last content row clear of the fixed bar. */
+    .g8 [data-slot="sidebar-inset"] {
+      padding-bottom: calc(57px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+}
+
+@layer components {
+  /* gr8r mounts pages in a block `.content`; ours sit in flex columns, where
+     `margin: 0 auto` would shrink `.page` to its content. Fill the line,
+     then let gr8r's max-width + auto margins centre it. */
+  .g8 .page {
+    width: 100%;
+  }
+}
+
+@layer components {
+  /* gr8r's per-element parameters (`--c` colour, `--p` progress, `--sz`
+     avatar size, `--cols` grid template) are renamed `--g8-*` by the build.
+     JSX should set the `--g8-` names; this aliases the bare names so an
+     element written with gr8r's original `style="--c:…"` still renders. */
+  .g8 [style*="--c:"] { --g8-c: var(--c); }
+  .g8 [style*="--p:"] { --g8-p: var(--p); }
+  .g8 [style*="--sz:"] { --g8-sz: var(--sz); }
+  .g8 [style*="--cols:"] { --g8-cols: var(--cols); }
+}
+
+@layer components {
+  /* Calendar (components/calendar/*, gr8r src/views/calendar.js). gr8r ships
+     the month grid (.cal/.cal-h/.cal-g/.cday/.cev) and a card-column week;
+     our week/day is a real time grid, plus a Year view, an unscheduled-task
+     rail and a team-availability panel — those get gr8r-token styles here. */
+  .g8 .cal-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .g8 .cal .cal-g {
+    grid-template-rows: repeat(6, minmax(112px, 1fr));
+  }
+  .g8 .cday {
+    cursor: default;
+  }
+  .g8 .cday .dn {
+    cursor: pointer;
+  }
+  .g8 .cday .dn:hover {
+    background: var(--g8-surface-3);
+  }
+  .g8 .cday.today .dn:hover {
+    background: var(--g8-accent);
+  }
+  .g8 .cev .due-tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--g8-text-3);
+    flex-shrink: 0;
+  }
+  .g8 .cev.dragging {
+    opacity: 0.4;
+  }
+  .g8 .cev[draggable],
+  .g8 .cev.drag {
+    cursor: grab;
+    touch-action: none;
+  }
+  /* legend in the calendar toolbar */
+  .g8 .cal-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11.5px;
+    color: var(--g8-text-2);
+    margin-right: 8px;
+  }
+  .g8 .cal-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .g8 .cal-legend .pdot {
+    border-radius: 50%;
+  }
+  .g8 .cal-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 4px;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* time grid (week / day) */
+  .g8 .tg {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .g8 .tg-band {
+    display: flex;
+    border-bottom: 1px solid var(--g8-border);
+  }
+  .g8 .tg-gut {
+    width: 56px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--g8-divider);
+  }
+  .g8 .tg-dayh {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 6px 6px;
+    border-right: 1px solid var(--g8-divider);
+  }
+  .g8 .tg-dayh:last-child,
+  .g8 .tg-col:last-child {
+    border-right: 0;
+  }
+  .g8 .tg-dayh .wcol-h {
+    padding: 0 4px 4px;
+    border-bottom: 0;
+  }
+  .g8 .tg-body {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+  }
+  .g8 .tg-ax {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    transform: translateY(-50%);
+    padding-right: 8px;
+    text-align: right;
+    font-size: var(--g8-fs-2xs);
+    color: var(--g8-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .tg-col {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    border-right: 1px solid var(--g8-divider);
+    transition: background var(--g8-dur);
+  }
+  .g8 .tg-col.today {
+    background: color-mix(in srgb, var(--g8-accent) 4%, transparent);
+  }
+  .g8 .tg-col.over {
+    background: var(--g8-accent-soft);
+  }
+  .g8 .tg-hr {
+    position: absolute;
+    inset-inline: 0;
+    border-top: 1px solid var(--g8-divider);
+  }
+  .g8 .tg-hr.half {
+    border-top-style: dashed;
+    opacity: 0.6;
+  }
+  .g8 .tg-ev {
+    position: absolute;
+    overflow: hidden;
+    border-radius: 5px;
+    padding: 3px 6px 3px 7px;
+    text-align: left;
+    font-size: var(--g8-fs-xs);
+    line-height: 1.3;
+    color: var(--g8-text);
+    background: color-mix(in srgb, var(--g8-c) 14%, var(--g8-surface));
+    border: 1px solid color-mix(in srgb, var(--g8-c) 26%, transparent);
+    border-left: 2px solid var(--g8-c);
+    cursor: pointer;
+    transition: background var(--g8-dur);
+  }
+  .g8 .tg-ev:hover {
+    background: color-mix(in srgb, var(--g8-c) 22%, var(--g8-surface));
+  }
+  .g8 .tg-ev.open {
+    box-shadow: 0 0 0 2px var(--g8-accent);
+  }
+  .g8 .tg-ev .t {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .g8 .tg-ev .m {
+    color: var(--g8-text-3);
+    font-size: var(--g8-fs-2xs);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .tg-ev.ghost {
+    pointer-events: none;
+    z-index: 10;
+    inset-inline: 4px;
+  }
+  .g8 .tg-cluster {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: var(--g8-surface);
+    border: 1px solid var(--g8-border-strong);
+    font-size: var(--g8-fs-xs);
+    font-weight: 500;
+    color: var(--g8-text);
+  }
+  .g8 .tg-cluster:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .tg-cluster.open {
+    box-shadow: 0 0 0 2px var(--g8-accent);
+  }
+  .g8 .tg-sel {
+    position: absolute;
+    inset-inline: 4px;
+    pointer-events: none;
+    border-radius: 5px;
+    background: var(--g8-accent-soft);
+    border: 1px dashed var(--g8-accent);
+  }
+  .g8 .tg-now {
+    position: absolute;
+    inset-inline: 0;
+    z-index: 10;
+    height: 2px;
+    transform: translateY(-50%);
+    background: var(--g8-red);
+    pointer-events: none;
+  }
+  .g8 .tg-now-dot {
+    position: absolute;
+    z-index: 10;
+    left: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    background: var(--g8-red);
+    box-shadow: 0 0 0 2px var(--g8-surface);
+    pointer-events: none;
+  }
+
+  /* year view */
+  .g8 .yr {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px var(--g8-gutter) 32px;
+  }
+  .g8 .yr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 24px 32px;
+  }
+  .g8 .yr-m h3 {
+    margin: 0 0 6px;
+    padding: 0 4px;
+    font-size: var(--g8-fs-sm);
+    font-weight: 600;
+  }
+  .g8 .yr-wd,
+  .g8 .yr-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    text-align: center;
+  }
+  .g8 .yr-wd span {
+    padding: 4px 0;
+    font-size: var(--g8-fs-2xs);
+    color: var(--g8-text-3);
+  }
+  .g8 .yr-d {
+    position: relative;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--g8-r-sm);
+    font-size: var(--g8-fs-xs);
+    color: var(--g8-text-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .yr-d:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .yr-d.today {
+    color: var(--g8-accent);
+    font-weight: 600;
+  }
+  .g8 .yr-d i {
+    position: absolute;
+    bottom: 3px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+  }
+  .g8 .yr-d i.l1 {
+    background: color-mix(in srgb, var(--g8-accent) 35%, transparent);
+  }
+  .g8 .yr-d i.l2 {
+    background: color-mix(in srgb, var(--g8-accent) 65%, transparent);
+  }
+  .g8 .yr-d i.l3 {
+    background: var(--g8-accent);
+  }
+
+  /* right rail: unscheduled tasks + team availability */
+  .g8 .cal-rail {
+    width: 260px;
+    flex-shrink: 0;
+    min-height: 0;
+    flex-direction: column;
+    border-left: 1px solid var(--g8-border);
+    background: var(--g8-surface);
+  }
+  .g8 .cal-rail-sec {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .g8 .cal-rail-sec.grow {
+    flex: 1;
+  }
+  .g8 .cal-rail-sec + .cal-rail-sec {
+    border-top: 1px solid var(--g8-border);
+  }
+  .g8 .cal-rail-h {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 12px;
+    font-size: var(--g8-fs-sm);
+    font-weight: 600;
+  }
+  .g8 .cal-rail-h .i {
+    color: var(--g8-text-3);
+  }
+  .g8 .cal-rail-h .cnt {
+    margin-left: auto;
+    font-size: var(--g8-fs-xs);
+    font-weight: 500;
+    color: var(--g8-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .cal-rail-b {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    padding: 0 6px 8px;
+  }
+  .g8 .cal-rail-grp {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 6px 4px;
+    font-size: var(--g8-fs-2xs);
+    font-weight: 500;
+    color: var(--g8-text-3);
+  }
+  .g8 .cal-rail-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px;
+    border-radius: var(--g8-r-sm);
+    font-size: var(--g8-fs-sm);
+    color: var(--g8-text);
+    cursor: grab;
+    touch-action: none;
+  }
+  .g8 .cal-rail-item:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .cal-rail-item svg {
+    margin-top: 2px;
+  }
+  .g8 .cal-rail-item .ibtn {
+    opacity: 0;
+    margin: -2px -2px 0 auto;
+  }
+  .g8 .cal-rail-item:hover .ibtn,
+  .g8 .cal-rail-item .ibtn:focus-visible {
+    opacity: 1;
+  }
+  .g8 .cal-rail-f {
+    padding: 8px 12px;
+    font-size: var(--g8-fs-2xs);
+    color: var(--g8-text-3);
+  }
+  .g8 .cal-mem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 30px;
+    padding: 0 6px;
+    border-radius: var(--g8-r-sm);
+    font-size: var(--g8-fs-sm);
+    color: var(--g8-text-2);
+    text-align: left;
+  }
+  .g8 .cal-mem:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .cal-mem.on {
+    background: var(--g8-accent-soft);
+    color: var(--g8-text);
+  }
+  .g8 .cal-mem .sw {
+    margin-left: auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1.5px var(--g8-c);
+  }
+  .g8 .cal-mem.on .sw {
+    background: var(--g8-c);
+  }
+  /* drag ghost: portaled out of the shell, so it carries its own .g8 */
+  .g8.cal-ghost {
+    height: auto;
+    overflow: visible;
+    background: transparent;
+  }
+  .g8 .cal-ghost-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 224px;
+    padding: 8px 10px;
+    border-radius: var(--g8-r-sm);
+    background: var(--g8-surface);
+    box-shadow: var(--g8-shadow-pop);
+    font-size: var(--g8-fs-sm);
+    cursor: grabbing;
+  }
+  /* popovers / dialogs portaled out of the shell add `g8 g8-port` */
+  .g8.g8-port {
+    height: auto;
+    overflow: auto;
+    background: var(--g8-surface);
+  }
+  /* PortalDragOverlay's host on <body>: only scopes the ghost — no box of its own */
+  .g8.g8-drag {
+    height: 0;
+    overflow: visible;
+    background: transparent;
+  }
+  .g8 .mi-sub {
+    display: block;
+    font-size: var(--g8-fs-2xs);
+    color: var(--g8-text-3);
+  }
+}
+
+/* ── Project page (components/gr8r/project-*.tsx, project-detail) ──────────
+   The header's editable name is an <input> inside gr8r's `.proj-h h1`;
+   milestone rows reveal their delete on hover. */
+@layer components {
+  .g8 .proj-h h1 .proj-name-in {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    outline: none;
+    padding: 0 4px;
+    margin: 0 -4px;
+    border-radius: var(--g8-r-sm);
+    max-width: 100%;
+  }
+  .g8 .proj-h h1 .proj-name-in:hover {
+    background: var(--g8-surface-2);
+  }
+  .g8 .proj-h h1 .proj-name-in:focus {
+    background: var(--g8-surface-2);
+    box-shadow: 0 0 0 1px var(--g8-border-strong);
+  }
+  .g8 .ms-row .ms-del {
+    opacity: 0;
+  }
+  .g8 .ms-row:hover .ms-del,
+  .g8 .ms-row .ms-del:focus-visible {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  /* ── Task detail in gr8r's drawer vocabulary (components/tasks/task-detail*.tsx,
+     checklists-panel.tsx, components/gr8r/task-drawer.tsx). gr8r's drawer is
+     a fixed overlay; ours also renders as the full /tasks/<id> page, embedded
+     panes (inbox / triage / chat artifact panel) and the optional ?task=
+     drawer, so the frame below adapts `.drawer-h` / `.drawer-b` / `.kv` /
+     `.dsec` / `.subt` to a flex column. ── */
+
+  /* Full page (and the drawer's "full" mode): gr8r's .drawer.full padding,
+     one centred reading column. */
+  .g8 .drawer-b.g8-task-page {
+    padding: 28px 48px 40px;
+  }
+  .g8 .g8-task-page .g8-task-col {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  @media (max-width: 640px) {
+    .g8 .drawer-b.g8-task-page {
+      padding: 16px 16px 40px;
+    }
+  }
+  .g8 .drawer-b {
+    min-height: 0;
+  }
+  .g8 .drawer-h .g8-task-crumb {
+    font-size: 12.5px;
+    max-width: 220px;
+    cursor: default;
+  }
+  .g8 .drawer-h .g8-task-crumb:hover {
+    background: transparent;
+  }
+  .g8 .drawer-h .g8-task-key {
+    font-size: 11.5px;
+    padding: 0 6px;
+  }
+  .g8 .drawer-h .g8-task-done {
+    color: var(--g8-green);
+  }
+  .g8 .g8-on-star,
+  .g8 .g8-on-star .i {
+    color: var(--g8-amber) !important;
+  }
+  .g8 .g8-on-star .i {
+    fill: currentColor;
+  }
+  .g8 .g8-task-seq {
+    font-size: var(--g8-fs-xs);
+    margin-right: 4px;
+  }
+  .g8 .g8-task-alert {
+    margin-bottom: 12px;
+  }
+  .g8 .g8-task-props .kv {
+    margin-top: 12px;
+  }
+  .g8 .g8-task-triage:not(:empty) {
+    margin-top: 12px;
+  }
+
+  /* Description: a plain-text textarea in gr8r's .rte frame. */
+  .g8 textarea.g8-rte-text {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    resize: none;
+    overflow: hidden;
+    color: var(--g8-text);
+    font-family: inherit;
+  }
+  .g8 textarea.g8-rte-text::placeholder {
+    color: var(--g8-text-3);
+  }
+  .g8 .g8-dsec-prog {
+    width: 90px;
+    display: flex;
+  }
+
+  /* Property pills that carry a remove control (labels, resources). */
+  .g8 .g8-lbl-x,
+  .g8 .g8-res-chip {
+    gap: 5px;
+  }
+  .g8 .g8-lbl-rm {
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    color: var(--g8-text-3);
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .g8-lbl-x:hover .g8-lbl-rm,
+  .g8 .g8-res-chip:hover .g8-lbl-rm,
+  .g8 .g8-lbl-rm:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-lbl-rm:hover {
+    background: var(--g8-surface-3);
+    color: var(--g8-text);
+  }
+  .g8 .g8-res-chip {
+    max-width: 260px;
+    cursor: default;
+  }
+  .g8 .g8-res-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .g8 .g8-res-link:hover .trunc {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .g8 .g8-res-ext {
+    color: var(--g8-text-4);
+  }
+
+  /* Sub-issue / checklist add row + checklist rows. */
+  .g8 .subt.g8-subt-add {
+    color: var(--g8-text-3);
+  }
+  .g8 .subt.g8-subt-add .inline-in {
+    height: 30px;
+  }
+  .g8 .subt .x[aria-expanded="true"],
+  .g8 .subt .x:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-checklists > .btn.g8-cl-add {
+    margin-top: 18px;
+  }
+  .g8 .g8-cl-h h3 {
+    min-width: 0;
+  }
+  .g8 .g8-cl-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: var(--g8-r-xs);
+    font: inherit;
+  }
+  .g8 .g8-cl-name:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--g8-border-strong);
+    text-underline-offset: 3px;
+  }
+  .g8 .g8-cl-rename {
+    flex: 1;
+    height: 26px;
+    font-weight: 600;
+  }
+  .g8 .g8-cl-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .g8 .g8-cl-nest {
+    padding-left: 26px;
+  }
+  .g8 .g8-cl-item {
+    gap: 7px;
+    padding-left: 0;
+  }
+  .g8 .g8-cl-edit {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+  }
+  .g8 .g8-grip {
+    width: 14px;
+    display: inline-grid;
+    place-items: center;
+    color: var(--g8-text-4);
+    cursor: grab;
+    touch-action: none;
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .subt:hover .g8-grip,
+  .g8 .g8-grip:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-grip-sp {
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .g8 .g8-cl-new {
+    margin-top: 18px;
+  }
+  .g8 .g8-cl-new-name {
+    height: 26px;
+    font-weight: 600;
+  }
+
+  /* Attachments: the .attc card is a link + a hover remove button. */
+  .g8 .g8-attc-link {
+    display: block;
+    color: inherit;
+  }
+  .g8 .attc .fprev {
+    display: grid;
+    place-items: center;
+    background: var(--g8-sunken);
+    border-bottom: 1px solid var(--g8-border);
+    position: relative;
+    overflow: hidden;
+  }
+  .g8 .g8-attc-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .g8 .g8-attc-name {
+    font-weight: 500;
+  }
+  .g8 .att.g8-att-over {
+    outline: 1.5px dashed var(--g8-accent-line);
+    outline-offset: 4px;
+    border-radius: var(--g8-r);
+  }
+  .g8 .dropzone.g8-task-drop {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Comments / Activity tabs + Liveblocks threads and composer. */
+  .g8 .g8-task-tabs {
+    margin-bottom: 6px;
+    align-items: center;
+  }
+  .g8 .g8-task-empty {
+    font-size: 13px;
+    margin: 10px 0;
+  }
+  .g8 .g8-task-threads {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 6px 0 10px;
+  }
+  .g8 .cbox.g8-lb-composer {
+    padding: 0;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .g8 .g8-lb-composer .lb-composer {
+    background: transparent;
+  }
+  .g8 .g8-task-activity {
+    padding-top: 4px;
+  }
+  .g8 .g8-task-time {
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  /* The utility rail: gr8r surfaces, .dsec-h group heads, .sitem rows. */
+  .g8 .g8-trail {
+    background: var(--g8-surface);
+    border-left: 1px solid var(--g8-border);
+  }
+  .g8 .g8-trail.g8-trail-float {
+    border-left: 0;
+    border-radius: 12px;
+    box-shadow: var(--g8-shadow-pop);
+    animation: g8-trail-in 0.3s var(--g8-ease) both;
+  }
+  @keyframes g8-trail-in {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .g8 .g8-trail-scrim {
+    background: var(--g8-overlay);
+    opacity: 0.35;
+  }
+  .g8 .g8-trail-sec {
+    padding: 10px 10px 8px;
+    border-bottom: 1px solid var(--g8-divider);
+  }
+  .g8 .dsec-h.g8-trail-h {
+    width: 100%;
+    margin: 0;
+    padding: 2px 6px 6px;
+    color: var(--g8-text-3);
+    text-align: left;
+  }
+  .g8 .dsec-h.g8-trail-h h3 {
+    font-size: var(--g8-fs-xs);
+    color: var(--g8-text-2);
+  }
+  .g8 .dsec-h.g8-trail-h:hover h3 {
+    color: var(--g8-text);
+  }
+  .g8 .g8-trail-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .g8 .kv.g8-trail-kv {
+    grid-template-columns: 92px minmax(0, 1fr);
+    padding: 0 6px;
+  }
+  .g8 .g8-trail-rows {
+    margin-top: 4px;
+  }
+  .g8 .g8-trail .sitem {
+    height: 30px;
+  }
+  .g8 .g8-trail .sitem.g8-muted {
+    color: var(--g8-text-3);
+  }
+  .g8 .g8-trail .sitem.g8-danger,
+  .g8 .g8-trail .sitem.g8-danger .i {
+    color: var(--g8-red);
+  }
+  .g8 .g8-trail .sitem.g8-danger:hover {
+    background: var(--g8-red-soft);
+  }
+  .g8 .g8-res-row {
+    cursor: default;
+  }
+  .g8 .g8-res-row .g8-ul:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .g8 .g8-res-acts {
+    display: inline-flex;
+    gap: 1px;
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .g8-res-row:hover .g8-res-acts,
+  .g8 .g8-res-acts:focus-within {
+    opacity: 1;
+  }
+  .g8 .g8-res-acts .ibtn {
+    width: 22px;
+    height: 22px;
+  }
+  .g8 .g8-rel-tag {
+    margin-left: 6px;
+    font-size: var(--g8-fs-2xs);
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--g8-surface-3);
+    color: var(--g8-text-2);
+  }
+  .g8 .g8-rel-tag.danger {
+    background: var(--g8-red-soft);
+    color: var(--g8-red);
+  }
+}
+
+@layer components {
+  /* Tasks board (components/tasks/kanban-column.tsx): gr8r's `.bcol-b` is a
+     flex column, but our cards use `content-visibility: auto` +
+     `contain-intrinsic-size`, which Chrome ignores on FLEX ITEMS (offscreen
+     cards collapse and dnd-kit measures wrong drop rects). `.is-block` keeps
+     the column a block scroller and spaces cards by margin (10px — a touch roomier than gr8r's 6px). */
+  .g8 .bcol-b.is-block {
+    display: block;
+  }
+  .g8 .bcol-b.is-block > * + * {
+    margin-top: 10px;
+  }
+  /* gr8r's card shows ONE assignee, pushed right by `.meta .av`; ours is a
+     stack (0115), so the push lives on its wrapper and the stack keeps its
+     overlap. */
+  .g8 .kcard .meta .avs .av {
+    margin-left: 0;
+  }
+  .g8 .kcard .meta .avs .av + .av {
+    margin-left: -5px;
+  }
+  /* The kcard title is wrapped in our task link (gr8r renders a div). */
+  .g8 .kcard .top > a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+@layer components {
+  /* Insights + planning pages (components/insights/g8-insights.tsx,
+     triage / cycles / initiatives / org). gr8r has no analytics page; these
+     helpers compose its .panel / .stats / .mini vocabulary. */
+  .g8 .ins-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    grid-auto-flow: row dense;
+  }
+  @container (min-width: 56rem) {
+    .g8 .ins-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g8 .ins-grid > .wide { grid-column: 1 / -1; }
+  }
+  .g8 .ins-sec { min-width: 0; }
+  .g8 .ins-sec.dragging { opacity: 0.6; box-shadow: var(--g8-shadow-drag); }
+  .g8 .ins-ttl { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .g8 .ins-ttl h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g8 .ins-grip { cursor: grab; touch-action: none; margin-left: -4px; color: var(--g8-text-4); }
+  .g8 .ins-grip:active { cursor: grabbing; }
+  .g8 .ins-sec .ins-grip,
+  .g8 .ins-sec .ins-hide { opacity: 0; transition: opacity var(--g8-dur); }
+  .g8 .ins-sec:hover .ins-grip,
+  .g8 .ins-sec:hover .ins-hide,
+  .g8 .ins-sec .ins-grip:focus-visible,
+  .g8 .ins-sec .ins-hide:focus-visible { opacity: 1; }
+  .g8 .ins-stats { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+  .g8 .ins-stats .stat .k { justify-content: space-between; }
+  .g8 .ins-flag { margin-left: auto; }
+  .g8 .ins-istats {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; margin: 0;
+    font-size: var(--g8-fs-sm); color: var(--g8-text-3);
+  }
+  .g8 .ins-istats > div { display: flex; align-items: baseline; gap: 6px; }
+  .g8 .ins-istats dd {
+    margin: 0; font-size: var(--g8-fs-md); font-weight: 600; color: var(--g8-text);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .ins-istats dd.bad { color: var(--g8-red); }
+  .g8 .ins-note { margin: 0; padding: 10px 0; font-size: var(--g8-fs-sm); color: var(--g8-text-3); text-wrap: pretty; }
+  .g8 .ins-rows { margin: 0 -14px -14px; }
+  .g8 .ins-rows > .mini { text-decoration: none; color: inherit; }
+  .g8 .ins-rows > .mini .m {
+    flex-shrink: 0; font-size: var(--g8-fs-xs); color: var(--g8-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .g8 .ins-rows > .mini .m.bad { color: var(--g8-red); }
+  .g8 .ins-rows > .mini .m.warn { color: var(--g8-amber); }
+  .g8 .ins-rows > .tall { flex-direction: column; align-items: stretch; gap: 6px; padding-top: 9px; padding-bottom: 9px; text-align: left; width: 100%; background: transparent; }
+  .g8 .ins-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--g8-fs-xs); color: var(--g8-text-3); }
+  .g8 .ins-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .g8 .ins-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--g8-c); }
+  .g8 .ins-legend i.ln { width: 16px; height: 2px; border-radius: 2px; }
+  .g8 .ins-tray { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--g8-border); display: flex; flex-direction: column; gap: 10px; }
+  .g8 .ins-card {
+    display: flex; gap: 12px; align-items: flex-start; height: 100%;
+    padding: 14px; background: var(--g8-surface); border: 1px solid var(--g8-border);
+    border-radius: var(--g8-r-lg);
+  }
+  .g8 .ins-card h3 { margin: 0; font-size: var(--g8-fs-md); font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+  .g8 .ins-card p { margin: 0; color: var(--g8-text-2); font-size: var(--g8-fs-sm); line-height: 1.5; text-wrap: pretty; }
+  .g8 .ins-quote { margin: 2px 0 0; padding-left: 10px; border-left: 2px solid var(--g8-border-strong); }
+  .g8 .ins-quote blockquote { margin: 0; font-style: italic; color: var(--g8-text-2); font-size: var(--g8-fs-sm); }
+  .g8 .ins-quote figcaption { font-size: var(--g8-fs-xs); color: var(--g8-text-4); margin-top: 2px; }
+  .g8 .ins-basis summary {
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer; list-style: none;
+    font-size: var(--g8-fs-xs); color: var(--g8-text-4);
+  }
+  .g8 .ins-basis summary::-webkit-details-marker { display: none; }
+  .g8 .ins-basis summary:hover { color: var(--g8-text-2); }
+  .g8 .ins-basis[open] summary svg { transform: rotate(90deg); }
+  .g8 .ins-basis ul { margin: 4px 0 0; padding: 0; list-style: none; font-size: var(--g8-fs-xs); color: var(--g8-text-3); }
+  .g8 .ins-bar { display: flex; height: 6px; gap: 2px; border-radius: 6px; overflow: hidden; background: var(--g8-surface-3); }
+  .g8 .ins-bar i { display: block; height: 100%; background: var(--g8-c); }
+  .g8 .ins-tbl { width: 100%; border-collapse: collapse; font-size: var(--g8-fs); }
+  .g8 .ins-tbl th {
+    text-align: left; font-weight: 500; font-size: var(--g8-fs-xs); color: var(--g8-text-3);
+    height: 32px; padding: 0 10px 0 0; border-bottom: 1px solid var(--g8-border);
+  }
+  .g8 .ins-tbl td { height: 38px; padding: 0 10px 0 0; border-top: 1px solid var(--g8-divider); font-variant-numeric: tabular-nums; }
+  .g8 .ins-tbl tbody tr:first-child td { border-top: 0; }
+  .g8 .ins-tbl tbody tr:hover { background: var(--g8-surface-2); }
+  /* Two-pane workspaces (triage list + detail, cycle detail + side panel). */
+  .g8 .ins-split { display: flex; min-height: 0; flex: 1; }
+  .g8 .ins-split > .ins-list {
+    width: 340px; flex-shrink: 0; border-right: 1px solid var(--g8-border);
+    overflow-y: auto; background: var(--g8-bg);
+  }
+  .g8 .ins-split > .ins-main { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .g8 .ins-split > .ins-side {
+    width: 300px; flex-shrink: 0; border-left: 1px solid var(--g8-border); overflow-y: auto;
+    padding: 20px 18px;
+  }
+  .g8 .nrow.sel { background: var(--g8-accent-soft); }
+}
+
+@layer components {
+  /* Docs Directory (components/documents/documents-home.tsx +
+     directory-toolbar.tsx) — gr8r's Files view over our documents. The
+     control row sticks to the top of the scroller with the main canvas fill
+     so rows don't scroll through it. */
+  .g8 .g8-doc-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+    margin: -10px 0 14px;
+    background: var(--g8-surface);
+  }
+  .g8 .g8-doc-search {
+    width: 240px;
+    padding-right: 26px;
+  }
+  .g8 .g8-doc-search::-webkit-search-cancel-button {
+    appearance: none;
+  }
+  .g8 .g8-doc-clear {
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .g8 .g8-doc-li {
+    list-style: none;
+  }
+  .g8 ul.panel,
+  .g8 ul.fgrid {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .g8 ul.panel {
+    overflow: hidden;
+  }
+  .g8 .panel > .g8-doc-li:first-child > .mini {
+    border-top: 0;
+  }
+  /* The type glyph is the row's left edge; the drag grip replaces it on hover. */
+  .g8 .g8-doc-ico {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .g8 .g8-doc-ico .g8-doc-grip {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: grab;
+  }
+  .g8 .g8-doc-row:hover .g8-doc-ico .ftype {
+    opacity: 0;
+  }
+  .g8 .g8-doc-row:hover .g8-doc-ico .g8-doc-grip,
+  .g8 .g8-doc-ico .g8-doc-grip:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-doc-card .g8-doc-grip {
+    cursor: grab;
+    background: var(--g8-surface);
+    box-shadow: 0 0 0 1px var(--g8-border);
+  }
+  .g8 .g8-doc-snip {
+    font-size: 9.5px;
+    line-height: 1.45;
+    color: var(--g8-text-3);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+  }
+  .g8 .g8-doc-mark {
+    background: var(--g8-accent-soft);
+    color: var(--g8-text);
+    border-radius: 2px;
+  }
+  .g8 .g8-doc-drop {
+    border-radius: var(--g8-r-lg);
+    transition: background var(--g8-dur);
+  }
+  .g8 .g8-doc-drop.over {
+    background: var(--g8-accent-soft);
+  }
+  .g8 .g8-create-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .g8 .g8-create-grid .pcard:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Doc boards shelf (components/documents/doc-boards-section.tsx): the
+     board title is an always-editable input styled as a gr8r panel heading. */
+  .g8 .g8-board-name {
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    outline: none;
+    font-size: var(--g8-fs-md);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--g8-text);
+  }
+  .g8 .g8-board-name::placeholder {
+    color: var(--g8-text-4);
+  }
+  .g8 .g8-board-hint {
+    border-radius: var(--g8-r-lg);
+    background: var(--g8-sunken);
+  }
+}
+
+@layer components {
+  /* Docs tree (components/documents/documents-tree-section.tsx): gr8r
+     `.sitem` rows nested in `.sub` guide lines. The chevron overlays the
+     type glyph (shown on hover / while open), the add + menu actions are a
+     hover-revealed slot on the right. */
+  .g8 .g8-dt-group {
+    margin-top: 10px;
+  }
+  .g8 .g8-dt-row {
+    position: relative;
+  }
+  .g8 .g8-dt-row.dragging {
+    opacity: 0.4;
+  }
+  .g8 .g8-dt-row > .sitem {
+    padding-right: 52px;
+  }
+  .g8 .g8-dt-ico {
+    display: grid;
+    place-items: center;
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .g8 .g8-dt-chev {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+  }
+  .g8 .g8-dt-row.has-kids:hover .g8-dt-ico,
+  .g8 .g8-dt-row.has-kids:focus-within .g8-dt-ico {
+    opacity: 0;
+  }
+  .g8 .g8-dt-row.has-kids:hover .g8-dt-chev,
+  .g8 .g8-dt-chev:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-dt-acts {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    gap: 2px;
+  }
+  .g8 .g8-dt-row:hover .g8-dt-acts,
+  .g8 .g8-dt-acts:focus-within {
+    display: flex;
+  }
+  .g8 .sitem.g8-dt-over {
+    background: var(--g8-accent-soft);
+    color: var(--g8-text);
+  }
+  .g8 .sitem.g8-dt-faint {
+    color: var(--g8-text-3);
+    font-size: var(--g8-fs-sm);
+  }
+}
+
+@layer components {
+  /* Onboarding wizard (app/onboarding). gr8r's onboarding asks single-choice
+     questions on `.opt` cards; ours also has multi-select chip rows
+     (departments, role suggestions, team-size-like picks). `.onb-pick` is a
+     `btn btn-secondary btn-sm` that takes gr8r's `.opt.on` selected
+     treatment; `.opts.two` is the 2-up grid gr8r inlines on its step 3. */
+  .g8 .onb-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .g8 .onb-pick.on {
+    border-color: var(--g8-accent);
+    background: var(--g8-accent-soft);
+    color: var(--g8-text);
+  }
+  .g8 .opts.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .g8 .opt .em {
+    font-size: 18px;
+    line-height: 18px;
+  }
+  @media (max-width: 640px) {
+    .g8 .opts.two {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+@layer components {
+  /* Document page chrome (components/documents/document-editor.tsx,
+     document-header.tsx, sheet-editor.tsx): the top row is gr8r's
+     `.topbar`, the formatting band sits under it on the same hairline, and
+     the body reads in gr8r's type (Geist, gr8r ink ramp) at a document
+     size. Node behaviour / slash menu / drag handle are untouched. */
+  .g8 .g8-doc {
+    background: var(--g8-surface);
+  }
+  .g8 .g8-doc-top {
+    padding-right: 12px;
+  }
+  .g8 .g8-doc-edited {
+    font-size: var(--g8-fs-sm);
+  }
+  .g8 .g8-doc-tb {
+    border-bottom: 1px solid var(--g8-border);
+    background: var(--g8-surface);
+  }
+  .g8 .g8-doc .tiptap {
+    font-family: var(--g8-font);
+    color: var(--g8-text);
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .g8 .g8-doc .tiptap :where(h1, h2, h3) {
+    letter-spacing: -0.018em;
+    font-weight: 600;
+  }
+  .g8 .g8-doc .tiptap :where(a) {
+    color: var(--g8-accent);
+    text-underline-offset: 3px;
+  }
+  .g8 .g8-doc .tiptap :where(blockquote) {
+    border-left-color: var(--g8-border-strong);
+    color: var(--g8-text-2);
+  }
+  .g8 .g8-doc .tiptap :where(hr) {
+    border-color: var(--g8-divider);
+  }
+  .g8 .g8-doc .tiptap :where(:not(pre) > code) {
+    font-family: var(--g8-mono);
+    font-size: 0.88em;
+    background: var(--g8-surface-3);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+  .g8 .g8-doc-hint {
+    color: var(--g8-text-3);
+  }
+}
+
+@layer components {
+  /* Document AI dock (components/documents/document-ai-panel.tsx): gr8r's
+     floating panel recipe — surface, hairline, overlay shadow. */
+  .g8 .g8-ai-dock {
+    background: var(--g8-surface);
+    border-radius: var(--g8-r-lg);
+    box-shadow: var(--g8-shadow-pop);
+  }
+  .g8 .g8-ai-input {
+    font-size: var(--g8-fs);
+    color: var(--g8-text);
+  }
+  .g8 .g8-ai-input::placeholder {
+    color: var(--g8-text-3);
+  }
+}
+
+@layer components {
+  /* Workflows + Chatbots (components/workflows/*, components/chatbots/*):
+     gr8r's `.seg` segments are <button>s; route-backed segments (chatbot
+     views, chatbot editor tabs) are links. Same box as `.seg button`. */
+  .g8 .seg a {
+    height: calc(var(--g8-h-sm) - 2px);
+    padding: 0 9px;
+    border-radius: 5px;
+    font-size: var(--g8-fs-xs);
+    font-weight: 500;
+    color: var(--g8-text-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition:
+      background var(--g8-dur),
+      color var(--g8-dur);
+  }
+  .g8 .seg a:hover {
+    color: var(--g8-text);
+  }
+  .g8 .seg a.on {
+    background: var(--g8-surface);
+    color: var(--g8-text);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.08),
+      0 0 0 1px var(--g8-border);
+  }
+}
+
+/* ── AI surfaces: Assistant / Agents / Fleet / Memory ────────────────────────
+   (components/assistant/*, agents/*, fleet/*, memory/*). gr8r has no chat
+   page, so these compose its tokens: the composer is a `.cbox`-style field
+   (surface + strong border, accent ring on focus) with its @ / slash menu
+   drawn as an in-flow `.pop`; the Assistant tab strip reads like gr8r's
+   topbar with `.sitem.on`-style pills; the project rail is one `.panel`
+   whose sections divide by hairlines. */
+@layer components {
+  .g8 .g8-ai-composer {
+    position: relative;
+    background: var(--g8-surface);
+    border: 1px solid var(--g8-border-strong);
+    border-radius: var(--g8-r-lg);
+    box-shadow: var(--g8-shadow-sm);
+    transition:
+      border-color var(--g8-dur),
+      box-shadow var(--g8-dur);
+  }
+  .g8 .g8-ai-composer:focus-within {
+    border-color: var(--g8-accent);
+    box-shadow: 0 0 0 3px var(--g8-accent-soft);
+  }
+  .g8 .g8-ai-composer textarea {
+    font-size: var(--g8-fs-md);
+    color: var(--g8-text);
+  }
+  .g8 .g8-ai-composer textarea::placeholder {
+    color: var(--g8-text-4);
+  }
+  .g8 .g8-ai-composer > .pop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    margin-bottom: 8px;
+    max-width: none;
+    z-index: 20;
+  }
+  .g8 .g8-ctabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    flex-shrink: 0;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--g8-border);
+    background: var(--g8-bg);
+  }
+  .g8 .g8-ctabs > [role='tablist'] {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .g8 .g8-ctab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    min-width: 0;
+    flex-shrink: 0;
+    padding: 0 4px 0 9px;
+    border-radius: var(--g8-r-sm);
+    font-size: var(--g8-fs-sm);
+    color: var(--g8-text-2);
+    transition:
+      background var(--g8-dur),
+      color var(--g8-dur);
+  }
+  .g8 .g8-ctab > button[role='tab'] {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .g8 .g8-ctab > button[role='tab'] > span:not(.pdot) {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .g8 .g8-ctab .i {
+    color: var(--g8-text-4);
+  }
+  .g8 .g8-ctab:hover {
+    background: var(--g8-surface-3);
+    color: var(--g8-text);
+  }
+  .g8 .g8-ctab.on {
+    background: var(--g8-surface);
+    color: var(--g8-text);
+    font-weight: 500;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.05),
+      0 0 0 1px var(--g8-border);
+  }
+  .g8 .g8-ctab .x {
+    opacity: 0;
+  }
+  .g8 .g8-ctab:hover .x,
+  .g8 .g8-ctab.on .x,
+  .g8 .g8-ctab .x:focus-visible {
+    opacity: 1;
+  }
+  .g8 .g8-ai-rail > section + section {
+    border-top: 1px solid var(--g8-divider);
+  }
+  .g8 .g8-ai-rail > section > .panel-b:last-child {
+    padding-bottom: 14px;
+  }
+  /* Memory stat strip: the subject stats double as filter buttons. */
+  .g8 .stats > button.stat[aria-pressed='true'] {
+    background: var(--g8-surface-2);
+  }
+}
+
+@layer components {
+  /* Forms (components/forms/*, staff side only — the public / warm-cream
+     renderer is untouched). Builder tabs sit on the gutter under the
+     topbar; the form's name + description are borderless inputs that pick
+     up a gr8r field ring on hover / focus. */
+  .g8 .g8-form-tabs {
+    padding: 0 calc(var(--g8-gutter) - 10px);
+    flex-shrink: 0;
+  }
+  .g8 .g8-form-title,
+  .g8 .g8-form-desc {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--g8-r-sm);
+    outline: none;
+    transition: border-color var(--g8-dur);
+  }
+  .g8 .g8-form-title {
+    font-size: var(--g8-fs-2xl);
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    color: var(--g8-text);
+  }
+  .g8 .g8-form-desc {
+    font-size: var(--g8-fs);
+    line-height: 1.55;
+    color: var(--g8-text-2);
+  }
+  .g8 .g8-form-title::placeholder,
+  .g8 .g8-form-desc::placeholder {
+    color: var(--g8-text-4);
+  }
+  .g8 .g8-form-title:hover,
+  .g8 .g8-form-desc:hover {
+    border-color: var(--g8-border);
+  }
+  .g8 .g8-form-title:focus,
+  .g8 .g8-form-desc:focus {
+    border-color: var(--g8-border-strong);
+    background: var(--g8-surface);
+  }
+  /* The chatbot editor's name is an <input> inside `.ph h1` (same
+     treatment as the project page's `.proj-name-in`). */
+  .g8 .ph h1 .ph-name-in {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    outline: none;
+    padding: 0 4px;
+    margin: 0 -4px;
+    border-radius: var(--g8-r-sm);
+    max-width: 100%;
+    min-width: 6ch;
+  }
+  .g8 .ph h1 .ph-name-in:hover,
+  .g8 .ph h1 .ph-name-in:focus {
+    background: var(--g8-surface-2);
+  }
+  .g8 .ph h1 .ph-name-in:focus {
+    box-shadow: 0 0 0 1px var(--g8-border-strong);
+  }
+}
+
+@layer components {
+  /* Form builder (components/forms/form-builder.tsx): question cards are
+     gr8r panels that take the accent ring when selected; the side panel's
+     palette tiles are `.ftype` + label buttons; the end zone is gr8r's
+     `.dropzone`. Drag overlays portal to <body>, so they re-enter `.g8`
+     through `.g8-overlay-scope` (which drops the shell-root sizing). */
+  .g8.g8-overlay-scope {
+    height: auto;
+    overflow: visible;
+    background: transparent;
+  }
+  .g8 .g8-fcard {
+    list-style: none;
+    background: var(--g8-surface);
+    border: 1px solid var(--g8-border);
+    border-radius: var(--g8-r-lg);
+    transition:
+      border-color var(--g8-dur),
+      box-shadow var(--g8-dur);
+  }
+  .g8 .g8-fcard:hover {
+    border-color: var(--g8-border-strong);
+  }
+  .g8 .g8-fcard.on {
+    border-color: var(--g8-accent-line);
+    box-shadow: 0 0 0 1px var(--g8-accent-line);
+    background: color-mix(in srgb, var(--g8-accent) 3%, var(--g8-surface));
+  }
+  .g8 .g8-fcard.lifted {
+    box-shadow: var(--g8-shadow-drag);
+    cursor: grabbing;
+  }
+  .g8 .g8-fb-line {
+    border-radius: 2px;
+    background: var(--g8-accent);
+  }
+  .g8 .g8-fb-side {
+    background: var(--g8-sunken);
+  }
+  .g8 .g8-fb-seg {
+    display: flex;
+    width: 100%;
+  }
+  .g8 .g8-fb-seg button {
+    flex: 1;
+  }
+  .g8 .g8-fb-tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 6px 24px 6px 8px;
+    border-radius: var(--g8-r);
+    border: 1px solid var(--g8-border);
+    background: var(--g8-surface);
+    font-size: var(--g8-fs-sm);
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--g8-text);
+    cursor: grab;
+    transition:
+      border-color var(--g8-dur),
+      background var(--g8-dur);
+  }
+  .g8 .group:hover .g8-fb-tile {
+    border-color: var(--g8-border-strong);
+    background: var(--g8-surface-2);
+  }
+  .g8 .g8-fb-tile.lifted {
+    width: 176px;
+    cursor: grabbing;
+    box-shadow: var(--g8-shadow-drag);
+  }
+  .g8 .g8-fb-tile-plus {
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--g8-text-4);
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .group:hover .g8-fb-tile-plus,
+  .g8 .group:focus-visible .g8-fb-tile-plus {
+    opacity: 1;
+  }
+  .g8 .g8-fb-end {
+    text-align: center;
+  }
+}
+
+@layer components {
+  /* Form responses (components/forms/form-responses.tsx): gr8r's `.perm-t`
+     data table inside a `.panel`, left-aligned like a list (gr8r centres
+     its permission matrix), with the expanded answer sheet on `--sunken`. */
+  .g8 .g8-resp-t th,
+  .g8 .g8-resp-t td {
+    text-align: left;
+    padding: 8px 10px;
+  }
+  .g8 .g8-resp-t th:first-child,
+  .g8 .g8-resp-t td:first-child {
+    padding-left: 14px;
+  }
+  .g8 .g8-resp-t tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .g8 .g8-resp-t tbody tr:hover td {
+    background: var(--g8-surface-2);
+  }
+  .g8 .g8-resp-t .g8-resp-more td,
+  .g8 .g8-resp-t tbody tr.g8-resp-more:hover td {
+    background: var(--g8-sunken);
+    padding: 12px 14px;
+  }
+}
+
+@layer components {
+  /* Form settings panel (components/forms/form-settings-panel.tsx). Group
+     headings use gr8r's `h3.sub` type, renamed because `.sub` is also the
+     sidebar's collapsed-children rule (display: none). */
+  .g8 .g8-fs-h {
+    font-size: var(--g8-fs);
+    font-weight: 600;
+    margin: 0;
+  }
+  .g8 .g8-fs-toggles > * + * {
+    border-top: 1px solid var(--g8-divider);
+  }
+}
+
+@layer components {
+  /* A disclosure chevron inside an `.ibtn` (docs tree, responses table) —
+     gr8r only rotates `.chev` inside `.sitem`. */
+  .g8 .ibtn .chev {
+    transition: transform var(--g8-dur);
+  }
+  .g8 .ibtn .chev.open {
+    transform: rotate(90deg);
+  }
+}
+
+@layer components {
+  /* Org chart diagram nodes (components/org/org-diagram.tsx, team-detail):
+     gr8r card surface — border + shadow-sm, the root on --surface-2, the
+     add-a-team slot dashed. */
+  .g8 .org-node {
+    padding: 9px 11px;
+    background: var(--g8-surface);
+    border: 1px solid var(--g8-border);
+    border-radius: var(--g8-r);
+    box-shadow: var(--g8-shadow-sm);
+  }
+  .g8 .org-node.root { background: var(--g8-surface-2); box-shadow: none; }
+  .g8 .org-node.add {
+    background: transparent; box-shadow: none; border-style: dashed;
+    color: var(--g8-text-3); font-size: var(--g8-fs-xs);
+    transition: background var(--g8-dur), color var(--g8-dur);
+  }
+  .g8 .org-node.add:hover { background: var(--g8-surface-2); color: var(--g8-text); }
+}
+
+@layer components {
+  /* gr8r's ≤900px rule turns `.side` into its own off-canvas drawer
+     (fixed + translateX(-100%), opened by `.shell.mnav`). Our shell owns that
+     job — the desktop slot stays inline down to 768px and the mobile Sheet
+     drawer hosts the same sidebar below it — so inside our sidebar slot the
+     nav stays in flow at every width. */
+  @media (max-width: 900px) {
+    .g8 [data-section-sidebar] .side {
+      position: relative;
+      inset: auto;
+      width: auto;
+      z-index: auto;
+      transform: none;
+      transition: none;
+    }
+  }
+}
+
+@layer components {
+  /* Phase 7 polish (team tabs, search snippets, channel header). */
+
+  /* Team page / workspace panels: a `.mini` row whose link fills the row and
+     whose remove / pin actions sit beside it (a <button> can't nest in <a>). */
+  .g8 .g8-wsrow { cursor: default; }
+  .g8 .g8-wsrow-a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+    color: inherit;
+  }
+  .g8 .g8-wsrow-acts { display: inline-flex; align-items: center; gap: 2px; }
+  .g8 .g8-wsrow .g8-wsrow-hover,
+  .g8 .g8-wsrow .g8-wsrow-acts {
+    opacity: 0;
+    transition: opacity var(--g8-dur);
+  }
+  .g8 .g8-wsrow:hover .g8-wsrow-hover,
+  .g8 .g8-wsrow:hover .g8-wsrow-acts,
+  .g8 .g8-wsrow:focus-within .g8-wsrow-hover,
+  .g8 .g8-wsrow:focus-within .g8-wsrow-acts { opacity: 1; }
+  .g8 .g8-wsrow-rm:hover { color: var(--g8-red); }
+  @media (hover: none) {
+    .g8 .g8-wsrow .g8-wsrow-hover,
+    .g8 .g8-wsrow .g8-wsrow-acts { opacity: 1; }
+  }
+
+  /* Search: a message hit is a 3-line excerpt, like gr8r's comment rows. */
+  .g8 .g8-snip {
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Channel header (≤900px): wide-only bits drop out, labelled actions keep
+     their icons (labels go visually-hidden, still read aloud), and the
+     secondary utilities move into the "…" menu. */
+  .g8 .g8-ch-lbl,
+  .g8 .g8-ch-narrow { display: contents; }
+  .g8 .g8-ch-narrow { display: none; }
+  @media (max-width: 900px) {
+    .g8 .g8-ch-wide { display: none !important; }
+    .g8 .g8-ch-narrow { display: contents; }
+    .g8 .g8-ch-lbl button > span:not([aria-hidden]):not(.num) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .g8 .g8-ch-lbl button > span[aria-hidden] { display: none; }
+  }
+}

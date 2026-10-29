@@ -1,71 +1,90 @@
 "use client";
 
 import type { MessageResponse } from "stream-chat";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Hash } from "lucide-react";
+import { Hash, MessageSquare } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
 import { useOpenChannel } from "@/lib/chat/use-open-channel";
+import { relativeTimeShort } from "@/lib/relative-time";
 
 type Props = {
   propertyId: string;
   message: MessageResponse;
 };
 
+/** One mention — a gr8r `.nrow`: sender `Av`, the message, channel · time. */
 export function MentionRow({ propertyId, message }: Props) {
   const openChannel = useOpenChannel(propertyId);
   const senderName = message.user?.name ?? message.user?.id ?? "Someone";
-  const initials = senderName
-    .split(/\s+/)
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  const channelId = message.cid?.split(":")[1];
+  const [channelType, channelId] = (message.cid ?? "").split(":");
   const channelName =
     (message as { channel?: { name?: string; id?: string } }).channel?.name ??
     channelId ??
     "channel";
-  const when = message.created_at
-    ? new Date(message.created_at).toLocaleString()
-    : "";
   const text =
     message.text ?? (message.attachments?.length ? "(attachment)" : "");
 
   function open() {
     if (!channelId) return;
-    // Navigate to the channel; the mentioned message will be in the message
-    // list. Future: deep-link to highlight the specific message via query
-    // param + Stream's `customActiveChannel` jumpToMessage.
     // `cid` is `<type>:<id>` — the type routes a DM mention to /dms, a
     // channel mention to /chat.
-    openChannel(message.cid?.split(":")[0], channelId);
+    openChannel(channelType, channelId);
   }
 
   return (
-    <li>
-      <button
-        onClick={open}
-        className="flex w-full gap-3 rounded-md bg-background p-3 text-left transition-colors hover:bg-accent"
-      >
-        <Avatar className="size-8 shrink-0">
-          <AvatarImage src={message.user?.image as string | undefined} />
-          <AvatarFallback className="text-xs">
-            {initials || "?"}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{senderName}</span>
-            <span className="inline-flex items-center gap-0.5">
-              <Hash className="size-3" />
-              {channelName}
-            </span>
-            <span>·</span>
-            <span>{when}</span>
-          </div>
-          <p className="mt-1 line-clamp-3 break-words text-sm">{text}</p>
+    <div
+      className="nrow"
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      }}
+    >
+      <Av
+        member={{
+          id: message.user?.id ?? senderName,
+          name: senderName,
+          avatarUrl: (message.user?.image as string | undefined) ?? null,
+        }}
+        size="md"
+      />
+      <div className="grow" style={{ fontSize: 13 }}>
+        <div>
+          <b style={{ fontWeight: 600 }}>{senderName}</b>{" "}
+          <span className="muted">mentioned you</span>
         </div>
-      </button>
-    </li>
+        <div
+          className="muted"
+          style={{
+            fontSize: 12.5,
+            marginTop: 2,
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {text}
+        </div>
+        <div
+          className="faint row"
+          style={{ fontSize: 11.5, marginTop: 4, gap: 4 }}
+        >
+          <Gi icon={channelType === "messaging" ? MessageSquare : Hash} size={11} />
+          <span className="trunc">{channelName}</span>
+          {message.created_at ? (
+            <span title={new Date(message.created_at).toLocaleString()}>
+              · {relativeTimeShort(message.created_at)}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,18 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { Building2, Mail } from "lucide-react";
 import { getSessionUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded, needsPasswordSetup } from "@/lib/auth/onboarding";
 import { createServiceClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Gi } from "@/components/gr8r/icon";
+import { AuthCardMark, AuthShell } from "@/components/auth/auth-shell";
 import { AcceptButton } from "./[token]/accept-button";
 
 /**
@@ -58,57 +51,69 @@ export default async function PendingInvitesPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Your invites</CardTitle>
-          <CardDescription>
-            You've been invited to{" "}
-            {invites.length === 1 ? "a property" : `${invites.length} properties`}{" "}
-            as <span className="font-medium">{user.email}</span>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {invites.map((inv) => (
+    <AuthShell>
+      <div className="auth-card fx-auth" style={{ maxWidth: 440 }}>
+        <AuthCardMark icon={Mail} />
+        <h1>Your invites</h1>
+        <p className="sub">
+          You&apos;ve been invited to{" "}
+          {invites.length === 1 ? "a property" : `${invites.length} properties`}{" "}
+          as <b style={{ color: "var(--g8-text)" }}>{user.email}</b>.
+        </p>
+        <div className="panel">
+          {invites.map((inv, i) => (
             <div
               key={inv.token}
-              className="flex items-center justify-between gap-3 rounded-md border p-3"
+              className="row"
+              style={{
+                padding: "12px 14px",
+                gap: 12,
+                borderTop: i ? "1px solid var(--g8-divider)" : undefined,
+              }}
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <Building2 className="size-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {inv.property?.name ?? "Property"}
-                  </p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {inv.role}
-                  </p>
+              <span
+                className="ftype"
+                style={{ "--g8-c": "var(--g8-accent)" } as React.CSSProperties}
+              >
+                <Gi icon={Building2} size={14} />
+              </span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {inv.property?.name ?? "Property"}
+                </div>
+                <div
+                  className="faint"
+                  style={{ fontSize: 12, textTransform: "capitalize" }}
+                >
+                  {inv.role}
                 </div>
               </div>
               <AcceptButton token={inv.token} />
             </div>
           ))}
-        </CardContent>
-        <CardFooter className="justify-between">
+        </div>
+        <p className="auth-foot">
           {memberships.length > 0 ? (
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href={`/p/${memberships[0].property_id}/home`} />}
+            <Link
+              href={`/p/${memberships[0].property_id}/home`}
+              className="link"
             >
               Back to app
-            </Button>
+            </Link>
           ) : (
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/onboarding" />}
-            >
+            <Link href="/onboarding" className="link">
               Create a new property instead
-            </Button>
+            </Link>
           )}
-        </CardFooter>
-      </Card>
-    </main>
+        </p>
+      </div>
+    </AuthShell>
   );
 }

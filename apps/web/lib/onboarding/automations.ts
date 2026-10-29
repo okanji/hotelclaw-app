@@ -3,7 +3,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { saveWorkflow } from "@/lib/workflows/save";
 import {
   buildBlockedTaskAlertSpec,
-  buildBookingAutoConfirmSpec,
   buildChatbotEscalationSpec,
   buildMaintenanceAutomationSpec,
 } from "./automation-specs";
@@ -97,9 +96,7 @@ async function seedWorkflow(args: {
  * The template-library automations beyond the maintenance starter. Each is a
  * hardcoded spec (automation-specs.ts) wired to the rows this onboarding
  * just created. Additive automations (task creation, chat post) ship
- * ENABLED; the booking auto-confirm mutates booking state, so it ships
- * disabled with a description telling the owner what flipping it on does.
- * Per-item fail-soft: one bad seed never blocks the others.
+ * ENABLED. Per-item fail-soft: one bad seed never blocks the others.
  */
 export async function seedExtraAutomations(args: {
   propertyId: string;
@@ -108,8 +105,6 @@ export async function seedExtraAutomations(args: {
   frontSpaceId: string | null;
   /** #general stream channel id, when it was created. */
   generalChannelId: string | null;
-  /** Whether starter bookable services were seeded. */
-  hasBookings: boolean;
   /** Only alert on blocked tasks when task tracking is a stated priority. */
   wantsBlockedAlerts: boolean;
 }): Promise<string[]> {
@@ -134,20 +129,6 @@ export async function seedExtraAutomations(args: {
       spec: buildChatbotEscalationSpec({ spaceId: args.frontSpaceId }),
     }),
   );
-
-  if (args.hasBookings) {
-    await attempt("booking auto-confirm automation", () =>
-      seedWorkflow({
-        propertyId: args.propertyId,
-        userId: args.userId,
-        name: "Auto-confirm small bookings",
-        description:
-          "Turn this on to auto-confirm pending bookings for parties of 4 or fewer — larger parties stay pending for a human.",
-        enabled: false,
-        spec: buildBookingAutoConfirmSpec(),
-      }),
-    );
-  }
 
   if (args.wantsBlockedAlerts && args.generalChannelId) {
     const channelId = args.generalChannelId;

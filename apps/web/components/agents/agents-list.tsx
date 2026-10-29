@@ -6,8 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { MoreHorizontal, PenLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   Dialog,
   DialogContent,
@@ -23,15 +21,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TintIcon } from "@/components/ui/tint-card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import { parseAgentConfig, type AgentRow } from "@/lib/agents/schema";
 import { BUILTIN_AGENTS } from "@/lib/agents/builtin";
 import { podBotEmoji } from "@/lib/fleet/tool-catalog";
 import { NewAgentDialog } from "./new-agent-dialog";
 import { AgentBuilderDialog } from "./agent-builder-dialog";
 import { deleteAgent } from "./actions";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 type PodBotSummary = {
@@ -74,45 +71,61 @@ export function AgentsList({
     if (wantsNew) setNewOpen(true);
   }
 
+  // gr8r idiom: `.page.wide` › `.ph` (title + Describe / New in `.acts`) ›
+  // `.tabs` (All / Built-in AI — the same `?view=` the sidebar body drives) ›
+  // `.pgrid` of `.pcard`s, with `h2.sec` group heads for Pod bots + Built-in.
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
-        title="Agents"
-        icon={<Sparkles />}
-        actions={
-          <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={() => setDescribeOpen(true)}>
-              <Sparkles data-slot="icon" />
-              Describe it
-            </Button>
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus data-slot="icon" />
-              New agent
-            </Button>
+      <PageHeader title="Agents" icon={<Sparkles />} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page wide" style={{ maxWidth: 1200 }}>
+          <div className="ph">
+            <div>
+              <h1>Agents</h1>
+              <p>
+                {agents.length} agent{agents.length === 1 ? "" : "s"}
+                {podBots.length ? ` · ${podBots.length} pod bot${podBots.length === 1 ? "" : "s"}` : ""}
+                {` · ${BUILTIN_AGENTS.length} built-in`}
+              </p>
+            </div>
+            <div className="acts">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDescribeOpen(true)}>
+                <Gi icon={Sparkles} size={14} />
+                Describe it
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setNewOpen(true)}>
+                <Gi icon={Plus} size={14} />
+                New agent
+              </button>
+            </div>
           </div>
-        }
-      />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+
+          <div className="tabs" style={{ marginBottom: 20 }}>
+            <Link href={base} className={view !== "builtin" ? "tab on" : "tab"}>
+              All agents <span className="cnt">{agents.length}</span>
+            </Link>
+            <Link href={`${base}?view=builtin`} className={view === "builtin" ? "tab on" : "tab"}>
+              Built-in AI <span className="cnt">{BUILTIN_AGENTS.length}</span>
+            </Link>
+          </div>
+
           {view !== "builtin" ? (
             <>
               {agents.length === 0 ? (
-                <EmptyState
-                  icon={Sparkles}
-                  title="No agents yet"
-                  action={
-                    <Button onClick={() => setNewOpen(true)}>
-                      <Plus data-slot="icon" />
+                <div className="panel">
+                  <G8Empty
+                    icon={Sparkles}
+                    title="No agents yet"
+                    text="Create your first agent — a duty-manager brief, a policy expert, a workload analyst — and shape exactly what it can see and do."
+                  >
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => setNewOpen(true)}>
+                      <Gi icon={Plus} size={14} />
                       New agent
-                    </Button>
-                  }
-                >
-                  Create your first agent — a duty-manager brief, a policy
-                  expert, a bookings analyst — and shape exactly what it can see
-                  and do.
-                </EmptyState>
+                    </button>
+                  </G8Empty>
+                </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="pgrid">
                   {agents.map((agent) => (
                     <AgentCard
                       key={agent.id}
@@ -124,57 +137,50 @@ export function AgentsList({
                 </div>
               )}
               {podBots.length > 0 ? (
-                <div className="mt-14">
-                  <Eyebrow>Pod bots</Eyebrow>
-                  <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
+                <section style={{ marginTop: 36 }}>
+                  <h2 className="sec">Pod bots</h2>
+                  <p className="muted" style={{ margin: "4px 0 14px", fontSize: "var(--g8-fs-sm)", maxWidth: 640 }}>
                     The operated fleet bots serving this property — address them
                     with @name in any channel. Configuration and sessions live in
                     the Fleet views.
                   </p>
-                  <ul role="list" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="pgrid">
                     {podBots.map((bot) => (
-                      <li key={bot.id}>
-                        <Link
-                          href={`${base}/fleet/${bot.id}`}
-                          className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent"
-                        >
-                          <div className="flex items-center gap-3">
-                            <TintIcon tone="lavender" className="text-base">
-                              {podBotEmoji(bot.bot_id)}
-                            </TintIcon>
-                            <div className="min-w-0">
-                              <p className="truncate text-base leading-6 font-normal">
-                                {bot.display_name}
-                              </p>
-                              <p className="truncate font-mono text-xs text-muted-foreground">
-                                @{bot.bot_id}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="tabular-nums">
-                              {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
-                            </span>
-                            <span>
-                              {bot.model_tier === "advanced"
-                                ? "Advanced model"
-                                : "Standard model"}
+                      <Link key={bot.id} href={`${base}/fleet/${bot.id}`} className="pcard">
+                        <div className="row" style={{ gap: 10 }}>
+                          <span className="picon" style={{ "--g8-c": "var(--g8-violet)", fontSize: 15 } as React.CSSProperties}>
+                            {podBotEmoji(bot.bot_id)}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <b className="trunc" style={{ display: "block", fontWeight: 600 }}>
+                              {bot.display_name}
+                            </b>
+                            <span className="mono faint trunc" style={{ display: "block", fontSize: "var(--g8-fs-xs)" }}>
+                              @{bot.bot_id}
                             </span>
                           </div>
-                        </Link>
-                      </li>
+                        </div>
+                        <div className="foot">
+                          <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                            {bot.tool_set.length} tool{bot.tool_set.length === 1 ? "" : "s"}
+                          </span>
+                          <span>
+                            {bot.model_tier === "advanced" ? "Advanced model" : "Standard model"}
+                          </span>
+                        </div>
+                      </Link>
                     ))}
-                  </ul>
-                </div>
+                  </div>
+                </section>
               ) : null}
-              <div className="mt-14">
-                <Eyebrow>Built-in AI</Eyebrow>
-                <p className="mt-2 max-w-2xl text-sm text-pretty text-muted-foreground">
+              <section style={{ marginTop: 36 }}>
+                <h2 className="sec">Built-in AI</h2>
+                <p className="muted" style={{ margin: "4px 0 14px", fontSize: "var(--g8-fs-sm)", maxWidth: 640 }}>
                   The assistants that ship with the app. They can&apos;t be edited,
                   but what each one reads and does is documented below.
                 </p>
-                <BuiltinGrid className="mt-6" />
-              </div>
+                <BuiltinGrid />
+              </section>
             </>
           ) : (
             <BuiltinGrid />
@@ -200,7 +206,7 @@ export function AgentsList({
               router.refresh();
             }}
           />
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -219,33 +225,22 @@ function AgentCard({
   const config = parseAgentConfig(agent.config);
 
   return (
-    <div className="group relative flex flex-col gap-3 rounded-card bg-card p-4 shadow-card transition-colors hover:bg-accent">
+    <div className="pcard group">
       <Link href={href} className="absolute inset-0" aria-label={agent.name} />
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <TintIcon tone="lavender" className="text-base">
-            {config.avatarEmoji || <Sparkles />}
-          </TintIcon>
-          <div className="min-w-0">
-            <p className="truncate text-base leading-6 font-normal">{agent.name}</p>
-            <p className="truncate text-sm text-muted-foreground">
-              {config.description || "No description yet"}
-            </p>
-          </div>
+      <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+        <span className="picon" style={{ "--g8-c": "var(--g8-violet)", fontSize: 15 } as React.CSSProperties}>
+          {config.avatarEmoji || <Gi icon={Sparkles} size={15} />}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <b className="trunc" style={{ display: "block", fontWeight: 600 }}>{agent.name}</b>
+          <p className="desc" style={{ margin: "2px 0 0" }}>
+            {config.description || "No description yet"}
+          </p>
         </div>
-        <div className="relative z-10 shrink-0">
+        <div className="more" style={{ zIndex: 1 }}>
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-                  aria-label="Agent actions"
-                />
-              }
-            >
-              <MoreHorizontal className="size-4" />
+            <DropdownMenuTrigger className="ibtn ibtn-sm" aria-label="Agent actions">
+              <Gi icon={MoreHorizontal} size={15} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => router.push(href)}>
@@ -261,17 +256,23 @@ function AgentCard({
           </DropdownMenu>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="foot">
         {agent.status === "active" ? (
-          <StatusBadge tone="success">Active</StatusBadge>
+          <span className="badge green">
+            <span className="dot" />
+            Active
+          </span>
         ) : (
-          <StatusBadge tone="warning">Paused</StatusBadge>
+          <span className="badge amber">
+            <span className="dot" />
+            Paused
+          </span>
         )}
-        <span className="tabular-nums">
+        <span style={{ fontVariantNumeric: "tabular-nums" }}>
           {config.tools.length} tool{config.tools.length === 1 ? "" : "s"}
         </span>
         {config.skills.length > 0 ? (
-          <span className="tabular-nums">
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>
             {config.skills.length} skill{config.skills.length === 1 ? "" : "s"}
           </span>
         ) : null}
@@ -281,42 +282,32 @@ function AgentCard({
   );
 }
 
-function BuiltinGrid({ className }: { className?: string }) {
+function BuiltinGrid() {
   return (
-    <div className={className}>
-      <ul role="list" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {BUILTIN_AGENTS.map((bot) => (
-          <li
-            key={bot.id}
-            className="flex flex-col gap-2 rounded-card bg-card p-4 shadow-card"
-          >
-            <div className="flex items-center gap-3">
-              <TintIcon tone="lavender" className="text-base">
-                {bot.emoji}
-              </TintIcon>
-              <div className="min-w-0">
-                <p className="truncate text-base leading-6 font-normal">{bot.name}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {bot.where} · {bot.model}
-                </p>
-              </div>
+    <div className="pgrid">
+      {BUILTIN_AGENTS.map((bot) => (
+        <div key={bot.id} className="pcard" style={{ cursor: "default" }}>
+          <div className="row" style={{ gap: 10 }}>
+            <span className="picon" style={{ "--g8-c": "var(--g8-teal)", fontSize: 15 } as React.CSSProperties}>
+              {bot.emoji}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <b className="trunc" style={{ display: "block", fontWeight: 600 }}>{bot.name}</b>
+              <span className="faint trunc" style={{ display: "block", fontSize: "var(--g8-fs-xs)" }}>
+                {bot.where} · {bot.model}
+              </span>
             </div>
-            <p className="text-sm text-pretty text-muted-foreground">
-              {bot.promptSummary}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {bot.tools.map((tool) => (
-                <span
-                  key={tool}
-                  className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                >
-                  {tool}
-                </span>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+          <p className="desc" style={{ margin: 0, WebkitLineClamp: "unset" }}>{bot.promptSummary}</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 4 }}>
+            {bot.tools.map((tool) => (
+              <span key={tool} className="badge">
+                {tool}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

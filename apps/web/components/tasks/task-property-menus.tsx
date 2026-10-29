@@ -1,8 +1,10 @@
 "use client";
 
+import { toggleAssignee } from "@/lib/tasks/assignees";
 import { type ReactNode } from "react";
 import {
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { PopoverContent } from "@/components/ui/popover";
@@ -144,37 +146,82 @@ export function PriorityMenuContent({
   );
 }
 
+/**
+ * The assignee picker. Single mode (`onSelect`) picks one person and closes.
+ * Multi mode (0115 — pass `selectedIds` + `onChange`) ticks people in and out
+ * while the menu stays open; the first ticked person is the primary, and
+ * "Unassigned" clears the set.
+ */
 export function AssigneeMenuContent({
   align = "start",
   members,
   onSelect,
+  selectedIds,
+  onChange,
 }: {
   align?: "start" | "end";
   members: PickerMember[];
-  onSelect: (id: string | null) => void;
+  onSelect?: (id: string | null) => void;
+  selectedIds?: string[];
+  onChange?: (ids: string[]) => void;
 }) {
+  const multi = selectedIds !== undefined && onChange !== undefined;
+  const avatar = (m: PickerMember) => (
+    <Avatar size="sm" className="size-5">
+      {m.avatarUrl ? <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} /> : null}
+      <AvatarFallback className="bg-muted text-xs">{initials(m.name ?? "?")}</AvatarFallback>
+    </Avatar>
+  );
+  if (multi) {
+    // Ticked people first (primary on top), then everyone else — so the
+    // current set is visible without scrolling a 80-person roster.
+    const byId = new Map(members.map((m) => [m.id, m] as const));
+    const ordered = [
+      ...selectedIds.map((id) => byId.get(id)).filter((m): m is PickerMember => !!m),
+      ...members.filter((m) => !selectedIds.includes(m.id)),
+    ];
+    return (
+      <DropdownMenuContent align={align} className="max-h-72 w-60 overflow-y-auto">
+        <DropdownMenuItem
+          onClick={() => onChange([])}
+          disabled={selectedIds.length === 0}
+          className="text-muted-foreground"
+        >
+          Unassigned
+        </DropdownMenuItem>
+        {ordered.map((m) => (
+          <DropdownMenuCheckboxItem
+            key={m.id}
+            checked={selectedIds.includes(m.id)}
+            closeOnClick={false}
+            onCheckedChange={() => onChange(toggleAssignee(selectedIds, m.id))}
+            className="gap-2"
+          >
+            {avatar(m)}
+            <span className="truncate">{m.name ?? "Member"}</span>
+            {selectedIds[0] === m.id && selectedIds.length > 1 ? (
+              <span className="ml-auto text-xs text-faint-foreground">Primary</span>
+            ) : null}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    );
+  }
   return (
     <DropdownMenuContent
       align={align}
       className="max-h-64 w-56 overflow-y-auto"
     >
-      <DropdownMenuItem onClick={() => onSelect(null)}>
+      <DropdownMenuItem onClick={() => onSelect?.(null)}>
         Unassigned
       </DropdownMenuItem>
       {members.map((m) => (
         <DropdownMenuItem
           key={m.id}
-          onClick={() => onSelect(m.id)}
+          onClick={() => onSelect?.(m.id)}
           className="gap-2"
         >
-          <Avatar size="sm" className="size-5">
-            {m.avatarUrl ? (
-              <AvatarImage src={m.avatarUrl} alt={m.name ?? "Member"} />
-            ) : null}
-            <AvatarFallback className="bg-muted text-xs">
-              {initials(m.name ?? "?")}
-            </AvatarFallback>
-          </Avatar>
+          {avatar(m)}
           <span className="truncate">{m.name ?? "Member"}</span>
         </DropdownMenuItem>
       ))}

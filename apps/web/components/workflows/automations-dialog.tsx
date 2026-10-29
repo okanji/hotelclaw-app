@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RecommendationCard } from "@/components/ai/recommendation-card";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
+import { Tog } from "@/components/gr8r/settings-ui";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { Switch } from "@/components/ui/switch";
 import { getTrigger } from "@/lib/workflows/catalog";
 import type { TriggerEventType } from "@/lib/workflows/spec";
 import { workflowsListQueryOptions } from "@/lib/query/workflow-queries";
@@ -33,7 +32,6 @@ import {
   workflowTouchesFeature,
   type AutomationFeature,
 } from "@/lib/workflows/features";
-import { cn } from "@/lib/utils";
 
 /**
  * The per-feature Automations modal — one answer to "what's already running
@@ -175,10 +173,14 @@ export function AutomationsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
+      {/* Portaled out of the shell, so the popup carries `g8 g8-port` to
+          get gr8r's classes (`.eyebrow`, `.panel`, `.nrow`, `.btn`…). */}
+      <DialogContent className="g8 g8-port max-h-[85vh] gap-0 overflow-y-auto p-0 sm:max-w-lg">
         <DialogHeader className="px-5 pt-5 pb-4">
           <DialogTitle className="flex items-center gap-2">
-            <Zap className="size-4 text-muted-foreground" aria-hidden />
+            <span className="faint" style={{ display: "inline-flex" }}>
+              <Gi icon={Zap} size={16} />
+            </span>
             Automations · {meta.label}
           </DialogTitle>
           <DialogDescription>{meta.blurb}</DialogDescription>
@@ -186,50 +188,52 @@ export function AutomationsDialog({
 
         {/* ── Running here ─────────────────────────────────────────────── */}
         <section className="px-5 pb-5">
-          <Eyebrow>
+          <div className="eyebrow">
             {matched.length > 0 ? `Running on ${meta.label}` : `On ${meta.label}`}
-          </Eyebrow>
-          <div className="mt-2">
+          </div>
+          <div style={{ marginTop: 8 }}>
             {listPending ? (
               <SkeletonRows />
             ) : matched.length === 0 ? (
-              <p className="rounded-md bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
-                No automations touch {meta.label} yet.
-              </p>
+              <div className="panel">
+                <div className="empty-state sm">
+                  <p style={{ margin: 0 }}>No automations touch {meta.label} yet.</p>
+                </div>
+              </div>
             ) : (
-              <ul role="list" className="flex flex-col divide-y divide-border rounded-md bg-muted">
+              <ul role="list" className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
                 {matched.map((w) => (
-                  <li key={w.id} className="flex items-center gap-2 px-3 py-2">
+                  <li key={w.id} className="nrow" style={{ alignItems: "center", cursor: "default", padding: "8px 12px" }}>
                     <Link
                       href={`/p/${propertyId}/workflows/${w.id}`}
-                      className="group flex min-w-0 flex-1 items-center gap-2"
+                      className="group row grow"
+                      style={{ gap: 8 }}
                     >
-                      <Workflow
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5">
+                      <span className="faint" style={{ display: "inline-flex" }}>
+                        <Gi icon={Workflow} />
+                      </span>
+                      <span className="col grow" style={{ gap: 1 }}>
+                        <span className="row" style={{ gap: 6 }}>
                           <span
-                            className={cn(
-                              "truncate text-sm font-medium text-foreground",
-                              !w.enabled && "opacity-55",
-                            )}
+                            className="trunc"
+                            style={{ fontWeight: 500, opacity: w.enabled ? 1 : 0.55 }}
                           >
                             {w.name}
                           </span>
-                          <ArrowUpRight className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                          <span className="faint opacity-0 transition-opacity group-hover:opacity-100" style={{ display: "inline-flex" }}>
+                            <Gi icon={ArrowUpRight} size={12} />
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-faint-foreground">
+                        <span className="trunc faint" style={{ fontSize: 12 }}>
                           {describeRelationship(w, feature)}
                         </span>
                       </span>
                     </Link>
-                    <Switch
+                    <Tog
+                      label={`${w.enabled ? "Disable" : "Enable"} ${w.name}`}
                       checked={w.enabled}
                       disabled={pending.has(w.id)}
-                      aria-label={`${w.enabled ? "Disable" : "Enable"} ${w.name}`}
-                      onCheckedChange={(next) => void toggle(w.id, w.name, next)}
+                      onChange={(next) => void toggle(w.id, w.name, next)}
                     />
                   </li>
                 ))}
@@ -243,24 +247,22 @@ export function AutomationsDialog({
             empty "Suggested" heading is worse than no heading. */}
         {suggestPending || suggestions.length > 0 ? (
           <section className="px-5 pb-5">
-            <div className="flex items-center justify-between gap-2">
-              <Eyebrow>Suggested for you</Eyebrow>
+            <div className="row">
+              <div className="eyebrow">Suggested for you</div>
+              <span className="sp" />
               {suggestions.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => void refreshSuggestions()}
                   disabled={suggestFetching}
-                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                  className="btn btn-ghost btn-sm"
                 >
-                  <RefreshCw
-                    className={cn("size-3", suggestFetching && "animate-spin")}
-                    aria-hidden
-                  />
+                  <Gi icon={RefreshCw} size={13} className={suggestFetching ? "animate-spin" : undefined} />
                   Refresh
                 </button>
               ) : null}
             </div>
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="stack" style={{ marginTop: 8, gap: 8 }}>
               {suggestPending ? (
                 <SuggestionSkeleton />
               ) : (
@@ -289,35 +291,27 @@ export function AutomationsDialog({
           </section>
         ) : null}
         {suggestError ? (
-          <p className="px-5 pb-5 text-xs text-muted-foreground">
+          <p className="faint px-5 pb-5" style={{ fontSize: 12, margin: 0 }}>
             Couldn&apos;t load suggestions right now.
           </p>
         ) : null}
 
         {/* ── Build / browse ───────────────────────────────────────────── */}
-        <footer className="flex items-center justify-between gap-2 px-5 pt-1 pb-5">
-          <Link
-            href={`/p/${propertyId}/workflows`}
-            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
+        <footer className="modal-f">
+          <Link href={`/p/${propertyId}/workflows`} className="btn btn-ghost btn-sm">
             All automations
           </Link>
-          <Button
-            size="sm"
-            // Renders an <a>, so Base UI's native-button assertion has to be
-            // waived — the house convention for every Button+Link call site.
-            nativeButton={false}
-            // NO ?prefill= here, deliberately. The builder auto-SENDS whatever
-            // goal it's handed, so seeding a feature stub ("Build an automation
-            // for a chat channel — ") fired the copilot on a half-sentence
-            // before the user had said what they wanted. A suggestion carries a
-            // complete "When X, do Y" and should auto-send; a blank start
-            // should land on the hero and let the user type.
-            render={<Link href={`/p/${propertyId}/workflows/new`} />}
-          >
-            <Plus data-slot="icon" />
+          <span className="sp" />
+          {/* NO ?prefill= here, deliberately. The builder auto-SENDS whatever
+              goal it's handed, so seeding a feature stub ("Build an automation
+              for a chat channel — ") fired the copilot on a half-sentence
+              before the user had said what they wanted. A suggestion carries a
+              complete "When X, do Y" and should auto-send; a blank start
+              should land on the hero and let the user type. */}
+          <Link href={`/p/${propertyId}/workflows/new`} className="btn btn-primary btn-sm">
+            <Gi icon={Plus} size={14} />
             New automation
-          </Button>
+          </Link>
         </footer>
       </DialogContent>
     </Dialog>
@@ -345,11 +339,11 @@ function describeRelationship(
 
 function SkeletonRows() {
   return (
-    <div className="flex flex-col gap-px rounded-md bg-muted p-3">
+    <div className="panel stack" style={{ padding: 12, gap: 10 }}>
       {[0, 1].map((i) => (
-        <div key={i} className="flex items-center gap-2 py-1.5">
-          <div className="size-4 shrink-0 animate-pulse rounded-md bg-border" />
-          <div className="h-3.5 flex-1 animate-pulse rounded-md bg-border" />
+        <div key={i} className="row" style={{ gap: 8 }}>
+          <span className="sk" style={{ width: 16, height: 16 }} />
+          <span className="sk grow" style={{ height: 14 }} />
         </div>
       ))}
     </div>
@@ -358,8 +352,8 @@ function SkeletonRows() {
 
 function SuggestionSkeleton() {
   return (
-    <div className="flex items-center gap-2 px-3 py-4 text-xs text-muted-foreground">
-      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+    <div className="row faint" style={{ gap: 8, padding: "14px 12px", fontSize: 12 }}>
+      <Gi icon={Loader2} size={14} className="animate-spin" />
       Looking at what this property does…
     </div>
   );

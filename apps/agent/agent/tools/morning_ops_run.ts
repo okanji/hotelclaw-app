@@ -57,19 +57,9 @@ export default defineTool({
         year: "numeric", month: "2-digit", day: "2-digit",
       });
       const today = fmt.format(now);
-      const dayStart = new Date(`${today}T00:00:00+03:00`).toISOString();
-      const dayEnd = new Date(`${today}T23:59:59+03:00`).toISOString();
 
-      const [{ data: arrivals }, { data: stale }, { data: critical }] =
+      const [{ data: stale }, { data: critical }] =
         await Promise.all([
-          supabase
-            .from("bookings")
-            .select("reference, guest_name, party_size, starts_at, status")
-            .eq("property_id", property.id)
-            .gte("starts_at", dayStart)
-            .lte("starts_at", dayEnd)
-            .not("status", "in", "(cancelled,no_show)")
-            .order("starts_at"),
           supabase
             .from("tasks")
             .select("title, updated_at")
@@ -88,12 +78,6 @@ export default defineTool({
 
       const lines = [
         `🌅 **Morning brief — ${property.name}** (${today})`,
-        ``,
-        `**Today's arrivals/bookings:** ${(arrivals ?? []).length === 0 ? "none" : ""}`,
-        ...(arrivals ?? []).map(
-          (b) =>
-            `• ${b.starts_at.slice(11, 16)} ${b.guest_name ?? "Guest"} ×${b.party_size} (${b.reference}, ${b.status})`,
-        ),
         ``,
         `**Stale in-progress tasks (3+ days):** ${(stale ?? []).length === 0 ? "none" : ""}`,
         ...(stale ?? []).map((t) => `• ${t.title}`),
@@ -127,7 +111,6 @@ export default defineTool({
       posted.push({
         property: property.slug,
         channel: target.stream_channel_id,
-        arrivals: (arrivals ?? []).length,
         stale: (stale ?? []).length,
         critical: (critical ?? []).length,
         dry_run,

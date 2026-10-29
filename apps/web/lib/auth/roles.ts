@@ -8,7 +8,7 @@ import type { Role } from "@/lib/db/types";
  * row, so property entry and `has_property_access()` work, but RLS only
  * shows them the spaces / lists / tasks / documents / channels they were
  * explicitly granted. Everything that is not a shared work surface
- * (insights, workflows, agents, bookings, chatbots, forms admin, invites,
+ * (insights, workflows, agents, chatbots, forms admin, invites,
  * settings) is for FULL members only — `is_member()` in Postgres means
  * exactly `FULL_ROLES` from 0118 on, so a new table that copies the usual
  * `is_member(property_id)` policy denies guests by default.

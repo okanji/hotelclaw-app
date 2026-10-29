@@ -77,22 +77,62 @@ const triggers: TriggerCatalogEntry[] = [
       explainTaskTrigger("task.moved_to_list", "When a task moves to another list", filter),
   },
   {
+    id: "task.checklist_completed",
+    surface: "tasks",
+    category: "trigger",
+    label: "When a checklist is completed",
+    description:
+      "Fires when the last item of one of a task's checklists is ticked. You get the checklist's id and name plus the task.",
+    examplePrompts: [
+      "when the Task Prep checklist is done, move the task to In progress",
+      "notify the manager when an opening checklist is finished",
+    ],
+    outputSchema: z.object({
+      checklist_id: z.string(),
+      name: z.string(),
+      new: z.record(z.string(), z.unknown()),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.checklist_completed", "When a checklist is completed", filter),
+  },
+  {
     id: "task.assigned",
     surface: "tasks",
     category: "trigger",
     label: "When a task is assigned",
     description:
-      "Fires when a task is assigned or reassigned. You get who it moved from and to, along with the task itself.",
+      "Fires once per person ADDED to a task (tasks can have several assignees). `to` is the person added, `assignee_ids` everyone on it now, `new` the task.",
     examplePrompts: [
       "when a task is assigned to me",
-      "whenever a task gets reassigned",
+      "whenever someone is added to a task",
     ],
     outputSchema: z.object({
       from: z.string().nullable(),
       to: z.string().nullable(),
+      assignee_ids: z.array(z.string()),
       new: z.record(z.string(), z.unknown()),
     }),
     explain: (filter) => explainTaskTrigger("task.assigned", "When a task is assigned", filter),
+  },
+  {
+    id: "task.unassigned",
+    surface: "tasks",
+    category: "trigger",
+    label: "When someone is removed from a task",
+    description:
+      "Fires once per person REMOVED from a task's assignees (including when it is unassigned entirely). `from` is the person removed, `assignee_ids` who is still on it.",
+    examplePrompts: [
+      "when I'm taken off a task",
+      "whenever a task loses its last assignee",
+    ],
+    outputSchema: z.object({
+      from: z.string().nullable(),
+      to: z.string().nullable(),
+      assignee_ids: z.array(z.string()),
+      new: z.record(z.string(), z.unknown()),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.unassigned", "When someone is removed from a task", filter),
   },
   {
     id: "task.overdue",
@@ -257,6 +297,27 @@ const actions: StepCatalogEntry[] = [
     examplePrompts: ["assign this task to the manager", "reassign to Eli"],
     outputSchema: z.object({ task: z.record(z.string(), z.unknown()) }),
     explain: () => "Assign task to a user",
+  },
+  {
+    id: "action.task.add_checklist",
+    surface: "tasks",
+    category: "action",
+    label: "Add checklist to task",
+    description:
+      "Adds a named checklist to a task (or appends to an existing one with that name) — one item per line; indented lines become sub-items. ClickUp's \"Task Prep\" on every new maintenance job.",
+    examplePrompts: [
+      "add a Task Prep checklist to every new maintenance task",
+      "when a room is checked out, add the turnover checklist",
+    ],
+    outputSchema: z.object({
+      checklist_id: z.string(),
+      created: z.boolean(),
+      added: z.number(),
+    }),
+    explain: (config) => {
+      const c = config as { name?: string };
+      return `Add checklist${c.name ? ` "${c.name}"` : ""}`;
+    },
   },
   {
     id: "action.task.add_label",

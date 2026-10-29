@@ -40,11 +40,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { TintIcon, type TintTone } from "@/components/ui/tint-card";
+import type { TintTone } from "@/components/ui/tint-card";
+import { Gi } from "@/components/gr8r/icon";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -69,6 +68,15 @@ import {
   paletteTone,
   type PaletteKind,
 } from "./field-kinds";
+
+/** Palette group tone → the gr8r hue fed to `.ftype` as `--g8-c`. */
+const TONE_VAR: Record<TintTone, string> = {
+  lavender: "var(--g8-violet)",
+  blue: "var(--g8-blue)",
+  sage: "var(--g8-green)",
+  coral: "var(--g8-red)",
+  honey: "var(--g8-amber)",
+};
 
 /**
  * The form builder — a port of the studio platform's TemplateBuilder onto
@@ -288,32 +296,39 @@ export function FormBuilder({
 
           <aside
             className={cn(
-              "grid gap-5 rounded-card bg-muted p-5",
+              "panel g8-fb-side grid gap-5 p-4",
               wide ? "sticky top-4 max-h-[calc(100dvh-7rem)] overflow-y-auto" : "order-first",
             )}
           >
             {wide && panel ? panel : null}
-            <Tabs
-              value={tab}
-              onValueChange={(v) => setTab(v as "add" | "settings")}
-              hidden={Boolean(wide && panel)}
-              className="gap-5"
-            >
-              <TabsList className="w-full">
-                <TabsTrigger value="add" className="flex-1">
-                  Add a field
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex-1">
-                  Form settings
-                </TabsTrigger>
-              </TabsList>
+            <div hidden={Boolean(wide && panel)} className="grid gap-5">
+              {/* gr8r `.seg` switch between the palette and form settings. */}
+              <div className="seg g8-fb-seg" role="tablist" aria-label="Builder panel">
+                {(
+                  [
+                    ["add", "Add a field"],
+                    ["settings", "Form settings"],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === k}
+                    className={tab === k ? "on" : ""}
+                    onClick={() => setTab(k)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div role="tabpanel" aria-label="Add a field" hidden={tab !== "add"} className="grid gap-4">
-                <p className="text-xs text-muted-foreground">
+                <p className="hint" style={{ margin: 0 }}>
                   Drag a type into the form, or click it to add it at the end.
                 </p>
                 {PALETTE.map((group) => (
                   <div key={group.label} className="grid gap-2">
-                    <p className="text-xs font-medium text-secondary-ink">{group.label}</p>
+                    <div className="eyebrow">{group.label}</div>
                     <div className="grid grid-cols-2 gap-2">
                       {group.kinds.map((k) => (
                         <PaletteTile
@@ -336,7 +351,7 @@ export function FormBuilder({
               >
                 {settings}
               </div>
-            </Tabs>
+            </div>
           </aside>
         </div>
 
@@ -359,11 +374,19 @@ export function FormBuilder({
         {dragNew ? (
           (() => {
             const kind = paletteKind(dragNew);
-            return kind ? <TileFace kind={kind} tone={paletteTone(dragNew)} lifted /> : null;
+            // The overlay portals to <body>, outside the shell's `.g8` scope —
+            // re-enter it so the gr8r tile classes resolve.
+            return kind ? (
+              <div className="g8 g8-overlay-scope">
+                <TileFace kind={kind} tone={paletteTone(dragNew)} lifted />
+              </div>
+            ) : null;
           })()
         ) : draggedCard ? (
-          <div className="cursor-grabbing rounded-card bg-popover px-4 py-3 shadow-popover">
-            <FieldPreview field={draggedCard} propertyId={propertyId} />
+          <div className="g8 g8-overlay-scope">
+            <div className="g8-fcard lifted" style={{ padding: "12px 16px" }}>
+              <FieldPreview field={draggedCard} propertyId={propertyId} />
+            </div>
           </div>
         ) : null}
       </PortalDragOverlay>
@@ -420,20 +443,12 @@ function TileFace({
   lifted?: boolean;
 }) {
   return (
-    <span
-      className={cn(
-        "relative flex min-h-12 cursor-grab items-center gap-2.5 rounded-md bg-card py-2 pr-6 pl-2 text-[13px] leading-tight font-medium text-foreground shadow-ring transition-colors group-hover:bg-accent",
-        lifted && "w-44 cursor-grabbing shadow-popover",
-      )}
-    >
-      <TintIcon tone={tone} className="size-7">
-        <kind.icon />
-      </TintIcon>
+    <span className={cn("g8-fb-tile", lifted && "lifted")}>
+      <span className="ftype" style={{ "--g8-c": TONE_VAR[tone], width: 24, height: 24 } as React.CSSProperties}>
+        <Gi icon={kind.icon} size={13} />
+      </span>
       {kind.label}
-      <Plus
-        aria-hidden
-        className="absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-      />
+      <Gi icon={Plus} size={13} className="g8-fb-tile-plus" />
     </span>
   );
 }
@@ -445,13 +460,7 @@ function EndZone({ empty, active, over }: { empty: boolean; active: boolean; ove
   return (
     <div
       ref={setNodeRef}
-      className={cn(
-        "rounded-card px-6 text-center text-sm transition-colors",
-        empty ? "py-10" : "py-5",
-        over
-          ? "bg-accent-pressed text-foreground shadow-[inset_0_0_0_1.5px_var(--primary)]"
-          : "text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]",
-      )}
+      className={cn("dropzone g8-fb-end", empty ? "py-10" : "py-5", over && "over")}
     >
       {active
         ? "Drop here to add it at the end"
@@ -503,8 +512,8 @@ function FieldCard({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       aria-current={selected || undefined}
       className={cn(
-        "relative scroll-mt-24 rounded-card bg-card shadow-card transition-colors",
-        selected && "bg-primary/5 shadow-[0_0_0_1.5px_var(--primary)]",
+        "g8-fcard relative scroll-mt-24",
+        selected && "on",
         // The overlay carries the visible copy; the slot marks the drop spot.
         isDragging && "opacity-40",
       )}
@@ -513,7 +522,7 @@ function FieldCard({
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-x-2 h-0.5 rounded-pill bg-primary",
+            "g8-fb-line pointer-events-none absolute inset-x-2 h-0.5",
             line === "before" ? "-top-[7px]" : "-bottom-[7px]",
           )}
         />
@@ -528,25 +537,26 @@ function FieldCard({
                 {...attributes}
                 {...listeners}
                 aria-label={`Reorder ${field.label || kind.label}`}
-                className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-faint-foreground hover:bg-accent hover:text-foreground focus-visible:shadow-focus focus-visible:outline-none active:cursor-grabbing"
+                className="ibtn ibtn-sm touch-none"
+                style={{ cursor: "grab" }}
               />
             }
           >
-            <GripVertical className="size-4" />
+            <Gi icon={GripVertical} size={14} />
           </TooltipTrigger>
           <TooltipContent>Drag to reorder</TooltipContent>
         </Tooltip>
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <kind.icon className="size-3.5 shrink-0" aria-hidden />
+        <span className="row faint" style={{ minWidth: 0, gap: 6, fontSize: "var(--g8-fs-xs)" }}>
+          <Gi icon={kind.icon} size={13} />
           <span className="truncate">{notes.join(" · ")}</span>
         </span>
         <span className="ml-auto flex shrink-0 items-center">
           <AddBelow onPick={onAddBelow} />
           <IconAction label="Duplicate" onClick={onDuplicate}>
-            <Copy />
+            <Gi icon={Copy} size={14} />
           </IconAction>
           <IconAction label="Remove" onClick={onRemove}>
-            <Trash2 />
+            <Gi icon={Trash2} size={14} />
           </IconAction>
         </span>
       </div>
@@ -583,7 +593,7 @@ function IconAction({
   return (
     <Tooltip>
       <TooltipTrigger
-        render={<Button variant="ghost" size="icon-sm" onClick={onClick} aria-label={label} />}
+        render={<button type="button" className="ibtn ibtn-sm" onClick={onClick} aria-label={label} />}
       >
         {children}
       </TooltipTrigger>
@@ -597,17 +607,16 @@ function AddBelow({ onPick }: { onPick: (preset: FieldPreset) => void }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 px-2 text-muted-foreground"
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
             aria-label="Add a field below"
             title="Add a field below"
           />
         }
       >
-        <Plus />
-        <ChevronDown className="size-3" />
+        <Gi icon={Plus} size={13} />
+        <Gi icon={ChevronDown} size={11} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-96 w-56 overflow-y-auto">
         {PALETTE.map((group, gi) => (
@@ -718,10 +727,10 @@ function PreviewButton({
   const background = schema.settings?.background ?? "default";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Eye data-slot="icon" />
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setOpen(true)}>
+        <Gi icon={Eye} size={13} />
         Preview
-      </Button>
+      </button>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogTitle className="sr-only">Preview of {meta.title || "this form"}</DialogTitle>
         <div className="flex flex-wrap items-center justify-between gap-2 pr-8">

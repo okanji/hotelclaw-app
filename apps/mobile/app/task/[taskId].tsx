@@ -1,3 +1,4 @@
+import { TaskChecklists } from "../../components/TaskChecklists";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -34,6 +35,7 @@ import {
   type ApiTask,
   type TaskPriority,
   type TaskStatus,
+  taskAssigneeIds,
 } from "../../lib/api";
 import { useCatalogues } from "../../lib/catalogues";
 import { ENTITY_HEX, isDone, useStatusCatalog } from "../../lib/statuses";
@@ -140,7 +142,10 @@ export default function TaskDetailScreen() {
     );
   }
 
-  const assignee = members?.find((m) => m.id === task.assignee_id) ?? null;
+  // Everyone on it (0115) — a tap toggles a person; the first is the primary.
+  const assigneeIds = taskAssigneeIds(task);
+  const setAssignees = (ids: string[]) =>
+    patch({ assigneeIds: ids }, { assignee_ids: ids, assignee_id: ids[0] ?? null });
   const due = relativeDay(task.due_at);
 
   return (
@@ -277,21 +282,35 @@ export default function TaskDetailScreen() {
           </View>
         </Section>
 
-        <Section title={`Assignee${assignee ? "" : " — unassigned"}`}>
+        <Section
+          title={
+            assigneeIds.length === 0
+              ? "Assignees — unassigned"
+              : `Assignees · ${assigneeIds.length}`
+          }
+        >
           <View style={styles.options}>
             <Option
               label="Unassigned"
               color="#6b7280"
-              selected={!task.assignee_id}
-              onPress={() => patch({ assigneeId: null }, { assignee_id: null })}
+              selected={assigneeIds.length === 0}
+              onPress={() => setAssignees([])}
             />
             {(members ?? []).map((m) => (
               <Option
                 key={m.id}
-                label={m.name ?? m.email ?? m.id.slice(0, 8)}
+                label={`${m.name ?? m.email ?? m.id.slice(0, 8)}${
+                  assigneeIds.length > 1 && assigneeIds[0] === m.id ? " · primary" : ""
+                }`}
                 color="#2563eb"
-                selected={task.assignee_id === m.id}
-                onPress={() => patch({ assigneeId: m.id }, { assignee_id: m.id })}
+                selected={assigneeIds.includes(m.id)}
+                onPress={() =>
+                  setAssignees(
+                    assigneeIds.includes(m.id)
+                      ? assigneeIds.filter((id) => id !== m.id)
+                      : [...assigneeIds, m.id],
+                  )
+                }
               />
             ))}
           </View>
@@ -397,6 +416,10 @@ export default function TaskDetailScreen() {
             />
           </View>
         </Section>
+
+        {propertyId && taskId ? (
+          <TaskChecklists propertyId={propertyId} taskId={taskId} />
+        ) : null}
 
         {(history ?? []).filter((r) => r.verb !== "created").length > 0 ? (
           <Section title="History">

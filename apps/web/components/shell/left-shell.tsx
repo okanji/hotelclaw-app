@@ -65,7 +65,10 @@ export function LeftShell({
 }) {
   const { sidebarHidden, sidebarCollapsed, setSidebarCollapsed } =
     useShellSection();
+  // Collapse hides the sidebar fully (the original « / » behaviour — the
+  // user preferred it over gr8r's 52px icon rail, 2026-10-29).
   const showSidebar = forceExpanded || (!sidebarHidden && !sidebarCollapsed);
+  const rail = false;
 
   const [width, setWidth] = useState(() =>
     clampSidebarWidth(initialSidebarWidth),
@@ -133,7 +136,9 @@ export function LeftShell({
   useEffect(() => {
     if (forceExpanded) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "\\" || !(e.metaKey || e.ctrlKey)) return;
+      // ⌘\ (Linear) or a bare `[` (gr8r).
+      const bracket = e.key === "[" && !e.metaKey && !e.ctrlKey && !e.altKey;
+      if (!bracket && (e.key !== "\\" || !(e.metaKey || e.ctrlKey))) return;
       const el = e.target as HTMLElement | null;
       if (
         el &&
@@ -179,7 +184,11 @@ export function LeftShell({
           )}
           style={
             {
-              "--sidebar-slot-width": showSidebar ? `${width}px` : "0px",
+              "--sidebar-slot-width": !showSidebar
+                ? "0px"
+                : rail
+                  ? "52px"
+                  : `${width}px`,
             } as React.CSSProperties
           }
         >
@@ -187,11 +196,12 @@ export function LeftShell({
             currentPropertyId={currentPropertyId}
             memberships={memberships}
             user={user}
-            width={width}
+            width={rail ? 52 : width}
+            collapsed={rail}
           />
         </div>
       )}
-      {showSidebar && !forceExpanded && (
+      {showSidebar && !rail && !forceExpanded && (
         // Drag-to-resize handle over the sidebar's right edge (the root's
         // right edge — the sidebar is the last flex child). Wider hit area
         // than the 1px edge shadow; pointer capture keeps the drag alive when

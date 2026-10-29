@@ -35,16 +35,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { PortalDragOverlay } from "@/components/ui/portal-drag-overlay";
-import {
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { Gi } from "@/components/gr8r/icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,8 +68,6 @@ type TreeNode = { doc: DocRow; children: TreeNode[] };
 
 /** Sentinel droppable id — the "All documents" row, i.e. move to top level. */
 const ROOT_DROP_ID = "__doc_root__";
-/** Indentation step per nesting level, in pixels. */
-const INDENT = 14;
 /** Stable empty array so `buildTree`'s useMemo doesn't re-run every render. */
 const EMPTY_DOCS: DocRow[] = [];
 
@@ -381,55 +370,42 @@ export function DocumentsTreeSection({ propertyId }: { propertyId: string }) {
         {/* Home — its own top-level group, separate from the doc tree so it
             reads as a standalone link to the dashboard, not the tree's root
             node. Mirrors Chat's Inbox/Threads-then-Channels pattern. */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <DocumentsHomeItem
-                propertyId={propertyId}
-                pathname={pathname}
-              />
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <DocumentsHomeItem propertyId={propertyId} pathname={pathname} />
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Documents</SidebarGroupLabel>
-          <SidebarGroupAction
-            onClick={() => setCreateOpen(true)}
-            title="Create new"
-          >
-            <Plus />
-          </SidebarGroupAction>
-          <SidebarGroupContent>
-            {!loaded ? null : roots.length === 0 ? (
-              <div className="px-2 py-1 text-xs text-faint-foreground">
-                No documents yet
-              </div>
-            ) : (
-              <SidebarMenu>
-                {roots.map((node) => (
-                  <DocTreeNode key={node.doc.id} node={node} depth={0} />
-                ))}
-              </SidebarMenu>
-            )}
+        <div className="sgroup g8-dt-group">
+          <div className="sgroup-h">
+            Documents
+            <span className="sp" />
+            <button
+              type="button"
+              className="ibtn ibtn-xs"
+              onClick={() => setCreateOpen(true)}
+              title="Create new"
+              aria-label="Create new"
+            >
+              <Gi icon={Plus} size={13} />
+            </button>
+          </div>
+          {!loaded ? null : roots.length === 0 ? (
+            <p className="hint" style={{ padding: "4px 8px", margin: 0 }}>
+              No documents yet
+            </p>
+          ) : (
+            roots.map((node) => <DocTreeNode key={node.doc.id} node={node} />)
+          )}
 
-            {loaded ? (
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    size="sm"
-                    onClick={() => setArchivedOpen(true)}
-                    tooltip="Archived documents"
-                    className="text-faint-foreground [&_svg]:!size-3.5 [&_svg]:!text-faint-foreground"
-                  >
-                    <Archive />
-                    <span>Archived</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            ) : null}
-          </SidebarGroupContent>
-        </SidebarGroup>
+          {loaded ? (
+            <button
+              type="button"
+              className="sitem g8-dt-faint"
+              onClick={() => setArchivedOpen(true)}
+              title="Archived documents"
+            >
+              <Gi icon={Archive} size={13} />
+              <span className="trunc">Archived</span>
+            </button>
+          ) : null}
+        </div>
 
         {/* Forms — authored artifacts, same library as documents. These are
             server-rendered routes (not surface-rendered), so rows use real
@@ -504,20 +480,18 @@ function DocumentsHomeItem({
   const { setNodeRef, isOver } = useDroppable({ id: ROOT_DROP_ID });
 
   return (
-    <SidebarMenuItem ref={setNodeRef}>
-      <SidebarMenuButton
-        render={<Link href={href} draggable={false} />}
-        isActive={isActive}
-        tooltip="All documents"
-        className={cn(
-          isOver && "bg-accent-pressed",
-        )}
-      >
-        <Home />
-        {/* Not "Home" — that's the rail's Home section. */}
-        <span className="truncate">All documents</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <Link
+      ref={setNodeRef}
+      href={href}
+      draggable={false}
+      className={cn("sitem", isActive && "on", isOver && "g8-dt-over")}
+      title="All documents"
+      aria-current={isActive ? "page" : undefined}
+    >
+      <Gi icon={Home} size={14} />
+      {/* Not "Home" — that's the rail's Home section. */}
+      <span className="trunc">All documents</span>
+    </Link>
   );
 }
 
@@ -539,48 +513,39 @@ function FormsSidebarGroup({
   const { data: forms = [] } = useQuery(formsListQueryOptions(propertyId));
   const base = `/p/${propertyId}/forms`;
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Forms</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {forms.map((f) => {
-            const href = `${base}/${f.id}`;
-            return (
-              <SidebarMenuItem key={f.id}>
-                <SidebarMenuButton
-                  render={<Link href={href} />}
-                  isActive={pathname.startsWith(href)}
-                  tooltip={f.title || "Untitled form"}
-                >
-                  <ClipboardList />
-                  <span className="truncate">
-                    {f.title || "Untitled form"}
-                  </span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="sm"
-              render={<Link href={base} />}
-              isActive={pathname === base}
-              tooltip="All forms & responses"
-              className="text-faint-foreground [&_svg]:!size-3.5 [&_svg]:!text-faint-foreground"
-            >
-              <LayoutList />
-              <span>All forms</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <div className="sgroup g8-dt-group">
+      <div className="sgroup-h">Forms</div>
+      {forms.map((f) => {
+        const href = `${base}/${f.id}`;
+        const on = pathname.startsWith(href);
+        return (
+          <Link
+            key={f.id}
+            href={href}
+            className={on ? "sitem on" : "sitem"}
+            title={f.title || "Untitled form"}
+            aria-current={on ? "page" : undefined}
+          >
+            <Gi icon={ClipboardList} size={14} />
+            <span className="trunc">{f.title || "Untitled form"}</span>
+          </Link>
+        );
+      })}
+      <Link
+        href={base}
+        className={pathname === base ? "sitem on" : "sitem g8-dt-faint"}
+        title="All forms & responses"
+      >
+        <Gi icon={LayoutList} size={13} />
+        <span className="trunc">All forms</span>
+      </Link>
+    </div>
   );
 }
 
 // ── Recursive tree node ─────────────────────────────────────────────────────
 
-function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
+function DocTreeNode({ node }: { node: TreeNode }) {
   const tree = useTree();
   const openDocument = useOpenDocument(tree.propertyId);
   const prewarm = usePrewarmDocument(tree.propertyId);
@@ -608,7 +573,7 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
 
   // Merge the drag-source and drop-target refs onto the row element.
   const setRowRef = useCallback(
-    (el: HTMLLIElement | null) => {
+    (el: HTMLDivElement | null) => {
       draggable.setNodeRef(el);
       droppable.setNodeRef(el);
     },
@@ -620,102 +585,98 @@ function DocTreeNode({ node, depth }: { node: TreeNode; depth: number }) {
 
   return (
     <>
-      <SidebarMenuItem
+      {/* gr8r `.sitem` row; sub-pages nest in a `.sub` (the guide line). The
+          chevron sits over the type glyph and takes its place on hover, the
+          add / menu actions are gr8r's hover-revealed `.hov` slot. */}
+      <div
         ref={setRowRef}
         {...draggable.attributes}
         {...draggable.listeners}
-        className={cn(draggable.isDragging && "opacity-40")}
+        className={cn(
+          "g8-dt-row",
+          hasChildren && "has-kids",
+          isExpanded && "is-open",
+          draggable.isDragging && "dragging",
+        )}
       >
+        <Link
+          href={href}
+          draggable={false}
+          onClick={handleClick}
+          onMouseEnter={() => prewarm(doc.id)}
+          className={cn("sitem", isActive && "on", isDropTarget && "g8-dt-over")}
+          title={doc.title || "Untitled"}
+          aria-current={isActive ? "page" : undefined}
+        >
+          <span className="g8-dt-ico">
+            <Gi icon={doc.kind === "sheet" ? Table2 : FileText} size={14} />
+          </span>
+          <span className="trunc">{doc.title || "Untitled"}</span>
+        </Link>
+
         {hasChildren ? (
           <button
             type="button"
             aria-label={isExpanded ? "Collapse" : "Expand"}
+            aria-expanded={isExpanded}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               tree.toggle(doc.id);
             }}
-            className="absolute top-1.5 z-10 flex size-4 items-center justify-center rounded-md text-faint-foreground transition-colors hover:bg-sidebar-accent"
-            style={{ left: depth * INDENT + 4 }}
+            className="ibtn ibtn-xs g8-dt-chev"
           >
-            <ChevronRight
-              className={cn(
-                "size-3.5 transition-transform",
-                isExpanded && "rotate-90",
-              )}
-            />
+            <Gi icon={ChevronRight} size={13} className={isExpanded ? "chev open" : "chev"} />
           </button>
         ) : null}
 
-        <SidebarMenuButton
-          render={
-            <Link
-              href={href}
-              draggable={false}
-              onClick={handleClick}
-              onMouseEnter={() => prewarm(doc.id)}
-            />
-          }
-          isActive={isActive}
-          tooltip={doc.title || "Untitled"}
-          className={cn(
-            "pr-14",
-            isDropTarget && "bg-accent-pressed",
-          )}
-          // Reserve the chevron column only when there's actually a chevron
-          // (or we're nested). For top-level docs without sub-pages we leave
-          // the inline padding off entirely so `SidebarMenuButton`'s own
-          // gutter applies — matching Home / the "Documents" label / Archived.
-          style={
-            hasChildren || depth > 0
-              ? { paddingLeft: depth * INDENT + 24 }
-              : undefined
-          }
-        >
-          {doc.kind === "sheet" ? <Table2 /> : <FileText />}
-          <span className="truncate">{doc.title || "Untitled"}</span>
-        </SidebarMenuButton>
-
-        <SidebarMenuAction
-          showOnHover
-          onClick={() => tree.onCreateChild(doc.id)}
-          title="Add a sub-page"
-          aria-label="Add a sub-page"
-          className="right-7"
-        >
-          <Plus />
-        </SidebarMenuAction>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuAction showOnHover aria-label="Document actions" />
-            }
+        <span className="g8-dt-acts">
+          <button
+            type="button"
+            className="ibtn ibtn-xs"
+            onClick={() => tree.onCreateChild(doc.id)}
+            title="Add a sub-page"
+            aria-label="Add a sub-page"
           >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start">
-            <DropdownMenuItem onClick={() => tree.onCreateChild(doc.id)}>
-              <Plus className="size-4" /> Add sub-page
-            </DropdownMenuItem>
-            {doc.parent_id ? (
-              <DropdownMenuItem onClick={() => tree.onMoveToRoot(doc)}>
-                <CornerLeftUp className="size-4" /> Move to top level
+            <Gi icon={Plus} size={13} />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="ibtn ibtn-xs"
+                  aria-label="Document actions"
+                />
+              }
+            >
+              <Gi icon={MoreHorizontal} size={13} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start">
+              <DropdownMenuItem onClick={() => tree.onCreateChild(doc.id)}>
+                <Plus className="size-4" /> Add sub-page
               </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => tree.onArchive(doc)}>
-              <Archive className="size-4" /> Archive
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
+              {doc.parent_id ? (
+                <DropdownMenuItem onClick={() => tree.onMoveToRoot(doc)}>
+                  <CornerLeftUp className="size-4" /> Move to top level
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => tree.onArchive(doc)}>
+                <Archive className="size-4" /> Archive
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+      </div>
 
-      {hasChildren && isExpanded
-        ? children.map((child) => (
-            <DocTreeNode key={child.doc.id} node={child} depth={depth + 1} />
-          ))
-        : null}
+      {hasChildren && isExpanded ? (
+        <div className="sub open">
+          {children.map((child) => (
+            <DocTreeNode key={child.doc.id} node={child} />
+          ))}
+        </div>
+      ) : null}
     </>
   );
 }

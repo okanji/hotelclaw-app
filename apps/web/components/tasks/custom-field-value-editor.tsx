@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  FilesFieldEditor,
+  PeopleFieldEditor,
+  ProgressFieldDisplay,
+  RelationFieldEditor,
+  ValidatedTextEditor,
+  type FieldEditorContext,
+} from "./custom-field-rich-editors";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -32,6 +40,7 @@ export function CustomFieldValueEditor({
   align = "end",
   placeholder = "None",
   singleLine,
+  context,
 }: {
   field: CustomFieldRow;
   value: CustomFieldValue | null;
@@ -41,8 +50,58 @@ export function CustomFieldValueEditor({
   placeholder?: string;
   /** Table cells keep label chips on one line; the sidebar wraps them. */
   singleLine?: boolean;
+  /** The task being edited — people / relation / files / progress need it. */
+  context?: FieldEditorContext;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+
+  // 0116 types that read other data (members, tasks, attachments).
+  if (context) {
+    if (field.type === "people") {
+      return (
+        <PeopleFieldEditor field={field} value={value} ctx={context} disabled={disabled}
+          onSave={onSave} align={align} placeholder={placeholder} />
+      );
+    }
+    if (field.type === "relation") {
+      return (
+        <RelationFieldEditor field={field} value={value} ctx={context} disabled={disabled}
+          onSave={onSave} align={align} placeholder={placeholder} />
+      );
+    }
+    if (field.type === "files") {
+      return (
+        <FilesFieldEditor field={field} value={value} ctx={context} disabled={disabled}
+          placeholder={placeholder} singleLine={singleLine} />
+      );
+    }
+    if (field.type === "progress") return <ProgressFieldDisplay ctx={context} />;
+  } else if (
+    field.type === "people" ||
+    field.type === "relation" ||
+    field.type === "files" ||
+    field.type === "progress"
+  ) {
+    // No task context (shouldn't happen on today's surfaces) — read-only text.
+    return (
+      <span className="px-1.5 text-sm text-muted-foreground">
+        {Array.isArray(value) && value.length ? `${value.length} set` : placeholder}
+      </span>
+    );
+  }
+
+  if (
+    field.type === "currency" ||
+    field.type === "url" ||
+    field.type === "email" ||
+    field.type === "phone" ||
+    field.type === "long_text"
+  ) {
+    return (
+      <ValidatedTextEditor field={field} value={value} disabled={disabled}
+        onSave={onSave} placeholder={placeholder} />
+    );
+  }
 
   if (field.type === "checkbox") {
     return (

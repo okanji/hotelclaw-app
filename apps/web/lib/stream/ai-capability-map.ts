@@ -7,7 +7,7 @@
  * blurb is load-bearing — anything missing from it is a thing the bot can do
  * but will stay silent about unless someone @-mentions it. The list drifted
  * badly once already: it still described a read-only bot (tasks, documents,
- * meetings, org chart) long after the channel bot gained bookings, forms,
+ * meetings, org chart) long after the channel bot gained forms,
  * meetings scheduling, spreadsheets, workflows, notifications and the whole
  * write surface — 47 grants against 5 advertised abilities.
  *
@@ -34,6 +34,10 @@ export const CAPABILITY_TOOL_COVERAGE: Record<string, readonly string[]> = {
     "delete_task",
     "escalate_task",
     "create_project",
+    "list_custom_fields",
+    "set_task_field",
+    "add_checklist_items",
+    "check_checklist_item",
   ],
   "documents & spreadsheets": [
     "search_documents",
@@ -53,12 +57,6 @@ export const CAPABILITY_TOOL_COVERAGE: Record<string, readonly string[]> = {
     "schedule_meeting",
     "update_meeting",
     "cancel_meeting",
-  ],
-  bookings: [
-    "list_bookings",
-    "list_today_bookings",
-    "create_booking",
-    "update_booking_status",
   ],
   forms: [
     "list_forms",
@@ -96,10 +94,9 @@ export const CAPABILITY_TOOL_COVERAGE: Record<string, readonly string[]> = {
 export function botCapabilityBlurb(botName: string): string {
   return [
     `What ${botName} can actually DO in this property (via tools) — the list rule B is judged against:`,
-    "  • Tasks & projects — find or search tasks (including finished ones), see what's open, blocked, overdue or unassigned; create, update, assign, re-prioritise, escalate or delete tasks; create projects.",
+    "  • Tasks & projects — find or search tasks (including finished ones), see what's open, blocked, overdue or unassigned; create, update, assign, re-prioritise, escalate or delete tasks; read and set custom fields (cost, requester, quote, links); add checklists to a task and tick items; create projects.",
     "  • Documents & spreadsheets — search, list and read documents (SOPs, policies, notes); write, edit, rename and archive them; read and edit spreadsheet cells.",
     "  • Meetings — list past and upcoming meetings; schedule, reschedule or cancel one.",
-    "  • Bookings — look up bookings for any window; take a booking, or change its status (confirm, cancel, seat/check-in, no-show).",
     "  • Forms — list forms and their response summaries; build a form, publish or close it, share it into a channel.",
     "  • People & comms — look up the org chart (who owns what, reporting lines, team leads), search this channel's history, notify someone, or post into another channel.",
     "  • Workflows & reports — list and trigger workflows; read the intelligence brief, weekly reports, handovers, and guest-chatbot activity.",

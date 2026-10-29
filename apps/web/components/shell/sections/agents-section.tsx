@@ -13,21 +13,14 @@ import {
   MessagesSquare,
   Plus,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   pendingApprovalsCountQueryOptions,
   podQueryOptions,
 } from "@/lib/query/fleet-queries";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { Gi } from "@/components/gr8r/icon";
 
 /**
  * Secondary sidebar for the Agents section. ?view= switches list filters
@@ -80,104 +73,80 @@ export function AgentsSection({ propertyId }: { propertyId: string }) {
     };
   }, [pod, propertyId, qc]);
 
+  const row = (
+    href: string,
+    label: string,
+    icon: LucideIcon,
+    on: boolean,
+    tip: string,
+    ct?: number,
+  ) => (
+    <Link
+      key={href}
+      href={href}
+      className={on ? "sitem on" : "sitem"}
+      title={tip}
+      aria-current={on ? "page" : undefined}
+    >
+      <Gi icon={icon} />
+      <span className="trunc">{label}</span>
+      {ct ? <span className="ct dotc">{ct > 99 ? "99+" : ct}</span> : null}
+    </Link>
+  );
+
   return (
     <>
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={base} />}
-                isActive={onList && view === "all"}
-                tooltip="All agents"
-              >
-                <LayoutGrid />
-                <span>All agents</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}?new=1`} />}
-                tooltip="Create an agent"
-              >
-                <Plus />
-                <span>New agent</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}?view=builtin`} />}
-                isActive={onList && view === "builtin"}
-                tooltip="Every built-in AI in the app"
-              >
-                <ShieldCheck />
-                <span>Built-in AI</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                render={<Link href={`${base}/memory`} />}
-                isActive={pathname === `${base}/memory`}
-                tooltip="Browse what this property has learned"
-              >
-                <Library />
-                <span>Memory</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+      {row(base, "All agents", LayoutGrid, onList && view === "all", "All agents")}
+      {row(`${base}?new=1`, "New agent", Plus, false, "Create an agent")}
+      {row(
+        `${base}?view=builtin`,
+        "Built-in AI",
+        ShieldCheck,
+        onList && view === "builtin",
+        "Every built-in AI in the app",
+      )}
+      {row(
+        `${base}/memory`,
+        "Memory",
+        Library,
+        pathname === `${base}/memory`,
+        "Browse what this property has learned",
+      )}
       {pod ? (
-        <SidebarGroup>
-          <SidebarGroupLabel>Fleet · {pod.name}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href={fleetBase} />}
-                  isActive={pathname === fleetBase || /\/fleet\/[0-9a-f-]{36}$/.test(pathname)}
-                  tooltip="The pod bots serving this property"
-                >
-                  <Bot />
-                  <span>Pod bots</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href={`${fleetBase}/sessions`} />}
-                  isActive={pathname === `${fleetBase}/sessions`}
-                  tooltip="Chat sessions and workflow runs"
-                >
-                  <MessagesSquare />
-                  <span>Sessions</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href={`${fleetBase}/approvals`} />}
-                  isActive={pathname === `${fleetBase}/approvals`}
-                  tooltip="Gated actions waiting on a human"
-                >
-                  <Inbox />
-                  <span>Approvals</span>
-                </SidebarMenuButton>
-                {approvalsCount > 0 ? (
-                  <SidebarMenuBadge>{approvalsCount}</SidebarMenuBadge>
-                ) : null}
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href={`${fleetBase}/access`} />}
-                  isActive={pathname === `${fleetBase}/access`}
-                  tooltip="Actions API keys for external automations"
-                >
-                  <Brain />
-                  <span>API access</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="sgroup" style={{ marginTop: 8 }}>
+          <div className="sgroup-h">
+            <span className="trunc">Fleet · {pod.name}</span>
+          </div>
+          {row(
+            fleetBase,
+            "Pod bots",
+            Bot,
+            pathname === fleetBase || /\/fleet\/[0-9a-f-]{36}$/.test(pathname),
+            "The pod bots serving this property",
+          )}
+          {row(
+            `${fleetBase}/sessions`,
+            "Sessions",
+            MessagesSquare,
+            pathname === `${fleetBase}/sessions`,
+            "Chat sessions and workflow runs",
+          )}
+          {row(
+            `${fleetBase}/approvals`,
+            "Approvals",
+            Inbox,
+            pathname === `${fleetBase}/approvals`,
+            "Gated actions waiting on a human",
+            approvalsCount,
+          )}
+          {row(
+            `${fleetBase}/access`,
+            "API access",
+            Brain,
+            pathname === `${fleetBase}/access`,
+            "Actions API keys for external automations",
+          )}
+        </div>
       ) : null}
     </>
   );

@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { MessagesSquare } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Gi } from "@/components/gr8r/icon";
 import type {
   ChatbotConversationOutcome,
   ChatbotConversationStatus,
@@ -24,35 +23,54 @@ export type ConversationListRow = {
   sentiment?: "positive" | "neutral" | "negative" | null;
 };
 
-/**
- * A conversation outcome is a LIFECYCLE state, so it renders as the house
- * StatusBadge (4px pill, hue-at-16% fill, same-hue ink) rather than a Badge
- * with hand-mixed `/10` fills and a `border-*` class that painted nothing —
- * there was no border width beside it.
- */
+/** gr8r `.badge` with its dot (a dot-less gray badge for settled states). */
+function G8Badge({
+  tone,
+  dot = true,
+  children,
+}: {
+  tone: "green" | "amber" | "red" | "accent" | "gray";
+  dot?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className={`badge ${tone}`}>
+      {dot ? <span className="dot" /> : null}
+      {children}
+    </span>
+  );
+}
+
+/** A conversation outcome is a LIFECYCLE state → a gr8r `.badge`. */
 export function OutcomeBadge({ outcome }: { outcome: ChatbotConversationOutcome }) {
   switch (outcome) {
     case "order_placed":
-      return <StatusBadge tone="success">Order placed</StatusBadge>;
+      return <G8Badge tone="green">Order placed</G8Badge>;
     case "booking_made":
-      return <StatusBadge tone="success">Booking made</StatusBadge>;
+      // Historical rows only — the booking action was removed 2026-10-29.
+      return <G8Badge tone="green">Booking made</G8Badge>;
     case "escalated":
-      return <StatusBadge tone="warning">Escalated</StatusBadge>;
+      return <G8Badge tone="amber">Escalated</G8Badge>;
     case "resolved":
       return (
-        <StatusBadge tone="neutral" dot={false}>
+        <G8Badge tone="gray" dot={false}>
           Resolved
-        </StatusBadge>
+        </G8Badge>
       );
     case "unresolved":
-      return <StatusBadge tone="danger">Unresolved</StatusBadge>;
+      return <G8Badge tone="red">Unresolved</G8Badge>;
     default:
       return (
-        <StatusBadge tone="neutral" dot={false}>
+        <G8Badge tone="gray" dot={false}>
           Open
-        </StatusBadge>
+        </G8Badge>
       );
   }
+}
+
+/** "With staff" — the conversation is taken over by a person. */
+export function WithStaffBadge() {
+  return <G8Badge tone="accent">With staff</G8Badge>;
 }
 
 /**
@@ -71,65 +89,84 @@ export function ConversationsTab({
 }) {
   if (conversations.length === 0) {
     return (
-      <EmptyState icon={MessagesSquare} title="No guest conversations yet">
-        Publish the bot and share its link or QR code — conversations show up
-        here as guests chat.
-      </EmptyState>
+      <div className="panel">
+        <div className="empty-state">
+          <div className="glyph">
+            <Gi icon={MessagesSquare} />
+          </div>
+          <p className="es-h">No guest conversations yet</p>
+          <p>
+            Publish the bot and share its link or QR code — conversations show up
+            here as guests chat.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-border">
+    <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
       {conversations.map((c) => (
         <li key={c.id}>
           <Link
             href={`/p/${propertyId}/chatbots/${chatbotId}/conversations/${c.id}`}
-            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
+            className="nrow"
+            style={{ alignItems: "center" }}
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {c.guest_name ?? "Anonymous guest"}
-                {c.room_number ? (
-                  <span className="text-muted-foreground"> · Room {c.room_number}</span>
-                ) : null}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {c.message_count} message{c.message_count === 1 ? "" : "s"}
-                {c.last_message_at
-                  ? ` · ${new Date(c.last_message_at).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}`
-                  : ""}
-                {c.topic ? ` · ${c.topic}` : ""}
-              </p>
-            </div>
-            {/* AI-labeled columns (records-grid pattern): the Haiku topic +
-                sentiment already cached on the row by the Analytics pass —
-                surfaced here so the list is scannable without opening each
-                transcript. Unclassified rows simply omit them. */}
-            {c.sentiment ? (
-              <span
-                aria-label={`Sentiment: ${c.sentiment}`}
-                title={`Sentiment: ${c.sentiment}`}
-                className={
-                  c.sentiment === "positive"
-                    ? "size-2 shrink-0 rounded-full bg-success"
-                    : c.sentiment === "negative"
-                      ? "size-2 shrink-0 rounded-full bg-destructive"
-                      : "size-2 shrink-0 rounded-full bg-border"
-                }
-              />
-            ) : null}
-            {c.status === "human" ? (
-              <StatusBadge tone="info">With staff</StatusBadge>
-            ) : null}
-            <OutcomeBadge outcome={c.outcome} />
+            <ConversationLine c={c} />
           </Link>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** One conversation row's body: guest · room, meta line, sentiment, badges. */
+function ConversationLine({ c }: { c: ConversationListRow }) {
+  return (
+    <>
+      <div className="col grow" style={{ gap: 2 }}>
+        <span className="trunc" style={{ fontWeight: 500 }}>
+          {c.guest_name ?? "Anonymous guest"}
+          {c.room_number ? <span className="muted"> · Room {c.room_number}</span> : null}
+        </span>
+        <span className="trunc muted" style={{ fontSize: 12 }}>
+          {c.message_count} message{c.message_count === 1 ? "" : "s"}
+          {c.last_message_at
+            ? ` · ${new Date(c.last_message_at).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}`
+            : ""}
+          {c.topic ? ` · ${c.topic}` : ""}
+        </span>
+      </div>
+      {/* AI-labeled columns (records-grid pattern): the Haiku topic +
+          sentiment already cached on the row by the Analytics pass —
+          surfaced here so the list is scannable without opening each
+          transcript. Unclassified rows simply omit them. */}
+      {c.sentiment ? (
+        <span
+          aria-label={`Sentiment: ${c.sentiment}`}
+          title={`Sentiment: ${c.sentiment}`}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background:
+              c.sentiment === "positive"
+                ? "var(--g8-green)"
+                : c.sentiment === "negative"
+                  ? "var(--g8-red)"
+                  : "var(--g8-border-strong)",
+          }}
+        />
+      ) : null}
+      {c.status === "human" ? <WithStaffBadge /> : null}
+      <OutcomeBadge outcome={c.outcome} />
+    </>
   );
 }

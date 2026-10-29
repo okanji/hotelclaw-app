@@ -12,15 +12,11 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import { labelsQueryOptions } from "@/lib/query/label-queries";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LABEL_DOT } from "@/components/labels/label-tokens";
-import { StatusIcon } from "@/components/tasks/task-icons";
 import { taskKey } from "@/components/tasks/kanban";
-import { initials } from "@/components/tasks/task-property-menus";
+import { Av, G8_COLOR, StIcon } from "@/components/gr8r/home-glyphs";
 import { taskHref } from "@/lib/tasks/task-href";
 import type { EntityColor } from "@/lib/db/types";
 import type { CycleTask } from "@/lib/cycles/types";
-import { cn } from "@/lib/utils";
 import { EstimateChip } from "./estimate-chip";
 
 export { EstimateChip };
@@ -96,56 +92,51 @@ export function CycleTaskRow({
   const project = lookups.project(task.project_id);
   return (
     <li>
-      <Link
-        href={taskHref(propertyId, task.id)}
-        className="group flex h-[37px] items-center gap-2.5 rounded-md px-2 text-sm transition-colors hover:bg-accent focus-visible:shadow-focus focus-visible:outline-none"
-      >
-        <span className="w-14 shrink-0 text-xs text-faint-foreground tabular-nums">
+      <Link href={taskHref(propertyId, task.id)} className="mini">
+        <span className="faint num" style={{ width: 56, flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}>
           {lookups.taskKey(task.id)}
         </span>
-        <StatusIcon status={task.status} className="size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+        <StIcon task={task} />
+        <span className="tt" style={{ fontWeight: 500 }}>
           {task.title}
         </span>
         {note ? (
-          <span className="hidden shrink-0 text-xs text-faint-foreground sm:inline">
+          <span className="faint hidden sm:inline" style={{ flexShrink: 0, fontSize: "var(--g8-fs-xs)" }}>
             {note}
           </span>
         ) : null}
         <span className="hidden shrink-0 items-center gap-1 md:flex">
           {task.labels.slice(0, 2).map((l) => (
-            <span
-              key={l}
-              className="inline-flex h-5 items-center gap-1 rounded-pill px-1.5 text-xs text-muted-foreground shadow-ring"
-            >
-              <span
-                className={cn("size-1.5 rounded-full", LABEL_DOT[lookups.labelColor(l)])}
-              />
-              <span className="max-w-24 truncate">{l}</span>
+            <span key={l} className="lbl">
+              <i style={{ "--g8-c": G8_COLOR[lookups.labelColor(l)] } as CSSVars} />
+              <span className="trunc" style={{ maxWidth: 96 }}>
+                {l}
+              </span>
             </span>
           ))}
         </span>
         {project ? (
-          <span className="hidden max-w-32 shrink-0 items-center gap-1 text-xs text-muted-foreground lg:inline-flex">
-            <span className={cn("size-2 shrink-0 rounded-full", LABEL_DOT[project.color])} />
-            <span className="truncate">{project.name}</span>
+          <span className="pj hidden lg:inline-flex" style={{ flexShrink: 0 }}>
+            <span className="pdot" style={{ "--g8-c": G8_COLOR[project.color] } as CSSVars} />
+            <span className="trunc">{project.name}</span>
           </span>
         ) : null}
         <EstimateChip estimate={task.estimate} />
         {task.due_at ? (
-          <span className="hidden w-12 shrink-0 text-right text-xs text-faint-foreground tabular-nums sm:inline">
+          <span className="due hidden sm:inline-flex" style={{ width: 48, justifyContent: "flex-end" }}>
             {formatDue(task.due_at)}
           </span>
         ) : null}
-        <Avatar size="sm" className="size-5 shrink-0" title={assignee?.name ?? "Unassigned"}>
-          {assignee?.avatarUrl ? (
-            <AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-          ) : null}
-          <AvatarFallback className="bg-muted text-xs">
-            {assignee ? initials(assignee.name) : "–"}
-          </AvatarFallback>
-        </Avatar>
+        <Av
+          member={
+            assignee && task.assignee_id
+              ? { id: task.assignee_id, name: assignee.name, avatarUrl: assignee.avatarUrl }
+              : null
+          }
+        />
       </Link>
     </li>
   );
 }
+
+type CSSVars = React.CSSProperties & Record<`--${string}`, string | number>;

@@ -4,10 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Bot, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import { TintIcon, tintAt, type TintTone } from "@/components/ui/tint-card";
+
+/** gr8r palette, rotated across the template tiles. */
+const TILE_G8 = [
+  "var(--g8-blue)",
+  "var(--g8-amber)",
+  "var(--g8-green)",
+  "var(--g8-violet)",
+  "var(--g8-teal)",
+  "var(--g8-rose)",
+];
+const tileAt = (i: number) => TILE_G8[i % TILE_G8.length];
 import { CHATBOT_TEMPLATE_DEFS } from "@/lib/chatbots/templates";
 import type { ChatbotTemplate } from "@/lib/chatbots/schema";
 import { createChatbot } from "./actions";
@@ -87,7 +93,8 @@ export function NewChatbotDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      {/* Portaled out of the shell — `g8 g8-port` for gr8r classes. */}
+      <DialogContent className="g8 g8-port sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New chatbot</DialogTitle>
           <DialogDescription>
@@ -95,14 +102,14 @@ export function NewChatbotDialog({
             draft its instructions and actions.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={create} className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
+        <form onSubmit={create} className="stack" style={{ gap: 14 }}>
+          <div className="tmpls" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
             {CHATBOT_TEMPLATE_DEFS.map((def, i) => (
               <TemplateCard
                 key={def.template}
                 selected={pick === def.template}
                 emoji={def.emoji}
-                tone={tintAt(i)}
+                tone={tileAt(i)}
                 title={def.name}
                 tagline={def.tagline}
                 onClick={() => setPick(def.template)}
@@ -111,15 +118,15 @@ export function NewChatbotDialog({
             <TemplateCard
               selected={pick === "custom"}
               emoji="🧩"
-              tone={tintAt(CHATBOT_TEMPLATE_DEFS.length)}
+              tone={tileAt(CHATBOT_TEMPLATE_DEFS.length)}
               title="Custom"
               tagline="A blank bot — write your own instructions"
               onClick={() => setPick("custom")}
             />
             <TemplateCard
               selected={pick === "describe"}
-              icon={<Sparkles />}
-              tone={tintAt(CHATBOT_TEMPLATE_DEFS.length + 1)}
+              icon={<Gi icon={Sparkles} size={15} />}
+              tone={tileAt(CHATBOT_TEMPLATE_DEFS.length + 1)}
               title="Describe it"
               tagline="Tell AI what the bot should do"
               onClick={() => setPick("describe")}
@@ -127,9 +134,10 @@ export function NewChatbotDialog({
           </div>
 
           {needsDescription ? (
-            <div className="space-y-2">
-              <Label htmlFor="new-bot-description">What should it do?</Label>
-              <Textarea
+            <label className="field" htmlFor="new-bot-description">
+              <span className="label">What should it do?</span>
+              <textarea
+                className="textarea"
                 id="new-bot-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -138,12 +146,13 @@ export function NewChatbotDialog({
                 disabled={pending}
                 required
               />
-            </div>
+            </label>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="new-bot-name">Name</Label>
-            <Input
+          <label className="field" htmlFor="new-bot-name">
+            <span className="label">Name</span>
+            <input
+              className="input"
               id="new-bot-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -153,19 +162,20 @@ export function NewChatbotDialog({
               disabled={pending}
               required
             />
-          </div>
+          </label>
 
           <DialogFooter>
-            <Button
+            <button
               type="button"
-              variant="ghost"
+              className="btn btn-secondary"
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
+              className="btn btn-primary"
               disabled={
                 pending || !name.trim() || (needsDescription && !description.trim())
               }
@@ -175,7 +185,7 @@ export function NewChatbotDialog({
                   ? "Drafting…"
                   : "Creating…"
                 : "Create chatbot"}
-            </Button>
+            </button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -195,24 +205,26 @@ function TemplateCard({
   selected: boolean;
   emoji?: string;
   icon?: React.ReactNode;
-  tone: TintTone;
+  /** gr8r palette token for the tile. */
+  tone: string;
   title: string;
   tagline: string;
   onClick: () => void;
 }) {
+  // gr8r `.tcard` (settings' theme tiles): bordered, accent ring when on.
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={cn(
-        "flex flex-col items-start gap-1.5 rounded-md p-3 text-left transition-colors",
-        selected ? "bg-accent-pressed" : "bg-muted hover:bg-accent",
-      )}
+      className={selected ? "tcard on" : "tcard"}
+      style={{ padding: 10, gap: 6 }}
     >
-      <TintIcon tone={tone}>{emoji ?? icon ?? <Bot />}</TintIcon>
-      <span className="text-sm font-medium">{title}</span>
-      <span className="text-xs leading-snug text-muted-foreground">
+      <span className="picon" style={{ "--g8-c": tone } as React.CSSProperties}>
+        {emoji ? <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span> : (icon ?? <Gi icon={Bot} size={15} />)}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 500 }}>{title}</span>
+      <span className="muted" style={{ fontSize: 12, lineHeight: 1.35 }}>
         {tagline}
       </span>
     </button>

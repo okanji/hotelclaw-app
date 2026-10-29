@@ -1,12 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { isAssignedTo, taskAssigneeIds } from "@/lib/tasks/assignees";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useBroadcastEvent } from "@liveblocks/react";
 import { ListChecks, Plus, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { PageHeader } from "@/components/shell/page-header";
 import { ListRowMenu } from "./lists/list-row-menu";
 import { ListSettingsDialog } from "./lists/list-settings-dialog";
@@ -19,7 +26,6 @@ import {
   useStatusCatalog,
   useStatusCatalogRealtime,
 } from "@/lib/query/status-queries";
-import { PageShell } from "@/components/ui/page-shell";
 import { TasksBoardSkeleton } from "./board-skeleton";
 import { PresenceBar } from "./presence-bar";
 import {
@@ -53,9 +59,78 @@ import {
   projectsQueryOptions,
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
-import { useAssigneesMap } from "@/lib/tasks/use-assignees";
+import { AssigneesMapProvider, useAssigneesMap } from "@/lib/tasks/use-assignees";
 
 const EMPTY_TASKS: Task[] = [];
+const VIEW_MODES: ViewMode[] = ["board", "list", "timeline", "workload"];
+const PRESETS: BoardFilters["statusPreset"][] = ["all", "active", "backlog"];
+
+type TasksViewPrefs = {
+  view?: ViewMode;
+  groupBy?: BoardGroupBy;
+  statusPreset?: BoardFilters["statusPreset"];
+};
+
+const prefsListeners = new Set<() => void>();
+function subscribePrefs(cb: () => void) {
+  prefsListeners.add(cb);
+  return () => {
+    prefsListeners.delete(cb);
+  };
+}
+// In-memory mirror: blocked storage (private mode, previews) still lets the
+// view switch for the session.
+const memPrefs = new Map<string, string>();
+function readPrefsRaw(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key) ?? memPrefs.get(key) ?? null;
+  } catch {
+    return memPrefs.get(key) ?? null;
+  }
+}
+function parsePrefs(raw: string | null): TasksViewPrefs {
+  if (!raw) return {};
+  try {
+    const p = JSON.parse(raw) as TasksViewPrefs;
+    return {
+      view: p.view && VIEW_MODES.includes(p.view) ? p.view : undefined,
+      groupBy: typeof p.groupBy === "string" ? p.groupBy : undefined,
+      statusPreset:
+        p.statusPreset && PRESETS.includes(p.statusPreset)
+          ? p.statusPreset
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+/** Per-device Tasks view prefs (layout, grouping, status preset). */
+function useTasksViewPrefs(
+  propertyId: string,
+): [TasksViewPrefs, (patch: TasksViewPrefs) => void] {
+  const key = `hotelclaw:tasks-view:${propertyId}`;
+  const raw = useSyncExternalStore(
+    subscribePrefs,
+    () => readPrefsRaw(key),
+    () => null,
+  );
+  const prefs = useMemo(() => parsePrefs(raw), [raw]);
+  const update = useCallback(
+    (patch: TasksViewPrefs) => {
+      const next = JSON.stringify({ ...parsePrefs(readPrefsRaw(key)), ...patch });
+      memPrefs.set(key, next);
+      try {
+        window.localStorage.setItem(key, next);
+      } catch {
+        // Storage blocked — the in-memory mirror carries it.
+      }
+      for (const l of prefsListeners) l();
+    },
+    [key],
+  );
+  return [prefs, update];
+}
 
 export function TasksBoard({
   propertyId,
@@ -138,6 +213,20 @@ export function TasksBoard({
           void qc.invalidateQueries({ queryKey: ["task-field-values"] });
         },
       )
+      // 0115: who's on a task lives in its own table — a teammate adding
+      // someone refreshes the cards' avatar stacks.
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "task_assignees",
+          filter: `property_id=eq.${propertyId}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["tasks", propertyId] });
+        },
+      )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -164,12 +253,8 @@ export function TasksBoard({
     return map;
   }, [allTasks]);
 
-  // Filters/view live in component state — they're UI-only and don't need
-  // to round-trip through the URL (the existing `?view=mine` flag is still
-  // honored separately for shareable "My tasks" links).
-  const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS);
-  const [view, setView] = useState<ViewMode>("board");
-  const [groupBy, setGroupBy] = useState<BoardGroupBy>("status");
+  // Facet filters / search / sort live in component state — UI-only, no URL
+  // round-trip (`?view=mine` stays the shareable "My tasks" link).
   // Facet just added from the "+ Filter" menu — its chip mounts auto-opened
   // so the user can pick values. Cleared once it has a value or is dismissed.
   const [addedFacet, setAddedFacet] = useState<FacetKey | null>(null);
@@ -177,9 +262,34 @@ export function TasksBoard({
   // buckets don't need per-render freshness, and it keeps the memo pure).
   const [now] = useState(() => Date.now());
 
+  // gr8r keeps each view's layout / grouping / preset (`S.views[key]`);
+  // ours ride per device in localStorage through an external store, so the
+  // server snapshot (defaults) and the first client frame always agree.
+  const [prefs, updatePrefs] = useTasksViewPrefs(propertyId);
+  const view: ViewMode = prefs.view ?? "board";
+  const groupBy: BoardGroupBy = prefs.groupBy ?? "status";
+  const setView = useCallback((v: ViewMode) => updatePrefs({ view: v }), [updatePrefs]);
+  const setGroupBy = useCallback(
+    (g: BoardGroupBy) => updatePrefs({ groupBy: g }),
+    [updatePrefs],
+  );
+  const [rawFilters, setRawFilters] = useState<BoardFilters>(DEFAULT_FILTERS);
+  const filters = useMemo<BoardFilters>(
+    () => ({ ...rawFilters, statusPreset: prefs.statusPreset ?? "all" }),
+    [rawFilters, prefs.statusPreset],
+  );
+  const setFilters = useCallback(
+    (next: BoardFilters) => {
+      setRawFilters(next);
+      if (next.statusPreset !== (prefs.statusPreset ?? "all"))
+        updatePrefs({ statusPreset: next.statusPreset });
+    },
+    [prefs.statusPreset, updatePrefs],
+  );
+
   // Resolve assignee names/avatars once for the whole board — shared cache.
   const assigneeIds = useMemo(
-    () => topLevelTasks.map((t) => t.assignee_id),
+    () => topLevelTasks.flatMap((t) => taskAssigneeIds(t)),
     [topLevelTasks],
   );
   const assignees = useAssigneesMap(assigneeIds);
@@ -189,7 +299,7 @@ export function TasksBoard({
   // sidebar's saved views).
   const scopedTasks = useMemo(() => {
     let out = topLevelTasks;
-    if (mineOnly) out = out.filter((t) => t.assignee_id === currentUserId);
+    if (mineOnly) out = out.filter((t) => isAssignedTo(t, currentUserId));
     if (listFilter) out = out.filter((t) => t.list_id === listFilter);
     if (spaceFilter) out = out.filter((t) => t.space_id === spaceFilter);
     if (projectFilter) out = out.filter((t) => t.project_id === projectFilter);
@@ -373,8 +483,24 @@ export function TasksBoard({
    * exactly the two-edge problem PageShell exists to kill. So the header, the
    * toolbar, the filter bar and every view run to the same full-width edge.
    */
+  const pageTitle = mineOnly
+    ? "My tasks"
+    : activeList
+      ? activeList.name
+      : (scopeName ?? "Tasks");
+  const pageLede = activeList
+    ? `${scopedTasks.length} ${scopedTasks.length === 1 ? "task" : "tasks"} in this list${listSpaceName ? ` · ${listSpaceName}` : ""} · ${boardColumns.columns.length} statuses`
+    : `${scopedTasks.length} ${scopedTasks.length === 1 ? "task" : "tasks"}${scopeName ? "" : " across the property"}.`;
+
+  /*
+   * gr8r's Tasks page (src/pages/tasks.js): `.page.flush` › `.ph` (title +
+   * lede + New task) › the view-engine `.toolbar` › `.chipsbar` › the view.
+   * Full-bleed for every layout — the board, timeline and workload are data
+   * canvases, and the list shares the same toolbar edge.
+   */
   return (
-    <PageShell width="bleed" className="flex h-full min-h-0 flex-1 flex-col">
+    <AssigneesMapProvider value={assignees}>
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <PageHeader
         breadcrumbs={
           mineOnly
@@ -414,38 +540,43 @@ export function TasksBoard({
                   ]
                 : [{ label: "Tasks", icon: <ListChecks /> }]
         }
-        actions={
-          <>
-            <PresenceBar />
-            {activeList ? (
-              <>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="List settings"
-                  title="List settings — statuses, name, colour"
-                  onClick={() => setListSettings("statuses")}
-                  className="size-7 text-muted-foreground"
-                >
-                  <Settings2 className="size-4" />
-                </Button>
-                <ListRowMenu
-                  propertyId={propertyId}
-                  list={activeList}
-                  onOpenSettings={(tab) => setListSettings(tab)}
-                />
-              </>
-            ) : null}
-            <Button
-              size="sm"
-              onClick={() => openCreate(boardColumns.columns[0]?.id ?? "todo")}
-            >
-              <Plus />
-              New task
-            </Button>
-          </>
-        }
+        actions={<PresenceBar />}
       />
+      <div className="page flush h-auto min-h-0 flex-1">
+      <div className="ph">
+        <div>
+          <h1>{pageTitle}</h1>
+          <p>{pageLede}</p>
+        </div>
+        <div className="acts">
+          {activeList ? (
+            <>
+              <button
+                type="button"
+                className="ibtn"
+                aria-label="List settings"
+                title="List settings — statuses, name, colour"
+                onClick={() => setListSettings("statuses")}
+              >
+                <Gi icon={Settings2} size={15} />
+              </button>
+              <ListRowMenu
+                propertyId={propertyId}
+                list={activeList}
+                onOpenSettings={(tab) => setListSettings(tab)}
+              />
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => openCreate(boardColumns.columns[0]?.id ?? "todo")}
+          >
+            <Gi icon={Plus} size={14} />
+            New task
+          </button>
+        </div>
+      </div>
       {activeList ? (
         <ListSettingsDialog
           open={listSettings !== null}
@@ -475,6 +606,7 @@ export function TasksBoard({
         currentUserId={currentUserId}
         addedFacet={addedFacet}
         onResolveAdded={() => setAddedFacet(null)}
+        onPick={setAddedFacet}
       />
 
       {view === "board" ? (
@@ -526,6 +658,8 @@ export function TasksBoard({
           hideDone={hideDone}
         />
       )}
-    </PageShell>
+      </div>
+    </div>
+    </AssigneesMapProvider>
   );
 }

@@ -3,11 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Diamond, Plus, Trash2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Check, Plus, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Gi } from "@/components/gr8r/icon";
+import { ProgBar } from "@/components/gr8r/home-glyphs";
+import { G8Panel } from "@/components/gr8r/project-page";
 import {
   projectMilestonesQueryOptions,
   type Milestone,
@@ -18,7 +18,6 @@ import {
   updateMilestone,
 } from "./milestone-actions";
 import type { MilestoneProgress } from "@/lib/initiatives/planning";
-import { OverviewSection } from "./workspace-shell";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -83,14 +82,18 @@ export function useMilestonesRealtime(projectId: string) {
  * The project's milestones — gr8r's "Wireframes signed off · Dev handoff ·
  * Public launch" list: a diamond per row (filled once reached), name, date
  * and distance from today, with one-click reach/unreach and an inline add row.
- * Overdue, unreached milestones read in the warning ink.
+ * Overdue, unreached milestones read in the warning ink. Rendered as
+ * gr8r's Overview "Milestones" `.panel` (src/views/project-overview.js).
  */
 export function MilestonesPanel({
   projectId,
   action,
   progress,
+  color,
 }: {
   projectId: string;
+  /** The project's gr8r colour (`var(--g8-…)`) for upcoming diamonds. */
+  color?: string;
   /** Extra header action (the Overview passes nothing; the rail may). */
   action?: React.ReactNode;
   /**
@@ -159,99 +162,86 @@ export function MilestonesPanel({
   const reached = milestones.filter((m) => m.completed_at).length;
 
   return (
-    <OverviewSection
+    <G8Panel
       title="Milestones"
-      action={
-        action ?? (
-          <div className="flex items-center gap-2">
-            {milestones.length > 0 ? (
-              <span className="text-sm tabular-nums text-muted-foreground">
-                {reached}/{milestones.length} reached
-              </span>
-            ) : null}
-            {!adding ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-sm"
-                onClick={() => setAdding(true)}
-              >
-                <Plus className="size-3.5" />
-                Add
-              </Button>
-            ) : null}
-          </div>
-        )
+      count={milestones.length > 0 ? `${reached}/${milestones.length}` : undefined}
+      acts={
+        action ??
+        (!adding ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>
+            <Gi icon={Plus} size={13} />
+            Add
+          </button>
+        ) : null)
       }
     >
       {milestones.length === 0 && !adding ? (
-        <p className="text-sm text-muted-foreground">
-          No milestones yet — add the dates this project is judged against.
-        </p>
+        <span className="faint">No milestones yet — add the dates this project is judged against.</span>
       ) : (
-        <ul role="list" className="flex flex-col">
+        <div className="col" style={{ gap: 0 }}>
           {milestones.map((m) => {
             const done = Boolean(m.completed_at);
             const n = daysUntil(m.due_date);
             const late = !done && n < 0;
             const prog = progress?.get(m.id);
+            // gr8r: a 9px rotated square — green once reached, the
+            // project's colour ahead, red when it slipped past unreached.
+            const tint = done ? "var(--g8-green)" : late ? "var(--g8-red)" : (color ?? "var(--g8-accent)");
             return (
-              <li
-                key={m.id}
-                className="group/ms flex min-h-[37px] items-center gap-3 border-t border-border first:border-0"
-              >
+              <div key={m.id} className="row ms-row" style={{ minHeight: 32, fontSize: 13, gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => toggle(m)}
                   disabled={pending}
                   aria-pressed={done}
                   aria-label={done ? `Reopen ${m.name}` : `Mark ${m.name} reached`}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent"
+                  title={done ? "Reached — click to reopen" : "Mark reached"}
+                  className="ibtn ibtn-xs"
                 >
-                  <Diamond
-                    className={cn(
-                      "size-3.5",
-                      done
-                        ? "fill-success text-success"
-                        : late
-                          ? "text-warning"
-                          : "text-muted-foreground",
-                    )}
+                  <span
+                    style={{
+                      width: 9,
+                      height: 9,
+                      transform: "rotate(45deg)",
+                      borderRadius: 2,
+                      flexShrink: 0,
+                      background: done || late ? tint : "transparent",
+                      boxShadow: done || late ? undefined : `inset 0 0 0 1.5px ${tint}`,
+                    }}
                   />
                 </button>
                 <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate text-sm",
-                    done ? "text-muted-foreground line-through" : "font-medium text-foreground",
-                  )}
+                  className={done ? "grow trunc faint" : "grow trunc"}
+                  style={done ? { textDecoration: "line-through" } : { fontWeight: 500 }}
                 >
                   {m.name}
                 </span>
                 {prog ? (
                   <span
-                    className="flex shrink-0 items-center gap-2"
+                    className="row"
+                    style={{ gap: 6, flexShrink: 0 }}
                     title={`${prog.done} of ${prog.total} issues done`}
                   >
-                    <span className="hidden h-1 w-12 overflow-hidden rounded-full bg-muted sm:block">
-                      <span
-                        className="block h-full rounded-full bg-success/90"
-                        style={{ width: `${prog.pct}%` }}
-                      />
+                    <span className="hide-m" style={{ width: 48 }}>
+                      <ProgBar value={prog.pct} tone="green" />
                     </span>
-                    <span className="text-sm tabular-nums text-muted-foreground">
+                    <span className="num muted" style={{ fontSize: 12 }}>
                       {prog.pct}% of {prog.total}
                     </span>
                   </span>
                 ) : null}
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                <span className="num muted" style={{ flexShrink: 0 }}>
                   {formatMilestoneDate(m.due_date)}
                 </span>
                 <span
-                  className={cn(
-                    "hidden w-24 shrink-0 text-right text-xs tabular-nums sm:inline",
-                    done ? "text-success" : late ? "text-warning" : "text-faint-foreground",
-                  )}
+                  className="num hide-m"
+                  style={{
+                    width: 76,
+                    textAlign: "right",
+                    fontSize: 11.5,
+                    flexShrink: 0,
+                    color: done ? "var(--g8-green)" : late ? "var(--g8-red)" : "var(--g8-text-3)",
+                  }}
                 >
                   {done ? "Reached" : relativeDays(n)}
                 </span>
@@ -259,32 +249,34 @@ export function MilestonesPanel({
                   type="button"
                   onClick={() => remove(m)}
                   aria-label={`Remove ${m.name}`}
-                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-faint-foreground opacity-0 transition-opacity group-hover/ms:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100"
+                  title="Remove milestone"
+                  className="ibtn ibtn-xs ms-del"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Gi icon={Trash2} size={13} />
                 </button>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
       {adding ? (
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="row"
+          style={{ gap: 6, flexWrap: "wrap", marginTop: milestones.length ? 8 : 0 }}
           onSubmit={(e) => {
             e.preventDefault();
             submit();
           }}
         >
-          <Diamond className="size-3.5 shrink-0 text-faint-foreground" />
-          <Input
+          <input
             autoFocus
+            className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Milestone name"
             aria-label="Milestone name"
-            className="h-8 min-w-0 flex-1 text-sm"
+            style={{ flex: 1, minWidth: 140, height: 28 }}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 setAdding(false);
@@ -292,32 +284,31 @@ export function MilestonesPanel({
               }
             }}
           />
-          <Input
+          <input
             type="date"
+            className="input"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             aria-label="Milestone date"
-            className="h-8 w-[9.5rem] text-sm"
+            style={{ width: 150, height: 28 }}
           />
-          <Button type="submit" size="sm" className="h-8" disabled={pending || !name.trim()}>
-            <Check className="size-3.5" />
+          <button type="submit" className="btn btn-primary btn-sm" disabled={pending || !name.trim()}>
+            <Gi icon={Check} size={13} />
             Add
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8"
+            className="ibtn ibtn-sm"
             onClick={() => {
               setAdding(false);
               setName("");
             }}
             aria-label="Cancel"
           >
-            <X className="size-3.5" />
-          </Button>
+            <Gi icon={X} size={14} />
+          </button>
         </form>
       ) : null}
-    </OverviewSection>
+    </G8Panel>
   );
 }

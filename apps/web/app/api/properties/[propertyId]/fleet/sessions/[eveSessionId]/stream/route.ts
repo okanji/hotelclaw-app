@@ -1,3 +1,4 @@
+import { requireFullMember } from "@/lib/auth/session";
 import { type NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getMembershipForProperty, getSessionUser } from "@/lib/auth/session";
@@ -19,6 +20,10 @@ export async function GET(
   }: { params: Promise<{ propertyId: string; eveSessionId: string }> },
 ) {
   const { propertyId, eveSessionId } = await params;
+  // Guests (0118) hold a membership row but this route acts through the
+  // service client, past RLS — full members only.
+  const roleGate = await requireFullMember(propertyId);
+  if (!roleGate.ok) return NextResponse.json({ error: roleGate.error }, { status: roleGate.status });
 
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

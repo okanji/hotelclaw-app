@@ -1,13 +1,9 @@
 "use client";
 
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { Tog } from "@/components/gr8r/settings-ui";
 import {
   ACTION_TYPE_META,
   newTicketFieldId,
@@ -16,22 +12,13 @@ import {
   type ChatbotConfig,
 } from "@/lib/chatbots/schema";
 import type { ChannelOption, SpaceOption } from "./chatbot-detail";
-import { NativeSelect } from "@/components/ui/native-select";
 
 const ACTION_ORDER: ChatbotActionType[] = [
   "answer_from_knowledge",
   "collect_guest_info",
   "create_ticket",
-  "book_service",
   "escalate_to_human",
 ];
-
-export type BookableServiceOption = {
-  id: string;
-  name: string;
-  emoji: string | null;
-  active: boolean;
-};
 
 /** Default (disabled) action of each type, used when the config has none. */
 function defaultAction(type: ChatbotActionType): ChatbotAction {
@@ -56,12 +43,6 @@ function defaultAction(type: ChatbotActionType): ChatbotAction {
         enabled: false,
         config: { notifyRoles: ["owner", "manager"] },
       };
-    case "book_service":
-      return {
-        type,
-        enabled: false,
-        config: { serviceIds: [], autoConfirm: true },
-      };
   }
 }
 
@@ -78,14 +59,12 @@ export function ActionsPanel({
   config,
   channels,
   spaces,
-  services = [],
   knowledge,
   onChange,
 }: {
   config: ChatbotConfig;
   channels: ChannelOption[];
   spaces: SpaceOption[];
-  services?: BookableServiceOption[];
   knowledge?: KnowledgeSummary;
   onChange: (actions: ChatbotAction[]) => void;
 }) {
@@ -103,10 +82,10 @@ export function ActionsPanel({
   }
 
   return (
-    <section className="space-y-3">
+    <section className="stack" style={{ gap: 10 }}>
       <div>
-        <p className="text-sm font-medium">Actions</p>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="sec">Actions</h2>
+        <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
           What the bot can actually do. Each action&apos;s &ldquo;when to
           use&rdquo; tells the bot when to reach for it — write it like
           guidance to a new hire.
@@ -118,7 +97,6 @@ export function ActionsPanel({
           action={actionOf(type)}
           channels={channels}
           spaces={spaces}
-          services={services}
           knowledge={knowledge}
           onChange={setAction}
         />
@@ -131,14 +109,12 @@ function ActionCard({
   action,
   channels,
   spaces,
-  services,
   knowledge,
   onChange,
 }: {
   action: ChatbotAction;
   channels: ChannelOption[];
   spaces: SpaceOption[];
-  services: BookableServiceOption[];
   knowledge?: KnowledgeSummary;
   onChange: (next: ChatbotAction) => void;
 }) {
@@ -157,46 +133,51 @@ function ActionCard({
 
   return (
     <div
-      className={cn(
-        "rounded-md p-4 transition-colors",
-        action.enabled ? "bg-background" : "bg-muted",
-      )}
+      className="panel"
+      style={{
+        padding: 14,
+        background: action.enabled ? undefined : "var(--g8-surface-2)",
+      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">{meta.label}</p>
-          <p className="text-xs text-muted-foreground">{meta.description}</p>
+      <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
+        <div className="grow">
+          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{meta.label}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+            {meta.description}
+          </div>
         </div>
-        <Switch
+        <Tog
+          label={`${meta.label} enabled`}
           checked={action.enabled}
-          aria-label={`${meta.label} enabled`}
-          onCheckedChange={(checked) => onChange({ ...action, enabled: checked })}
+          onChange={(checked) => onChange({ ...action, enabled: checked })}
         />
       </div>
 
       {action.enabled ? (
-        <div className="mt-3 space-y-3 border-t border-border pt-3">
+        <div
+          className="mt-3 space-y-3 pt-3"
+          style={{ borderTop: "1px solid var(--g8-divider)" }}
+        >
           {knowledgeWarning ? (
-            <div className="flex items-start gap-2 rounded-card bg-warning/10 p-3 text-sm text-warning">
-              <AlertTriangle className="mt-px size-3.5 shrink-0" />
+            <div className="alert warn">
+              <Gi icon={AlertTriangle} size={14} />
               <span>{knowledgeWarning}</span>
             </div>
           ) : null}
           <div className="space-y-1.5">
-            <Label className="text-xs">When should the bot use this?</Label>
-            <Textarea
+            <label className="label">When should the bot use this?</label>
+            <textarea
               value={action.whenToUse ?? ""}
               onChange={(e) => onChange({ ...action, whenToUse: e.target.value })}
               rows={2}
               placeholder='e.g. "When the guest has confirmed their order."'
-              className="text-sm"
+              className="textarea text-sm"
             />
           </div>
           <ActionConfigFields
             action={action}
             channels={channels}
             spaces={spaces}
-            services={services}
             onChange={onChange}
           />
         </div>
@@ -209,105 +190,14 @@ function ActionConfigFields({
   action,
   channels,
   spaces,
-  services,
   onChange,
 }: {
   action: ChatbotAction;
   channels: ChannelOption[];
   spaces: SpaceOption[];
-  services: BookableServiceOption[];
   onChange: (next: ChatbotAction) => void;
 }) {
   if (action.type === "answer_from_knowledge") return null;
-
-  if (action.type === "book_service") {
-    const cfg = action.config;
-    const activeServices = services.filter((s) => s.active);
-    return (
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Bookable services this bot offers</Label>
-          {activeServices.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No services yet — create them under Home → Bookings, then come
-              back here.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {activeServices.map((s) => {
-                // Empty selection = every service; chips show the explicit set.
-                const active =
-                  cfg.serviceIds.length === 0 || cfg.serviceIds.includes(s.id);
-                return (
-                  <Chip
-                    key={s.id}
-                    size="sm"
-                    selected={active}
-                    onClick={() => {
-                      const explicit =
-                        cfg.serviceIds.length === 0
-                          ? activeServices.map((x) => x.id)
-                          : cfg.serviceIds;
-                      const next = explicit.includes(s.id)
-                        ? explicit.filter((id) => id !== s.id)
-                        : [...explicit, s.id];
-                      onChange({
-                        ...action,
-                        config: {
-                          ...cfg,
-                          serviceIds:
-                            next.length === activeServices.length ? [] : next,
-                        },
-                      });
-                    }}
-                  >
-                    {s.emoji ? `${s.emoji} ` : ""}
-                    {s.name}
-                  </Chip>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Confirmation</Label>
-            <NativeSelect
-              value={cfg.autoConfirm ? "auto" : "pending"}
-              onChange={(e) =>
-                onChange({
-                  ...action,
-                  config: { ...cfg, autoConfirm: e.target.value === "auto" },
-                })
-              }
-            >
-              <option value="auto">Confirm instantly</option>
-              <option value="pending">Hold as pending for staff review</option>
-            </NativeSelect>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Ping channel</Label>
-            <NativeSelect
-              value={cfg.notifyChannelId ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...action,
-                  config: { ...cfg, notifyChannelId: e.target.value || undefined },
-                })
-              }
-            >
-              <option value="">Don&apos;t post to a channel</option>
-              {channels.map((c) => (
-                <option key={c.id} value={c.stream_channel_id}>
-                  #{c.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (action.type === "collect_guest_info") {
     const fields = [
@@ -346,8 +236,8 @@ function ActionConfigFields({
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs">Ticket type</Label>
-            <NativeSelect
+            <label className="label">Ticket type</label>
+            <select className="select"
               value={cfg.kind}
               onChange={(e) =>
                 onChange({
@@ -359,11 +249,11 @@ function ActionConfigFields({
               <option value="order">Order (room service, F&B)</option>
               <option value="request">Request (housekeeping, front desk)</option>
               <option value="maintenance">Maintenance issue</option>
-            </NativeSelect>
+            </select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Priority</Label>
-            <NativeSelect
+            <label className="label">Priority</label>
+            <select className="select"
               value={cfg.priority}
               onChange={(e) =>
                 onChange({
@@ -376,11 +266,11 @@ function ActionConfigFields({
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
-            </NativeSelect>
+            </select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Tickets land in</Label>
-            <NativeSelect
+            <label className="label">Tickets land in</label>
+            <select className="select"
               value={cfg.spaceId ?? ""}
               onChange={(e) =>
                 onChange({
@@ -395,11 +285,11 @@ function ActionConfigFields({
                   {s.name}
                 </option>
               ))}
-            </NativeSelect>
+            </select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Ping channel</Label>
-            <NativeSelect
+            <label className="label">Ping channel</label>
+            <select className="select"
               value={cfg.notifyChannelId ?? ""}
               onChange={(e) =>
                 onChange({
@@ -414,15 +304,15 @@ function ActionConfigFields({
                   #{c.name}
                 </option>
               ))}
-            </NativeSelect>
+            </select>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Details the bot must collect</Label>
+          <label className="label">Details the bot must collect</label>
           {cfg.fields.map((f, i) => (
             <div key={f.id} className="flex items-center gap-2">
-              <Input
+              <input
                 value={f.label}
                 onChange={(e) => {
                   const fields = [...cfg.fields];
@@ -430,7 +320,7 @@ function ActionConfigFields({
                   onChange({ ...action, config: { ...cfg, fields } });
                 }}
                 placeholder="Items ordered"
-                className="h-8 text-sm"
+                className="input h-8 text-sm"
               />
               <Chip
                 size="sm"
@@ -444,9 +334,7 @@ function ActionConfigFields({
               >
                 required
               </Chip>
-              <Button
-                variant="ghost"
-                size="icon-sm"
+              <button className="ibtn ibtn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                 aria-label="Remove field"
                 onClick={() =>
                   onChange({
@@ -456,12 +344,10 @@ function ActionConfigFields({
                 }
               >
                 <Trash2 className="size-3.5" />
-              </Button>
+              </button>
             </div>
           ))}
-          <Button
-            variant="outline"
-            size="sm"
+          <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
             onClick={() =>
               onChange({
                 ...action,
@@ -477,7 +363,7 @@ function ActionConfigFields({
           >
             <Plus data-slot="icon" />
             Add field
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -493,8 +379,8 @@ function ActionConfigFields({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
-        <Label className="text-xs">Escalations post to</Label>
-        <NativeSelect
+        <label className="label">Escalations post to</label>
+        <select className="select"
           value={cfg.channelId ?? ""}
           onChange={(e) =>
             onChange({
@@ -509,10 +395,10 @@ function ActionConfigFields({
               #{c.name}
             </option>
           ))}
-        </NativeSelect>
+        </select>
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Notify</Label>
+        <label className="label">Notify</label>
         <div className="flex flex-wrap gap-2 pt-1">
           {roles.map(([role, label]) => {
             const active = cfg.notifyRoles.includes(role);

@@ -46,7 +46,6 @@ const PAGE_LABELS: [RegExp, string][] = [
   [/\/meetings/, "Meetings"],
   [/\/workflows/, "Workflows"],
   [/\/agents/, "Agents"],
-  [/\/bookings/, "Bookings"],
 ];
 
 function pageLabel(pathname: string): string | undefined {

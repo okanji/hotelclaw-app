@@ -5,12 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Channel, EventTypes } from "stream-chat";
 import { useChannelPreviewInfo, useChatContext } from "stream-chat-react";
-import {
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
 import { Hash, Lock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Gi } from "@/components/gr8r/icon";
+import { Av } from "@/components/gr8r/home-glyphs";
 import { channelHref } from "@/lib/chat/channel-href";
 import { useOpenChannel } from "@/lib/chat/use-open-channel";
 
@@ -20,6 +17,11 @@ type Props = {
   channelKind: "team" | "messaging";
 };
 
+/**
+ * One conversation in the Chat node's sidebar body — a gr8r `.sitem` row
+ * (`#` / lock glyph for team channels, the other person's `Av` for DMs),
+ * bold ink + a `.ct.dotc` accent count while unread.
+ */
 export function ChannelPreviewRow({
   channel,
   propertyId,
@@ -61,41 +63,41 @@ export function ChannelPreviewRow({
   }
 
   // Active state follows the URL, not Stream's `activeChannel` context. The
-  // channel list remounts whenever the rail switches sections (and mounts
+  // channel list remounts whenever the sidebar node re-expands (and mounts
   // with `setActiveChannelOnMount={false}`), so Stream's context can render
-  // out of sync with the route — the row would fail to highlight even though
-  // its channel is open. The pathname is the source of truth, and matches how
-  // every other secondary-sidebar item computes `isActive`.
+  // out of sync with the route. The pathname is the source of truth.
   const isActive = pathname === channelPath;
   const isPrivate =
     (channel.data as { is_private?: boolean } | undefined)?.is_private ?? false;
-  const Icon = channelKind === "team" ? (isPrivate ? Lock : Hash) : null;
 
   // For DMs, show the other user's name; for groups, comma-separated.
   const title =
     channelKind === "messaging"
       ? dmTitle(channel, client?.user?.id)
       : displayTitle ?? channel.id ?? "Untitled";
+  const showUnread = unread > 0 && !isActive;
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<Link href={channelPath} onClick={handleClick} />}
-        isActive={isActive}
-        tooltip={title}
-        className={cn(
-          unread > 0 && !isActive && "font-semibold text-foreground",
-        )}
-      >
-        {Icon ? <Icon /> : <DmAvatar channel={channel} currentUserId={client?.user?.id} />}
-        <span className="truncate">{title}</span>
-        {unread > 0 && !isActive ? (
-          <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-xs font-medium leading-none text-sidebar-foreground/70 tabular-nums">
-            {unread > 99 ? "99+" : unread}
-          </span>
-        ) : null}
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <Link
+      href={channelPath}
+      onClick={handleClick}
+      className={isActive ? "sitem on" : "sitem"}
+      title={title}
+      aria-current={isActive ? "page" : undefined}
+      style={
+        showUnread ? { color: "var(--g8-text)", fontWeight: 600 } : undefined
+      }
+    >
+      {channelKind === "team" ? (
+        <Gi icon={isPrivate ? Lock : Hash} size={15} />
+      ) : (
+        <DmAvatar channel={channel} currentUserId={client?.user?.id} />
+      )}
+      <span className="trunc">{title}</span>
+      {showUnread ? (
+        <span className="ct dotc">{unread > 99 ? "99+" : unread}</span>
+      ) : null}
+    </Link>
   );
 }
 
@@ -116,20 +118,20 @@ function DmAvatar({
   channel: Channel;
   currentUserId: string | undefined;
 }) {
-  const members = Object.values(channel.state.members ?? {});
-  const other = members
+  const other = Object.values(channel.state.members ?? {})
     .map((m) => m.user)
     .find((u) => u && u.id !== currentUserId);
-  const initials = (other?.name ?? other?.id ?? "?")
-    .split(/\s+/)
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  return (
-    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-      {initials || "?"}
-    </span>
+  if (!other) return <Av member={null} size="sm" />;
+  const av = (
+    <Av
+      member={{
+        id: other.id,
+        name: other.name ?? other.id,
+        avatarUrl: (other.image as string | undefined) ?? null,
+      }}
+      size="sm"
+    />
   );
+  // gr8r `.presence` adds the green online dot to the avatar.
+  return other.online ? <span className="presence" style={{ display: "inline-flex" }}>{av}</span> : av;
 }

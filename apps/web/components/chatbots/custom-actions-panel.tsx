@@ -4,11 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Globe, Play, Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Chip } from "@/components/ui/chip";
 import { saveCustomAction, deleteCustomAction } from "./actions";
-import { NativeSelect } from "@/components/ui/native-select";
 
 /** Client-safe row — header secrets never leave the server. */
 export type CustomActionListItem = {
@@ -68,37 +63,39 @@ export function CustomActionsPanel({
   const [editing, setEditing] = useState<CustomActionListItem | "new" | null>(null);
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">Custom API actions</p>
-          <p className="text-xs text-muted-foreground">
+    <section className="stack" style={{ gap: 10 }}>
+      <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
+        <div className="grow">
+          <h2 className="sec">Custom API actions</h2>
+          <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
             Connect the bot to your own systems — a booking engine, PMS, or
             any HTTPS API that returns JSON.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditing("new")}>
+        <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={() => setEditing("new")}>
           <Plus data-slot="icon" />
           Add action
-        </Button>
+        </button>
       </div>
 
       {actions.length > 0 ? (
-        <ul className="divide-y divide-border">
+        <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {actions.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
-              <Globe className="size-4 shrink-0 text-muted-foreground" />
+            <li key={a.id} className="nrow" style={{ alignItems: "center", cursor: "default" }}>
+              <span className="faint" style={{ display: "inline-flex" }}>
+                <Gi icon={Globe} />
+              </span>
               <button
                 type="button"
                 onClick={() => setEditing(a)}
                 className="min-w-0 flex-1 text-left"
               >
-                <p className="truncate text-sm">{a.name}</p>
-                <p className="truncate font-mono text-xs text-muted-foreground">
+                <p className="truncate" style={{ margin: 0, fontWeight: 500 }}>{a.name}</p>
+                <p className="truncate mono faint" style={{ margin: 0, fontSize: 12 }}>
                   {a.method} {a.url}
                 </p>
               </button>
-              {!a.enabled ? <Badge variant="secondary">Off</Badge> : null}
+              {!a.enabled ? <span className="badge gray">Off</span> : null}
               <DeleteActionButton
                 actionId={a.id}
                 onDeleted={() => router.refresh()}
@@ -129,9 +126,9 @@ function DeleteActionButton({
 }) {
   const [pending, startTransition] = useTransition();
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
+    <button
+      type="button"
+      className="ibtn ibtn-sm"
       aria-label="Delete action"
       disabled={pending}
       onClick={() =>
@@ -143,7 +140,7 @@ function DeleteActionButton({
       }
     >
       <Trash2 className="size-3.5" />
-    </Button>
+    </button>
   );
 }
 
@@ -256,7 +253,7 @@ function CustomActionDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="g8 g8-port max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{action ? "Edit custom action" : "New custom action"}</DialogTitle>
           <DialogDescription>
@@ -272,8 +269,8 @@ function CustomActionDialog({
               1 · General
             </p>
             <div className="space-y-2">
-              <Label htmlFor="ca-name">Name</Label>
-              <Input
+              <label className="label" htmlFor="ca-name">Name</label>
+              <input className="input"
                 id="ca-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -281,8 +278,8 @@ function CustomActionDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ca-when">When should the bot use it?</Label>
-              <Textarea
+              <label className="label" htmlFor="ca-when">When should the bot use it?</label>
+              <textarea className="textarea"
                 id="ca-when"
                 value={whenToUse}
                 onChange={(e) => setWhenToUse(e.target.value)}
@@ -298,35 +295,34 @@ function CustomActionDialog({
               2 · Request
             </p>
             <div className="flex gap-2">
-              <NativeSelect
+              <select className="select"
                 value={method}
                 onChange={(e) => setMethod(e.target.value as typeof method)}
-                wrapperClassName="w-28 shrink-0"
                 aria-label="HTTP method"
               >
                 {(["GET", "POST", "PUT", "DELETE"] as const).map((m) => (
                   <option key={m}>{m}</option>
                 ))}
-              </NativeSelect>
-              <Input
+              </select>
+              <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 name="actionUrl"
                 aria-label="Request URL"
                 placeholder="https://api.example.com/availability?date={{date}}"
-                className="font-mono text-xs"
+                className="input font-mono text-xs"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="hint">
               Use <code className="font-mono">{"{{param}}"}</code> placeholders.
               HTTPS only; on GET, unused parameters become query string.
             </p>
 
             <div className="space-y-2">
-              <Label className="text-xs">Headers</Label>
+              <label className="label">Headers</label>
               {headers.map((h, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input
+                  <input
                     value={h.name}
                     onChange={(e) => {
                       const next = [...headers];
@@ -336,9 +332,9 @@ function CustomActionDialog({
                     name="headerName"
                     aria-label="Header name"
                     placeholder="Authorization"
-                    className="h-8 w-44 font-mono text-xs"
+                    className="input h-8 w-44 font-mono text-xs"
                   />
-                  <Input
+                  <input
                     value={h.value}
                     onChange={(e) => {
                       const next = [...headers];
@@ -349,43 +345,39 @@ function CustomActionDialog({
                     name="headerValue"
                     aria-label="Header value"
                     placeholder={h.saved ? "•••••• (saved — type to replace)" : "Bearer sk-…"}
-                    className="h-8 flex-1 font-mono text-xs"
+                    className="input h-8 flex-1 font-mono text-xs"
                   />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
+                  <button className="ibtn ibtn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                     aria-label="Remove header"
                     onClick={() => setHeaders(headers.filter((_, j) => j !== i))}
                   >
                     <Trash2 className="size-3.5" />
-                  </Button>
+                  </button>
                 </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
+              <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                 onClick={() => setHeaders([...headers, { name: "", value: "", saved: false }])}
               >
                 <Plus data-slot="icon" />
                 Add header
-              </Button>
-              <p className="text-xs text-muted-foreground">
+              </button>
+              <p className="hint">
                 Header values are encrypted at rest and never shown again.
               </p>
             </div>
 
             {method !== "GET" ? (
               <div className="space-y-2">
-                <Label htmlFor="ca-body" className="text-xs">
+                <label htmlFor="ca-body" className="label">
                   JSON body template (optional — defaults to the parameters as JSON)
-                </Label>
-                <Textarea
+                </label>
+                <textarea
                   id="ca-body"
                   value={bodyTemplate}
                   onChange={(e) => setBodyTemplate(e.target.value)}
                   rows={3}
                   placeholder={'{ "date": "{{date}}", "guests": {{guests}} }'}
-                  className="font-mono text-xs"
+                  className="textarea font-mono text-xs"
                 />
               </div>
             ) : null}
@@ -398,7 +390,7 @@ function CustomActionDialog({
             </p>
             {params.map((p, i) => (
               <div key={p.id} className="grid grid-cols-[1fr_auto_1fr_auto_auto] items-center gap-2">
-                <Input
+                <input
                   value={p.name}
                   onChange={(e) => {
                     const next = [...params];
@@ -406,23 +398,22 @@ function CustomActionDialog({
                     setParams(next);
                   }}
                   placeholder="date"
-                  className="h-8 font-mono text-xs"
+                  className="input h-8 font-mono text-xs"
                 />
-                <NativeSelect
+                <select className="select"
                   value={p.type}
                   onChange={(e) => {
                     const next = [...params];
                     next[i] = { ...p, type: e.target.value as ParamField["type"] };
                     setParams(next);
                   }}
-                  wrapperClassName="h-8 text-xs"
                   aria-label="Parameter type"
                 >
                   <option value="string">text</option>
                   <option value="number">number</option>
                   <option value="boolean">yes/no</option>
-                </NativeSelect>
-                <Input
+                </select>
+                <input
                   value={p.description}
                   onChange={(e) => {
                     const next = [...params];
@@ -430,7 +421,7 @@ function CustomActionDialog({
                     setParams(next);
                   }}
                   placeholder="Check-in date, YYYY-MM-DD"
-                  className="h-8 text-xs"
+                  className="input h-8 text-xs"
                 />
                 <Chip
                   size="sm"
@@ -443,19 +434,15 @@ function CustomActionDialog({
                 >
                   required
                 </Chip>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button className="ibtn ibtn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
                   aria-label="Remove parameter"
                   onClick={() => setParams(params.filter((x) => x.id !== p.id))}
                 >
                   <Trash2 className="size-3.5" />
-                </Button>
+                </button>
               </div>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
+            <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5"
               onClick={() =>
                 setParams([
                   ...params,
@@ -465,7 +452,7 @@ function CustomActionDialog({
             >
               <Plus data-slot="icon" />
               Add parameter
-            </Button>
+            </button>
           </section>
 
           {/* 4 — Test */}
@@ -478,22 +465,22 @@ function CustomActionDialog({
                 {params
                   .filter((p) => p.name)
                   .map((p) => (
-                    <Input
+                    <input
                       key={p.id}
                       value={testValues[p.name] ?? ""}
                       onChange={(e) =>
                         setTestValues({ ...testValues, [p.name]: e.target.value })
                       }
                       placeholder={`${p.name}${p.type === "boolean" ? " (true/false)" : ""}`}
-                      className="h-8 font-mono text-xs"
+                      className="input h-8 font-mono text-xs"
                     />
                   ))}
               </div>
             ) : null}
-            <Button variant="outline" size="sm" onClick={runTest} disabled={testing || !url.trim()}>
+            <button className="btn btn-secondary btn-sm [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={runTest} disabled={testing || !url.trim()}>
               <Play data-slot="icon" />
               {testing ? "Calling…" : "Send test request"}
-            </Button>
+            </button>
             {testResult ? (
               <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                 {testResult}
@@ -506,17 +493,17 @@ function CustomActionDialog({
             <p className="text-xs font-medium text-faint-foreground">
               5 · Data access
             </p>
-            <Label htmlFor="ca-allowlist" className="text-xs">
+            <label htmlFor="ca-allowlist" className="label">
               Response fields the bot may see (dot paths, one per line — empty
               = full response)
-            </Label>
-            <Textarea
+            </label>
+            <textarea
               id="ca-allowlist"
               value={allowlist}
               onChange={(e) => setAllowlist(e.target.value)}
               rows={3}
               placeholder={"data.available\ndata.price"}
-              className="font-mono text-xs"
+              className="textarea font-mono text-xs"
             />
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -530,12 +517,12 @@ function CustomActionDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>
+          <button className="btn btn-ghost [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={onClose} disabled={saving}>
             Cancel
-          </Button>
-          <Button onClick={save} disabled={saving || !name.trim() || !url.trim()}>
+          </button>
+          <button className="btn btn-primary [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5" onClick={save} disabled={saving || !name.trim() || !url.trim()}>
             {saving ? "Saving…" : action ? "Save action" : "Add action"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

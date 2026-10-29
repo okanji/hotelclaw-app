@@ -8,9 +8,5 @@ export default async function UpdatePasswordPage() {
   // redirecting here. If we land here without a session, send to login.
   if (!user) redirect("/login");
 
-  return (
-    <main className="flex min-h-svh items-center justify-center bg-muted p-4">
-      <UpdatePasswordForm />
-    </main>
-  );
+  return <UpdatePasswordForm />;
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Clock, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -125,44 +126,48 @@ export function ScheduledCard({
   }
 
   return (
-    <section className="p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-foreground">Scheduled</h2>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Add a schedule"
-          onClick={() => setEditing("new")}
-        >
-          <Plus className="size-4" />
-        </Button>
+    <section>
+      <div className="panel-h">
+        <h2>Scheduled</h2>
+        <div className="acts">
+          <button
+            type="button"
+            className="ibtn ibtn-sm"
+            aria-label="Add a schedule"
+            onClick={() => setEditing("new")}
+          >
+            <Gi icon={Plus} size={15} />
+          </button>
+        </div>
       </div>
 
+      <div className="panel-b">
       {isPending ? (
-        <p className="mt-1 text-sm text-muted-foreground">Loading…</p>
+        <p className="muted" style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}>Loading…</p>
       ) : !schedules || schedules.length === 0 ? (
-        <p className="mt-1 text-sm text-pretty text-muted-foreground">
+        <p className="muted" style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}>
           Run the assistant on a repeating schedule — a Monday review, a nightly
           check. Each run lands here as a conversation you can open and reply to.
         </p>
       ) : (
-        <ul role="list" className="mt-2 flex flex-col gap-1">
+        <ul role="list" className="flex flex-col gap-1" style={{ margin: 0, padding: 0, listStyle: "none" }}>
           {schedules.map((schedule) => (
             <li
               key={schedule.workflowId}
-              className="group flex items-start gap-2 rounded-md px-1.5 py-1.5 hover:bg-accent"
+              className="group mi"
+              style={{ alignItems: "flex-start", padding: "6px 8px", whiteSpace: "normal" }}
             >
-              <Clock className="mt-0.5 size-3.5 shrink-0 text-faint-foreground" />
+              <span style={{ marginTop: 2 }}>
+                <Gi icon={Clock} size={14} />
+              </span>
               <div className="min-w-0 flex-1">
                 <p
-                  className={cn(
-                    "truncate text-sm",
-                    !schedule.enabled && "text-muted-foreground",
-                  )}
+                  className={cn("trunc", !schedule.enabled && "muted")}
+                  style={{ margin: 0, fontSize: "var(--g8-fs-sm)" }}
                 >
                   {schedule.config?.title || schedule.name}
                 </p>
-                <p className="truncate text-xs text-faint-foreground">
+                <p className="trunc faint" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
                   {schedule.config
                     ? describeSchedule(schedule.config)
                     : "Customized in Workflows"}
@@ -174,36 +179,39 @@ export function ScheduledCard({
                     : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-0.5">
+              <div className="row" style={{ gap: 2, flexShrink: 0 }}>
                 {schedule.config ? (
                   <button
                     type="button"
                     onClick={() => setEditing(schedule)}
                     aria-label={`Edit ${schedule.config.title}`}
-                    className="rounded-pill p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+                    className="ibtn ibtn-xs opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
-                    <Pencil className="size-3.5" />
+                    <Gi icon={Pencil} size={13} />
                   </button>
                 ) : (
                   <Link
                     href={`/p/${propertyId}/workflows/${schedule.workflowId}`}
                     aria-label="Open in Workflows"
-                    className="rounded-pill p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+                    className="ibtn ibtn-xs opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
-                    <ExternalLink className="size-3.5" />
+                    <Gi icon={ExternalLink} size={13} />
                   </Link>
                 )}
                 <button
                   type="button"
                   onClick={() => void remove(schedule)}
                   aria-label={`Remove ${schedule.config?.title ?? schedule.name}`}
-                  className="rounded-pill p-1 text-faint-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+                  className="ibtn ibtn-xs opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Gi icon={Trash2} size={13} />
                 </button>
-                <Switch
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  style={{ marginLeft: 4 }}
                   checked={schedule.enabled}
-                  onCheckedChange={(next) => void toggle(schedule, next)}
+                  onChange={(e) => void toggle(schedule, e.target.checked)}
                   aria-label={`${schedule.enabled ? "Pause" : "Resume"} ${
                     schedule.config?.title ?? schedule.name
                   }`}
@@ -213,6 +221,7 @@ export function ScheduledCard({
           ))}
         </ul>
       )}
+      </div>
 
       <ScheduleDialog
         propertyId={propertyId}
@@ -332,7 +341,7 @@ function ScheduleDialog({
               value={config.brief}
               onChange={(e) => set("brief", e.target.value)}
               rows={4}
-              placeholder="Review open tasks and this week's bookings, flag anything at risk of slipping, and list what needs my decision."
+              placeholder="Review open tasks and this week's meetings, flag anything at risk of slipping, and list what needs my decision."
             />
             <p className="text-xs text-faint-foreground">
               Write it as an instruction. The run already knows this project&rsquo;s

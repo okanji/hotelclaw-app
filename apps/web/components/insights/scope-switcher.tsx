@@ -9,7 +9,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Gi } from "@/components/gr8r/icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,17 +82,18 @@ export function ScopeSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
+            className="btn btn-secondary btn-sm"
             aria-label={`Lens: ${currentLabel}`}
           />
         }
       >
-        <TriggerIcon className="size-4 text-muted-foreground" />
-        <span className="max-w-48 truncate">{currentLabel}</span>
-        <ChevronsUpDown className="size-3.5 text-muted-foreground" />
+        <Gi icon={TriggerIcon} size={14} />
+        <span className="trunc" style={{ maxWidth: 192 }}>
+          {currentLabel}
+        </span>
+        <Gi icon={ChevronsUpDown} size={13} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="max-h-96 w-60 overflow-y-auto">
         {item("Whole property", { kind: "property" })}

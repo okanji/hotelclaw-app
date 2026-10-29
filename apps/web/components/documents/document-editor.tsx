@@ -15,9 +15,11 @@
  * already-synced Yjs content.
  */
 
+import { FavoriteStar } from "@/components/gr8r/favorite-star";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notFound } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
   ClientSideSuspense,
   RoomProvider,
@@ -48,10 +50,11 @@ import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import "highlight.js/styles/github-dark.css";
 import { Placeholder } from "@tiptap/extensions";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorView } from "@tiptap/pm/view";
 import { HelpCircle, Loader2, MoreHorizontal, Sparkles } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import {
   Popover,
   PopoverContent,
@@ -143,8 +146,24 @@ export function DocumentEditor({
     ...documentsTreeQueryOptions(propertyId),
     retry: 2,
   });
+  // The Postgres snapshot of the body — the seed for an EMPTY room (see
+  // `initialContent` in EditorInner). A room whose Yjs data is gone while
+  // Postgres still holds the body must be restored from it, never seeded
+  // with a bare title (the webhook would persist that over the snapshot).
+  const { data: snapshot, isPending: snapshotPending } = useQuery({
+    queryKey: ["document-body-snapshot", documentId],
+    queryFn: async (): Promise<JSONContent | null> => {
+      const { data } = await createBrowserClient()
+        .from("documents")
+        .select("body_json")
+        .eq("id", documentId)
+        .maybeSingle();
+      return (data?.body_json as JSONContent | null) ?? null;
+    },
+    staleTime: 0,
+  });
 
-  if (isLoading) return <EditorSkeleton />;
+  if (isLoading || snapshotPending) return <EditorSkeleton />;
   // Query errored — keep the skeleton up while react-query retries. Falling
   // through to `notFound()` here would 404 the user out on a transient blip.
   if (isError && !tree) return <EditorSkeleton />;
@@ -174,6 +193,7 @@ export function DocumentEditor({
           propertyId={propertyId}
           documentId={documentId}
           initialTitle={row.title}
+          initialBody={snapshot ?? null}
           lastEditedBy={row.last_edited_by}
           updatedAt={row.updated_at}
           ancestors={ancestors}
@@ -239,6 +259,7 @@ function EditorInner({
   propertyId,
   documentId,
   initialTitle,
+  initialBody,
   lastEditedBy,
   updatedAt,
   ancestors,
@@ -249,6 +270,8 @@ function EditorInner({
   propertyId: string;
   documentId: string;
   initialTitle: string;
+  /** Postgres `body_json` — restores an empty room (see initialContent). */
+  initialBody: JSONContent | null;
   lastEditedBy: string | null;
   updatedAt: string;
   ancestors: DocumentCrumb[];
@@ -269,9 +292,14 @@ function EditorInner({
   }, [documentId, isReady]);
 
   const liveblocks = useLiveblocksExtension({
-    // Only applied when the Yjs doc is brand new (first opener wins). Seeds
-    // the title heading so the page never opens to a totally blank canvas.
-    initialContent: `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
+    // Only applied when the Yjs doc is EMPTY (first opener wins). A brand-new
+    // doc gets the title heading; a room that lost its data while Postgres
+    // still has the body is restored from that snapshot — seeding just the
+    // title there let the webhook overwrite the snapshot (2026-10-29).
+    initialContent:
+      initialBody && Array.isArray(initialBody.content) && initialBody.content.length > 0
+        ? initialBody
+        : `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
     // Persist Yjs state in IndexedDB. A previously-opened doc renders from
     // the local snapshot the instant you reopen it; remote deltas reconcile
     // in the background. The Liveblocks offline-support docs
@@ -427,15 +455,17 @@ function EditorInner({
 
   useTitleSync(editor, documentId);
 
-  // Liveblocks still down after the timeout — seed the title locally so the
-  // page isn't a blank canvas (remote content will merge when WS recovers).
+  // Liveblocks still down after the timeout: show the page, but READ-ONLY
+  // until Yjs has actually synced. Never write into an unsynced doc — the
+  // old fallback here seeded `<h1>title</h1><p></p>` into Yjs, and when the
+  // room really was empty the Liveblocks webhook then persisted that seed
+  // over the Postgres snapshot, wiping the body (2026-10-29: lost the body of
+  // "Temple Point — Outlet Overview" on a slow dev sync). Editing unlocks the
+  // moment the provider reports synced.
   useEffect(() => {
-    if (!editor || isReady || !syncTimedOut) return;
-    if (editor.state.doc.textContent.trim() !== "") return;
-    editor.commands.setContent(
-      `<h1>${escapeHtml(initialTitle)}</h1><p></p>`,
-    );
-  }, [editor, isReady, syncTimedOut, initialTitle]);
+    if (!editor) return;
+    editor.setEditable(isReady);
+  }, [editor, isReady]);
 
   const liveTitle = useLiveTitle(editor, initialTitle);
   const closeComposer = useCallback(() => {
@@ -508,21 +538,29 @@ function EditorInner({
     // desktop viewport — viewport `md:` gating rendered the full action row
     // into the narrow pane and the header collided with itself. `@3xl` (48rem)
     // matches the old `md` cutoff, so the full documents page is unchanged.
-    <div className="@container/doceditor relative flex h-full min-h-0 flex-col bg-card">
-      {/* Top row: breadcrumbs (left) + document metadata (right). Keeping
-          "Edited by" / History / presence up here lets the formatting toolbar
-          below stay a single slim band. */}
-      <div className="flex h-11 shrink-0 items-center justify-between gap-4 px-6 @max-3xl/doceditor:gap-2 @max-3xl/doceditor:px-3">
-        <div className="flex min-w-0 items-center gap-1">
+    <div className="@container/doceditor g8-doc relative flex h-full min-h-0 flex-col">
+      {/* Top row = gr8r's `.topbar`: `.crumbs` trail (left) + document
+          metadata (right). Keeping "Edited by" / History / presence up here
+          lets the formatting toolbar below stay a single slim band. */}
+      <header className="topbar g8-doc-top md:[body:not(:has([data-sidebar-open]))_&]:pl-11">
+        <div className="row" style={{ minWidth: 0, gap: 4 }}>
           <EmbedBackButton />
           <DocumentBreadcrumbs
             propertyId={propertyId}
             ancestors={ancestors}
             currentTitle={liveTitle}
           />
+          <FavoriteStar
+            propertyId={propertyId}
+            kind="document"
+            id={documentId}
+            label={liveTitle || "Untitled"}
+            size={14}
+          />
         </div>
+        <span className="sp" />
         {/* Wide container: the full action row. */}
-        <div className="hidden shrink-0 items-center gap-2.5 @3xl/doceditor:flex">
+        <div className="hidden shrink-0 items-center gap-2 @3xl/doceditor:flex">
           <WorkflowProvenanceBadge
             propertyId={propertyId}
             source={source}
@@ -533,7 +571,7 @@ function EditorInner({
             propertyId={propertyId}
             lastEditedBy={lastEditedBy}
             updatedAt={updatedAt}
-            className="text-sm text-faint-foreground tabular-nums"
+            className="faint num g8-doc-edited"
           />
           <DocumentLabels propertyId={propertyId} documentId={documentId} />
           <DocumentLinkedTasks
@@ -558,11 +596,11 @@ function EditorInner({
                   type="button"
                   title="More actions"
                   aria-label="More actions"
-                  className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent"
+                  className="ibtn"
                 />
               }
             >
-              <MoreHorizontal className="size-4" />
+              <Gi icon={MoreHorizontal} size={16} />
             </PopoverTrigger>
             <PopoverContent
               align="end"
@@ -585,8 +623,8 @@ function EditorInner({
             </PopoverContent>
           </Popover>
         </div>
-      </div>
-      <div className="documents-toolbar flex shrink-0 items-center justify-center border-b border-border px-6 py-1 @max-3xl/doceditor:justify-start @max-3xl/doceditor:overflow-x-auto @max-3xl/doceditor:px-2">
+      </header>
+      <div className="documents-toolbar g8-doc-tb flex shrink-0 items-center justify-center px-6 py-1 @max-3xl/doceditor:justify-start @max-3xl/doceditor:overflow-x-auto @max-3xl/doceditor:px-2">
         {/* Default Liveblocks toolbar content, rebuilt so the AI section uses
             OUR "Explain" (→ bottom dock) instead of the built-in one that runs
             through the inline edit pipeline. */}
@@ -612,6 +650,12 @@ function EditorInner({
               documentId={documentId}
               onAddComment={() => addDocLevelComment(editor)}
             />
+            {!isReady ? (
+              <div className="alert warn" role="status" style={{ marginBottom: 12 }}>
+                Still connecting to this document — it opens for editing as soon
+                as the connection is back.
+              </div>
+            ) : null}
             <EditorContent editor={editor} />
             {/* `before` prepends our AI section to the selection toolbar while
                 keeping the default formatting controls. "Ask Claw AI" opens the

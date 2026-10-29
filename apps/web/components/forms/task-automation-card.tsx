@@ -1,10 +1,13 @@
 "use client";
 
+import { customFieldsQueryOptions } from "@/lib/query/custom-field-queries";
+import { FIELD_TYPE_LABEL } from "@/lib/tasks/custom-field-options";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowUpRight, Loader2, Plus, Wand2, X } from "lucide-react";
+import { ArrowUpRight, Loader2, Plus, Wand2, X, Zap } from "lucide-react";
+import { Gi } from "@/components/gr8r/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +47,7 @@ const NO_MAPPINGS: FormTaskAutomationMappings = {
   priority: false,
   dueDate: false,
   labels: false,
+  fields: [],
 };
 
 /**
@@ -82,6 +86,7 @@ export function TaskAutomationCard({
   const saveChain = useRef<Promise<void>>(Promise.resolve());
 
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
+  const { data: customFields = [] } = useQuery(customFieldsQueryOptions(propertyId));
   const { data: members = [] } = useQuery(
     propertyMembersQueryOptions(propertyId),
   );
@@ -143,21 +148,26 @@ export function TaskAutomationCard({
     mappings.assignee || mappings.priority || mappings.dueDate || mappings.labels;
 
   return (
-    <section className="@container space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">After submitting</p>
-          <p className="text-xs text-muted-foreground">
+    // gr8r `.panel`: the "create a task" automation reads as one card in the
+    // settings column, header first.
+    <section className="panel @container space-y-4" style={{ padding: 14 }}>
+      <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+        <span className="ftype" style={{ "--g8-c": "var(--g8-violet)" } as React.CSSProperties}>
+          <Gi icon={Zap} size={14} />
+        </span>
+        <div className="grow" style={{ minWidth: 0 }}>
+          <h3 className="g8-fs-h">After submitting</h3>
+          <p className="hint" style={{ margin: "2px 0 0" }}>
             Turn each submission into a task — a request inbox for the team.
           </p>
         </div>
         {saving || !loaded ? (
-          <Loader2 className="size-4 animate-spin text-faint-foreground" />
+          <Gi icon={Loader2} size={15} className="animate-spin" />
         ) : null}
       </div>
 
       {custom ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="alert info" style={{ margin: 0 }}>
           This form&rsquo;s automation was customized in the Workflows builder,
           so it&rsquo;s managed there now.{" "}
           <Link
@@ -172,10 +182,10 @@ export function TaskAutomationCard({
         <>
           <label className="flex items-center justify-between gap-4">
             <span>
-              <span className="block text-sm font-medium">
+              <span className="block" style={{ fontWeight: 500 }}>
                 Create a task for each submission
               </span>
-              <span className="block text-xs text-muted-foreground">
+              <span className="hint block">
                 The first answer becomes the task title.
               </span>
             </span>
@@ -272,7 +282,7 @@ export function TaskAutomationCard({
                   {config.labels.map((label) => (
                     <span
                       key={label}
-                      className="inline-flex items-center gap-1 rounded-md bg-card px-2 py-0.5 text-xs font-medium shadow-ring"
+                      className="badge"
                     >
                       {label}
                       <button
@@ -288,9 +298,10 @@ export function TaskAutomationCard({
                             },
                           })
                         }
-                        className="rounded-sm text-muted-foreground hover:text-foreground"
+                        className="ibtn ibtn-xs"
+                        style={{ width: 14, height: 14 }}
                       >
-                        <X className="size-3" />
+                        <Gi icon={X} size={10} />
                       </button>
                     </span>
                   ))}
@@ -348,6 +359,33 @@ export function TaskAutomationCard({
                 />
               </label>
 
+              {mappings.fields.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs text-muted-foreground">Custom fields filled from answers</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mappings.fields.map((id) => {
+                      const cf = customFields.find((f) => f.id === id);
+                      const scoped = cf && (cf.space_id || cf.list_id);
+                      return (
+                        <span key={id} className="inline-flex flex-col gap-0.5">
+                          <MappedChip
+                            label={
+                              cf
+                                ? `+ question → ${cf.name} (${FIELD_TYPE_LABEL[cf.type]})`
+                                : "+ question → an archived field"
+                            }
+                          />
+                          {scoped && cf.space_id && cf.space_id !== config.spaceId ? (
+                            <span className="text-xs text-warning">
+                              {cf.name} only applies to another team&rsquo;s tasks
+                            </span>
+                          ) : null}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               {mappings.dueDate ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Wand2 className="size-3.5" />
@@ -387,8 +425,8 @@ function MappedChip({ label }: { label: string }) {
   return (
     // min-h (not a fixed h-8): "From the Assignee question" wraps to two
     // lines inside the narrow grid column, and a fixed height clipped it.
-    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-card px-2.5 py-1 text-xs leading-tight shadow-ring font-medium text-muted-foreground">
-      <Wand2 className="size-3.5 shrink-0" />
+    <span className="badge accent" style={{ minHeight: 28, height: "auto", padding: "4px 8px", lineHeight: 1.2 }}>
+      <Gi icon={Wand2} size={12} />
       <span>From the {label.replace("+ ", "")}</span>
     </span>
   );

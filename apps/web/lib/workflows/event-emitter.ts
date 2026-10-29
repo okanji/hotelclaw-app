@@ -22,7 +22,6 @@ export interface EmitWorkflowEventArgs {
     | "cron"
     | "form"
     | "chatbot"
-    | "booking"
     | "manual";
   eventType: TriggerEventType;
   entityId?: string | null;

@@ -83,14 +83,14 @@ export function ArtifactCard({ attachment }: { attachment: AppArtifactAttachment
   // Non-interactive fallback: no panel target and no href.
   if (!canOpen && !attachment.href) {
     return (
-      <div className="my-1 flex w-full max-w-md items-center gap-3 rounded-md bg-background px-3 py-2.5">
+      <div className="my-1 flex w-full max-w-md items-center gap-3 g8-chat-card rounded-md bg-background px-3 py-2.5">
         {body}
       </div>
     );
   }
 
   return (
-    <div className="group my-1 flex w-full max-w-md items-stretch overflow-hidden rounded-md bg-background transition-colors hover:bg-accent">
+    <div className="group my-1 flex w-full max-w-md items-stretch overflow-hidden g8-chat-card rounded-md bg-background transition-colors hover:bg-accent">
       {canOpen ? (
         <button
           type="button"

@@ -400,7 +400,8 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-sidebar="group"
       // Groups separate by WHITESPACE, not by a hairline rule (notion-spec §1).
       className={cn(
-        "relative flex w-full min-w-0 flex-col px-2 py-2",
+        // gr8r `.sgroup`: groups sit 14px apart; rows inset 8px.
+        "relative flex w-full min-w-0 flex-col px-2 pt-3.5 pb-0",
         className,
       )}
       {...props}
@@ -421,7 +422,8 @@ function SidebarGroupLabel({
           // The measured Notion section label: 12px/12px weight 500, FAINT,
           // sentence case, letter-spacing normal — and aligned to the row
           // inset (8px), not indented past it.
-          "flex shrink-0 items-center gap-1 px-2 py-1 text-xs leading-3 font-medium text-faint-foreground outline-hidden transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:shadow-focus [&>svg]:size-3.5 [&>svg]:shrink-0",
+          // gr8r `.sgroup-h`: 24px, 0 8px, 11px / 600, .06em, UPPERCASE, ink-3.
+          "flex h-6 shrink-0 items-center gap-1 px-2 text-[11px] leading-none font-semibold tracking-[0.06em] text-ink-3 uppercase outline-hidden transition-[margin,opacity] duration-200 ease-linear group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:shadow-focus [&>svg]:size-3.5 [&>svg]:shrink-0",
           className
         ),
       },
@@ -503,7 +505,12 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 // The active row is that same fill at rest plus full ink (no accent bar, no
 // bold, no colored background).
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-[7px] px-2 text-left text-sm font-normal text-sidebar-foreground outline-hidden transition-colors group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground hover:[&_svg]:text-secondary-ink data-active:[&_svg]:text-sidebar-accent-foreground [&>span:last-child]:truncate",
+  // gr8r-studio `.sitem` (SPEC §2.2, 2026-10-29): 30px row, gap 9px, 0 8px
+  // padding, 6px radius, 13.5px / weight 450, ink-2; 16px icon in ink-4.
+  // Hover = surface-3 fill + full ink. Active = a RAISED white pill (white
+  // surface + hairline ring + soft shadow, weight 500); dark = surface-3, no
+  // shadow. Colour transitions 140ms.
+  "peer/menu-button group/menu-button flex w-full items-center gap-[9px] overflow-hidden rounded-[6px] px-2 text-left text-[13.5px] font-[450] whitespace-nowrap text-sidebar-foreground outline-hidden transition-colors duration-[140ms] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent hover:text-foreground focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-active:bg-surface data-active:font-medium data-active:text-foreground data-active:shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--border)] dark:data-active:bg-surface-3 dark:data-active:shadow-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-ink-4 hover:[&_svg]:text-ink-2 data-active:[&_svg]:text-ink-2 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
@@ -680,7 +687,8 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
       // the old `border-l` was a visible gray stroke down the panel. Sub rows
       // keep the 1px gap so the 31px pitch carries into the sub-tree.
       className={cn(
-        "mx-3.5 flex min-w-0 flex-col gap-[3px] px-2.5 py-0.5 group-data-[collapsible=icon]:hidden",
+        // gr8r `.sub`: the vertical guide line — 8px in, 1px border, 14px pad.
+        "ml-2 flex min-w-0 flex-col border-l border-border py-0.5 pl-3.5 group-data-[collapsible=icon]:hidden",
         className
       )}
       {...props}
@@ -722,7 +730,8 @@ function SidebarMenuSubButton({
           // 14px weight 500 in secondary ink, warm hover fill only, full ink
           // when active. 12px is a LABEL size, never a row size — so the `sm`
           // variant is a shorter row, not smaller type.
-          "flex min-h-[30px] items-center gap-2 overflow-hidden rounded-md px-2 text-sm font-medium text-sidebar-foreground outline-hidden transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent focus-visible:shadow-focus active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=sm]:min-h-7 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-faint-foreground data-active:[&>svg]:text-sidebar-accent-foreground",
+          // gr8r `.sub` child: a normal `.sitem` with 14px icons.
+          "flex min-h-[30px] items-center gap-[9px] overflow-hidden rounded-[6px] px-2 text-[13.5px] font-[450] text-sidebar-foreground outline-hidden transition-colors duration-[140ms] group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-foreground focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=sm]:min-h-7 data-active:bg-surface data-active:font-medium data-active:text-foreground data-active:shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--border)] dark:data-active:bg-surface-3 dark:data-active:shadow-none [&>span:last-child]:truncate [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-ink-4 data-active:[&>svg]:text-ink-2",
           className
         ),
       },

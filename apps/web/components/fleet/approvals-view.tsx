@@ -14,18 +14,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Inbox,
+  Lock,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Badge } from "@/components/gr8r/ai-glyphs";
+import { G8Empty } from "@/components/gr8r/members-shared";
 import {
   fleetSessionsQueryOptions,
   type FleetSessionRow,
 } from "@/lib/query/fleet-queries";
 import { podBotEmoji, podToolInfo } from "@/lib/fleet/tool-catalog";
 import { decideApproval } from "./actions";
-import { PageShell } from "@/components/ui/page-shell";
 import { PageHeader } from "@/components/shell/page-header";
 
 /**
@@ -61,15 +62,34 @@ export function ApprovalsView({
           { label: "Approvals" },
         ]}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-16">
-        <PageShell width="full" className="flex flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="page" style={{ maxWidth: 820 }}>
+          <div className="ph">
+            <div>
+              <h1>Approvals</h1>
+              <p>
+                {pending.length
+                  ? `${pending.length} gated action${pending.length === 1 ? "" : "s"} waiting on a human`
+                  : "Gated actions the pod bots parked for a human decision."}
+              </p>
+            </div>
+          </div>
+          {!canDecide && pending.length > 0 ? (
+            <div className="alert info" style={{ marginBottom: 14 }}>
+              <Gi icon={Lock} size={15} />
+              <div>Only owners and managers can decide approvals.</div>
+            </div>
+          ) : null}
           {pending.length === 0 ? (
-            <EmptyState icon={ShieldCheck} title="Nothing waiting on you">
-              When a bot hits a gated action (refunds, rate overrides, comps), it
-              parks the request and it shows up here.
-            </EmptyState>
+            <div className="panel">
+              <G8Empty
+                icon={ShieldCheck}
+                title="Nothing waiting on you"
+                text="When a bot hits a gated action (refunds, rate overrides, comps), it parks the request and it shows up here."
+              />
+            </div>
           ) : (
-            <ul role="list" className="flex flex-col gap-4">
+            <ul role="list" className="stack" style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {pending.map((session) => (
                 <ApprovalCard
                   key={session.id}
@@ -86,12 +106,7 @@ export function ApprovalsView({
             </ul>
           )}
 
-          {!canDecide && pending.length > 0 ? (
-            <p className="mt-6 text-xs text-muted-foreground">
-              Only owners and managers can decide approvals.
-            </p>
-          ) : null}
-        </PageShell>
+        </div>
       </div>
     </div>
   );
@@ -203,31 +218,31 @@ function RequestDetail({ request }: { request: ApprovalRequest }) {
     (input != null && !isPlainObject) || entries.length > scalar.length;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md bg-background px-3 py-2.5">
+    <div className="flex flex-col gap-2" style={{ border: "1px solid var(--g8-border)", borderRadius: "var(--g8-r)", padding: "10px 12px", background: "var(--g8-surface-2)" }}>
       <div className="flex flex-col gap-0.5">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <p className="text-sm font-medium">
+        <div className="row" style={{ flexWrap: "wrap", gap: 8, alignItems: "baseline" }}>
+          <b style={{ fontWeight: 600 }}>
             {info?.label ?? request.toolName ?? "Pending action"}
-          </p>
+          </b>
           {info ? (
-            <code className="font-mono text-xs text-faint-foreground">
+            <code className="mono faint" style={{ fontSize: "var(--g8-fs-xs)" }}>
               {request.toolName}
             </code>
           ) : null}
         </div>
         {info ? (
-          <p className="text-xs text-muted-foreground">{info.description}</p>
+          <p className="muted" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>{info.description}</p>
         ) : null}
       </div>
 
       {scalar.length > 0 ? (
-        <dl className="flex flex-col gap-1">
+        <dl className="kv" style={{ alignItems: "baseline" }}>
           {scalar.map(([key, value]) => (
-            <div key={key} className="flex items-baseline gap-2">
-              <dt className="w-28 shrink-0 truncate font-mono text-xs text-faint-foreground">
+            <div key={key} style={{ display: "contents" }}>
+              <dt className="mono trunc" style={{ height: "auto", minHeight: 22, fontSize: "var(--g8-fs-xs)" }}>
                 {key}
               </dt>
-              <dd className="min-w-0 text-sm break-words">{String(value)}</dd>
+              <dd style={{ minHeight: 22, wordBreak: "break-word" }}>{String(value)}</dd>
             </div>
           ))}
         </dl>
@@ -235,10 +250,10 @@ function RequestDetail({ request }: { request: ApprovalRequest }) {
 
       {hasRaw ? (
         <details>
-          <summary className="cursor-pointer text-xs text-muted-foreground transition-colors hover:text-foreground">
+          <summary className="link" style={{ cursor: "pointer", fontSize: "var(--g8-fs-xs)" }}>
             Raw input
           </summary>
-          <pre className="mt-1.5 max-h-40 overflow-auto rounded-md bg-muted p-2 font-mono text-xs leading-snug">
+          <pre className="mono" style={{ marginTop: 6, maxHeight: 160, overflow: "auto", borderRadius: "var(--g8-r-sm)", background: "var(--g8-surface-3)", padding: 8, fontSize: "var(--g8-fs-xs)", lineHeight: 1.4 }}>
             {JSON.stringify(input, null, 2)}
           </pre>
         </details>
@@ -292,16 +307,16 @@ function ApprovalCard({
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-card bg-warning/10 p-4">
-      <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-sm">
+    <li className="panel" style={{ borderColor: "color-mix(in srgb, var(--g8-amber) 35%, var(--g8-border))" }}>
+      <div className="panel-h">
+        <span className="picon" style={{ "--g8-c": "var(--g8-amber)", fontSize: 14 } as React.CSSProperties}>
           {podBotEmoji(session.bot?.bot_id ?? "")}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">
+          <h2 className="trunc">
             {session.bot?.display_name ?? "Bot"}
-          </p>
-          <p className="truncate font-mono text-xs text-muted-foreground">
+          </h2>
+          <p className="mono faint trunc" style={{ margin: 0, fontSize: "var(--g8-fs-xs)" }}>
             {isWorkflow ? "workflow run" : session.channel_id}
             {requestedAt
               ? ` · ${new Date(requestedAt).toLocaleString(undefined, {
@@ -313,8 +328,12 @@ function ApprovalCard({
               : ""}
           </p>
         </div>
+        <div className="acts">
+          <G8Badge tone="warning">Awaiting approval</G8Badge>
+        </div>
       </div>
 
+      <div className="panel-b flex flex-col gap-3">
       {multi ? (
         <AnimatedHeight>
           <RequestDetail request={requests[active]} />
@@ -324,17 +343,17 @@ function ApprovalCard({
       )}
 
       {multi || canDecide ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
           {multi ? (
-            <div className="flex items-center gap-1 text-muted-foreground">
+            <div className="row muted" style={{ gap: 4 }}>
               <button
                 type="button"
                 aria-label="Previous request"
                 disabled={active <= 0}
                 onClick={() => setStep(active - 1)}
-                className="flex size-5 items-center justify-center rounded-md transition-colors enabled:hover:bg-accent enabled:hover:text-foreground disabled:opacity-30"
+                className="ibtn ibtn-xs"
               >
-                <ChevronLeft className="size-3.5" />
+                <Gi icon={ChevronLeft} size={13} />
               </button>
               <span className="px-0.5 text-xs font-medium tabular-nums">
                 <RollingNumber value={active + 1} /> / {requests.length}
@@ -344,35 +363,36 @@ function ApprovalCard({
                 aria-label="Next request"
                 disabled={last}
                 onClick={() => setStep(active + 1)}
-                className="flex size-5 items-center justify-center rounded-md transition-colors enabled:hover:bg-accent enabled:hover:text-foreground disabled:opacity-30"
+                className="ibtn ibtn-xs"
               >
-                <ChevronRight className="size-3.5" />
+                <Gi icon={ChevronRight} size={13} />
               </button>
             </div>
           ) : null}
 
           {canDecide ? (
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="row" style={{ marginLeft: "auto", gap: 6 }}>
               {multi && !last ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
                   onClick={() => setStep(active + 1)}
                 >
                   Next
-                  <ArrowRight className="size-3.5" />
-                </Button>
+                  <Gi icon={ArrowRight} size={13} />
+                </button>
               ) : null}
-              <Button
-                size="sm"
-                variant="outline"
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
                 onClick={() => decide("deny")}
                 disabled={busy !== null}
               >
                 {busy === "deny" ? "Denying…" : multi ? "Deny all" : "Deny"}
-              </Button>
-              <Button
-                size="sm"
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
                 onClick={() => decide("approve")}
                 disabled={busy !== null}
               >
@@ -381,20 +401,21 @@ function ApprovalCard({
                   : multi
                     ? "Approve all"
                     : "Approve"}
-              </Button>
+              </button>
             </div>
           ) : null}
         </div>
       ) : null}
 
       {canDecide ? (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Inbox className="size-3.5 shrink-0" />
+        <p className="row faint" style={{ margin: 0, gap: 6, fontSize: "var(--g8-fs-xs)" }}>
+          <Gi icon={Inbox} size={13} />
           {multi
             ? `One decision covers all ${requests.length} requests — parked until someone decides, restarts included.`
             : "Parked until decided — restarts included"}
         </p>
       ) : null}
+      </div>
     </li>
   );
 }

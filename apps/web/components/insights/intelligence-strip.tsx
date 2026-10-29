@@ -14,10 +14,9 @@ import {
   TrendingUp,
   TriangleAlert,
 } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Eyebrow } from "@/components/ui/eyebrow";
-import { cn } from "@/lib/utils";
-import { relativeShort, WidgetEmpty } from "@/components/home/editorial-section";
+import { relativeShort } from "@/components/home/editorial-section";
+import { Gi } from "@/components/gr8r/icon";
+import { G8Note } from "./g8-insights";
 import type { InsightsMetrics } from "@/lib/insights/metrics";
 import type { InsightCard } from "@/lib/ai/bots/insights-bot";
 import { insightsBriefQueryOptions } from "@/lib/query/insights-queries";
@@ -47,7 +46,7 @@ export function IntelligenceUpdated({
   const { data } = useQuery(insightsBriefQueryOptions(propertyId, scope));
   if (!data?.brief) return null;
   return (
-    <span className="text-xs text-faint-foreground tabular-nums">
+    <span className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
       updated {relativeShort(data.brief.generated_at)}
     </span>
   );
@@ -98,20 +97,20 @@ export function IntelligenceBody({
 
   if (!data || data.pending) {
     return graceOver ? (
-      <WidgetEmpty>
+      <G8Note>
         The analyst is still reading this lens — the first brief takes a
         little while and will appear here as soon as it&apos;s ready.
-      </WidgetEmpty>
+      </G8Note>
     ) : (
       <BriefSkeleton />
     );
   }
   if (!data.brief) {
     return (
-      <WidgetEmpty>
+      <G8Note>
         The analyst hasn&apos;t written anything yet — insights appear here
         automatically once there&apos;s task activity to read.
-      </WidgetEmpty>
+      </G8Note>
     );
   }
   return (
@@ -175,38 +174,34 @@ function InsightCarousel({
           move(1);
         }
       }}
-      className="rounded-md focus-visible:shadow-ring focus-visible:outline-none"
+      className="focus-visible:outline-none"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <span className="flex items-baseline gap-1.5">
-          <Eyebrow>Insights</Eyebrow>
-          <span
-            aria-live="polite"
-            className="text-xs leading-3 font-medium text-faint-foreground tabular-nums"
-          >
+      <div className="row" style={{ marginBottom: 10 }}>
+        <span className="row" style={{ gap: 6, alignItems: "baseline" }}>
+          <span className="eyebrow">Insights</span>
+          <span aria-live="polite" className="faint num" style={{ fontSize: "var(--g8-fs-xs)" }}>
             {current + 1} of {pageCount}
           </span>
         </span>
-        <span className="flex items-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Previous insights"
-            disabled={pageCount <= 1}
-            onClick={() => move(-1)}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronLeft className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next insights"
-            disabled={pageCount <= 1}
-            onClick={() => move(1)}
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <ChevronRight className="size-3.5" />
-          </button>
-        </span>
+        <span className="sp" />
+        <button
+          type="button"
+          aria-label="Previous insights"
+          disabled={pageCount <= 1}
+          onClick={() => move(-1)}
+          className="ibtn ibtn-sm"
+        >
+          <Gi icon={ChevronLeft} size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label="Next insights"
+          disabled={pageCount <= 1}
+          onClick={() => move(1)}
+          className="ibtn ibtn-sm"
+        >
+          <Gi icon={ChevronRight} size={14} />
+        </button>
       </div>
       <div ref={viewportRef} className="-mx-2 -my-4 overflow-hidden py-4">
         <div
@@ -239,12 +234,12 @@ function InsightCarousel({
 
 function BriefSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-x-10 gap-y-5 @3xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-4 @3xl:grid-cols-2">
       {[0, 1].map((i) => (
-        <div key={i} className="flex flex-col gap-2">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3" />
+        <div key={i} className="ins-card" style={{ flexDirection: "column", gap: 8 }}>
+          <span className="sk" style={{ height: 16, width: "75%" }} />
+          <span className="sk" style={{ height: 12, width: "100%" }} />
+          <span className="sk" style={{ height: 12, width: "66%" }} />
         </div>
       ))}
     </div>
@@ -312,8 +307,11 @@ function Sparkline({
         <>
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 w-px bg-border"
-            style={{ left: `${(hover / (n - 1)) * 100}%` }}
+            className="pointer-events-none absolute inset-y-0 w-px"
+            style={{
+              left: `${(hover / (n - 1)) * 100}%`,
+              background: "var(--g8-border-strong)",
+            }}
           />
           <span className="pointer-events-none absolute right-0 bottom-full z-10 mb-1.5 flex items-center gap-1.5 rounded-md bg-tooltip-bg px-2 py-1 text-xs whitespace-nowrap text-tooltip-foreground shadow-tooltip">
             <span
@@ -343,61 +341,51 @@ function InsightCardRow({
   const Icon = KIND_ICON[card.kind] ?? Eye;
   const iconTone =
     card.severity === "critical"
-      ? "text-destructive"
+      ? "var(--g8-red)"
       : card.severity === "warning"
-        ? "text-warning"
+        ? "var(--g8-amber)"
         : card.kind === "win"
-          ? "text-success"
-          : "text-muted-foreground";
+          ? "var(--g8-green)"
+          : "var(--g8-text-3)";
   return (
-    <article className="flex h-full items-start gap-3 rounded-card bg-card p-4 shadow-card">
-      <Icon className={cn("mt-0.5 size-4 shrink-0", iconTone)} />
+    <article className="ins-card">
+      <span style={{ color: iconTone, display: "inline-flex", marginTop: 2 }}>
+        <Gi icon={Icon} size={16} />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 text-base leading-6 font-semibold text-pretty text-foreground">
-            {card.headline}
-          </h3>
+          <h3 className="min-w-0">{card.headline}</h3>
           {card.spark !== "none" ? (
             <Sparkline spark={card.spark} flow={flow} />
           ) : null}
         </div>
-        <p className="text-sm leading-relaxed text-pretty text-muted-foreground">
-          {card.detail}
-        </p>
+        <p>{card.detail}</p>
         {card.evidence ? (
-          <figure className="mt-0.5 border-l-2 border-border pl-2.5">
-            <blockquote className="text-sm leading-relaxed text-pretty text-muted-foreground italic">
-              “{card.evidence.quote}”
-            </blockquote>
-            <figcaption className="mt-0.5 text-xs text-faint-foreground">
-              {card.evidence.source}
-            </figcaption>
+          <figure className="ins-quote">
+            <blockquote>“{card.evidence.quote}”</blockquote>
+            <figcaption>{card.evidence.source}</figcaption>
           </figure>
         ) : null}
         {card.action ? (
           <Link
             href={actionHref(propertyId, card.action)}
-            className="group mt-0.5 inline-flex w-fit items-center gap-1 text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            className="link row"
+            style={{ gap: 4, width: "fit-content", fontWeight: 500, fontSize: "var(--g8-fs-sm)" }}
           >
             {card.action.label}
-            <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+            <Gi icon={ArrowRight} size={12} />
           </Link>
         ) : null}
         {card.basis && card.basis.length > 0 ? (
-          <details className="group/basis mt-0.5">
-            <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-faint-foreground hover:text-muted-foreground [&::-webkit-details-marker]:hidden">
-              <ChevronRight className="size-3 shrink-0 transition-transform group-open/basis:rotate-90" />
+          <details className="ins-basis">
+            <summary>
+              <Gi icon={ChevronRight} size={12} />
               From {card.basis.length} deterministic signal
               {card.basis.length === 1 ? "" : "s"}
             </summary>
-            <ul className="mt-1 flex flex-col gap-0.5">
+            <ul>
               {card.basis.map((b, i) => (
-                <li
-                  key={i}
-                  className="text-xs leading-relaxed text-muted-foreground"
-                >
-                  · {b}
-                </li>
+                <li key={i}>· {b}</li>
               ))}
             </ul>
           </details>
