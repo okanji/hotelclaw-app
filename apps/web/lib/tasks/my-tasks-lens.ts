@@ -1,3 +1,5 @@
+import { isDone, type StatusLike } from "@/lib/tasks/statuses";
+
 /**
  * My Tasks lenses — pure filters over the shared `["tasks", propertyId]`
  * cache, so the page needs no endpoint of its own. Linear's "My issues"
@@ -17,9 +19,8 @@ export function parseMyTasksTab(value: string | null | undefined): MyTasksTab {
     : "focus";
 }
 
-type LensTask = {
+type LensTask = StatusLike & {
   id: string;
-  status: string;
   assignee_id: string | null;
   created_by?: string | null;
   parent_id?: string | null;
@@ -51,5 +52,5 @@ export function createdRows<T extends LensTask>(tasks: T[], userId: string): T[]
 }
 
 export function openCount(tasks: LensTask[]): number {
-  return tasks.filter((t) => t.status !== "done").length;
+  return tasks.filter((t) => !isDone(t)).length;
 }

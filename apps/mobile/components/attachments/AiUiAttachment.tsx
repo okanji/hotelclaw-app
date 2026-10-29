@@ -9,9 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Animated from "react-native-reanimated";
-import { useChannelContext, useMessageContext } from "stream-chat-expo";
-import { ChartView, FormView, QuestionnaireView } from "./AiUiGenerative";
-import { useOptionalChatUiSend } from "./chat-ui-send";
+import { ChartView, FormView, QuestionnaireView, useReplySender } from "./AiUiGenerative";
 import { fadeUpEntering, statusFadeIn } from "../AiLoader";
 import {
   validateChatUiSpec,
@@ -237,15 +235,10 @@ function OptionsView({
 }) {
   // Quick-reply chips: a tap sends the option as the USER's own message,
   // so the reply travels the normal message.new → classifier → eve pipeline
-  // (same wiring as web's Options in ai-ui-attachment.tsx). Both contexts
-  // are guaranteed here — this component only mounts inside <Channel> via
-  // CustomAttachments' MessageContentBottomView.
-  const { channel } = useChannelContext();
-  const { message } = useMessageContext();
-  // Outside a channel (the Assistant transcript) the surface supplies the
-  // sender; inside one the reply travels as the person's own message.
-  const sendOverride = useOptionalChatUiSend();
-  const parentId = message?.parent_id;
+  // (same wiring as web's Options in ai-ui-attachment.tsx). In the Assistant
+  // transcript (no <Channel>) the surface's ChatUiSendProvider sends instead —
+  // useReplySender picks whichever exists without throwing.
+  const send = useReplySender();
   const [sentIndex, setSentIndex] = React.useState<number | null>(null);
   const [sending, setSending] = React.useState(false);
 
@@ -254,14 +247,8 @@ function OptionsView({
     const option = props.options[index];
     setSending(true);
     try {
-      const text = option.value ?? option.label;
-      if (sendOverride) await sendOverride(text);
-      else
-        await channel.sendMessage({
-          text,
-          // A bot message living in a thread gets its reply in that thread.
-          ...(parentId ? { parent_id: parentId, show_in_channel: false } : {}),
-        });
+      if (!send) throw new Error("No sender for this surface");
+      await send(option.value ?? option.label);
       setSentIndex(index);
     } catch {
       Alert.alert("Couldn't send", "That reply didn't go through — try again.");

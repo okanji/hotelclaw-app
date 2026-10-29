@@ -563,10 +563,62 @@ the `lib/security/__tests__/guest-gates.test.ts` drift guard) is Phase 0.
   a person never meets the unique-index error. A category change on a
   status re-touches its tasks' `status_id` so the resolver refreshes the
   legacy projection + `completed_at`.
-- **Still to come in this phase**: the sweep of ~93 literal `"done"` sites
-  onto the predicates (PR 4), AI / workflow / mobile exposure of list +
-  status names (PR 5), the status facet in the board filter grouped by
-  list, list chips on the team page's Tasks tab.
+- **The literal sweep (PR 4, 2026-10-27).** Every task-row check on the
+  legacy literal now goes through the predicates (`lib/cycles/scope.ts`,
+  `lib/initiatives/planning.ts`, `lib/insights/metrics.ts` — the open-work
+  snapshot's `todo / in_progress / blocked` buckets are CATEGORY buckets via
+  `OPEN_STATUS_MATCH` — My tasks, the home widgets, timeline / list / cells /
+  calendar / command palette / space detail). Postgres "is finished" filters
+  key on **`completed_at`** (`.is("completed_at", null)` for open work:
+  cycle rollover, the overdue sweep, the workflow query step, the AI list
+  tools, the agent's morning brief; teams-pulse reads throughput off
+  `completed_at`). Workflow event payload comparisons (`payload->>'to'`)
+  are DELIBERATELY still the legacy literals — `from` / `to` on
+  `task.status_changed` are the stable projection and the only field older
+  rows carry; `to_name` / `to_category` / `to_blocked` are the enrichment.
+  Literal `status: "todo"` inserts are gone (workflow create step, the
+  guest ticket, the Actions MCP, the agent + pod bots): no status on an
+  insert means the list's open status. The legacy category columns, group
+  keys and filter chips (`COLUMNS`, `STATUS_IDS`, `STATUS_ORDER`,
+  `STATUS_BAR`, the mobile filter sheet) stay — across lists the four
+  categories ARE the grouping.
+- **Names everywhere (PR 5, 2026-10-27).** Server-side text → status:
+  `lib/tasks/status-resolve.ts` (`statusPatchForTask(db, taskId, input)`
+  → `{status_id}` for a uuid / name of the task's list, `{status}` for a
+  legacy literal, or the valid names for the error message). Workflows:
+  `action.task.update.status` is a **template string** resolved that way
+  (the runner throws with the valid names on a miss); `action.task.query.
+  status` values are categories; `task.status_changed` output + the ref
+  picker expose `to_name / from_name / to_category / from_category /
+  to_blocked`, and the new trigger **`task.moved_to_list`** (`from` / `to`
+  list ids) is registered in `spec.ts` + `catalog/tasks.ts`. Activity log:
+  `status_changed` / `reopened` render the detail's `to_name`, and the new
+  `list_changed` verb ("moved … to the Maintenance requests list" — list
+  names come from the status catalog, now on `ActivityLookup.lists`) sits
+  in the Projects family. Agent catalog (`apps/agent/agent/tools/
+  catalog.ts`): `list_open_tasks` returns `status` = the list's status
+  NAME + `status_category` + `list`, filters by category and by `list`
+  name; `create_task` takes `list` (scoped to `team`) + `status` (a name of
+  that list's pipeline; misses return the valid names); `update_task`
+  takes `status` as a NAME of the task's list (legacy literals still map)
+  and `list` to move it (resolved first, so a status in the same call is
+  looked up in the destination). Pod bots + the operations subagent return
+  `status_ref` names. The untyped agent client infers to-one embeds as
+  arrays — normalise with `Array.isArray(ref) ? ref[0] : ref` inline (eve
+  executors can't share a helper). Web `lib/ai/tools.ts` and the Actions
+  MCP `list_tasks` return `status_name` too. The single-task GET flattens
+  the status row like `getTasks` (mobile reads it). **Mobile**
+  (`apps/mobile/lib/statuses.ts` — the phone's twin: predicates, `legacyOf`,
+  `ENTITY_HEX`, `statusHexOf`, `useStatusCatalog(propertyId)` over
+  `GET …/lists`): `ApiTask` grew the optional 0114 fields; task detail's
+  Status section shows the task's LIST pipeline (chips by status name +
+  colour, the list name as the section caption; a tap PATCHes the status
+  uuid) and falls back to the four legacy chips until the catalog loads;
+  the Tasks tab glyph is shaped by category and tinted by the status
+  colour; the activity feed reads `to_name`.
+- **Still to come**: the status facet in the board filter grouped by list,
+  list chips on the team page's Tasks tab, the agent-runtime drift test for
+  `status_category` in the catalog.
 
 ## Page audit vs Linear (2026-10-25) — controls on the page, detail-page parity
 
@@ -1199,7 +1251,7 @@ the contract this repo codes against:
   (Anthropic native search on the direct provider) are eve defaults and ON.
 - **Model = dynamic selection object.** `agent.ts` returns
   `{ model, reasoning, modelOptions }` per step (no compiled fallback since
-  0.33): advanced tier Opus 5 at `reasoning: "medium"`, 1-hour Anthropic
+  0.33): advanced tier Sonnet 5.5 (was Opus 5 until 2026-10-27) at `reasoning: "medium"`, 1-hour Anthropic
   prompt-cache TTL on both tiers. Limits are `limits.sessionUsage` (0.82);
   `experimental.workflow.retention: "default"` keeps finished sessions'
   transcripts readable (private sessions default to retention 0).

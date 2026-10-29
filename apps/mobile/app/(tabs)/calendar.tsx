@@ -28,6 +28,7 @@ import {
   type ApiTask,
   type CalendarSource,
 } from "../../lib/api";
+import { isDone } from "../../lib/statuses";
 
 type ViewMode = "month" | "list";
 
@@ -98,7 +99,7 @@ export default function CalendarTab() {
     const toMs = new Date(to).getTime();
     const out: ApiCalendarEvent[] = [];
     for (const t of tasks ?? []) {
-      if (!t.due_at || t.status === "done" || t.scheduled_start) continue;
+      if (!t.due_at || isDone(t) || t.scheduled_start) continue;
       const due = new Date(t.due_at);
       if (Number.isNaN(due.getTime())) continue;
       const day = new Date(due.getFullYear(), due.getMonth(), due.getDate());

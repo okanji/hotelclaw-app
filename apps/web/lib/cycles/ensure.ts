@@ -99,7 +99,7 @@ export async function ensureCycles(
           .update({ cycle_id: target.id })
           .eq("property_id", propertyId)
           .eq("cycle_id", c.id)
-          .neq("status", "done");
+          .is("completed_at", null);
         if (error) {
           // Leave it open so the next load retries the move.
           console.error("[cycles] rollover failed", c.id, error);

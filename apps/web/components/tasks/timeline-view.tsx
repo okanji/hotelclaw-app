@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import {
   useCallback,
   useLayoutEffect,
@@ -215,7 +216,7 @@ export function TimelineView({
   }, [milestoneScope, projectMs, propertyMs]);
 
   const visible = useMemo(
-    () => (hideDone ? tasks.filter((t) => t.status !== "done") : tasks),
+    () => (hideDone ? tasks.filter((t) => !isDone(t)) : tasks),
     [tasks, hideDone],
   );
 
@@ -226,7 +227,7 @@ export function TimelineView({
     for (const t of tasks) {
       if (!t.parent_id) continue;
       total.set(t.parent_id, (total.get(t.parent_id) ?? 0) + 1);
-      if (t.status === "done") done.set(t.parent_id, (done.get(t.parent_id) ?? 0) + 1);
+      if (isDone(t)) done.set(t.parent_id, (done.get(t.parent_id) ?? 0) + 1);
     }
     return { total, done };
   }, [tasks]);
@@ -592,7 +593,7 @@ export function TimelineView({
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate text-sm",
-                      r.task.status === "done" ? "text-muted-foreground line-through" : "text-foreground",
+                      isDone(r.task) ? "text-muted-foreground line-through" : "text-foreground",
                     )}
                   >
                     {r.task.title}
@@ -751,7 +752,7 @@ export function TimelineView({
               const inside = w > INSIDE_LABEL_MIN;
               const total = progress.total.get(r.task.id) ?? 0;
               const pct =
-                r.task.status === "done"
+                isDone(r.task)
                   ? 100
                   : total > 0
                     ? Math.round(((progress.done.get(r.task.id) ?? 0) / total) * 100)
@@ -781,7 +782,7 @@ export function TimelineView({
                       "absolute z-[3] flex items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs font-medium select-none",
                       pill,
                       dragging ? "cursor-grabbing shadow-overlay ring-1 ring-primary/40" : "cursor-grab hover:brightness-95",
-                      r.task.status === "done" && "opacity-60",
+                      isDone(r.task) && "opacity-60",
                     )}
                     style={{
                       left: x + 1,

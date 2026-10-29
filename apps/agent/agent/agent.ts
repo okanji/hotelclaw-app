@@ -12,9 +12,9 @@ import { AGENT_TIER_MODELS, type AgentConfig } from "@hotelclaw/agent-config";
  * reasoning effort and provider options (`defineAgent` siblings are rejected
  * for dynamic models).
  *
- *   - advanced (Opus 5): `reasoning: "medium"` — Opus thinks by default, and
- *     medium keeps turn latency near the Sonnet baseline while buying the
- *     intelligence (sweep low/medium/high against real turns before changing).
+ *   - advanced (Sonnet 5.5; Opus 5 until 2026-10-27, swapped for latency):
+ *     `reasoning: "medium"` (sweep low/medium/high against real turns before
+ *     changing).
  *     The reasoning SUMMARY is kept (display "summarized") so the
  *     chat's turn trace can show it as a collapsed "Thought" row.
  *   - standard (Haiku 4.5): provider defaults — Haiku rejects `effort` and

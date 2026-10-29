@@ -290,9 +290,26 @@ export function describeActivity(row: ActivityRow, L: ActivityLookup): ActivityD
     case "completed":
       return { ...base, verb: "completed" };
     case "reopened":
-      return { ...base, verb: "reopened", extra: d.to !== "todo" ? `as ${STATUS_LABEL[s(d.to) as keyof typeof STATUS_LABEL] ?? s(d.to)}` : null };
+      // 0114 rows carry the list's own status names (`to_name`); older rows
+      // only the legacy literal.
+      return {
+        ...base,
+        verb: "reopened",
+        extra:
+          typeof d.to_name === "string"
+            ? `as ${d.to_name}`
+            : d.to !== "todo"
+              ? `as ${STATUS_LABEL[s(d.to) as keyof typeof STATUS_LABEL] ?? s(d.to)}`
+              : null,
+      };
     case "status_changed":
-      return { ...base, verb: "moved", extra: `to ${STATUS_LABEL[s(d.to) as keyof typeof STATUS_LABEL] ?? s(d.to)}` };
+      return {
+        ...base,
+        verb: "moved",
+        extra: `to ${typeof d.to_name === "string" ? d.to_name : (STATUS_LABEL[s(d.to) as keyof typeof STATUS_LABEL] ?? s(d.to))}`,
+      };
+    case "list_changed":
+      return { ...base, verb: "moved", extra: "to another list" };
     case "priority_changed":
       return { ...base, verb: "set priority of", extra: `to ${PRIORITY_LABEL[s(d.to) as keyof typeof PRIORITY_LABEL] ?? s(d.to)}` };
     case "assigned":

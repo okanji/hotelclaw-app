@@ -23,7 +23,7 @@ import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { samplingParams } from "@/lib/ai/model-settings";
 
-const MODEL_ID = process.env.AI_DOC_CONTEXTUAL_MODEL ?? "claude-sonnet-5";
+const MODEL_ID = process.env.AI_DOC_CONTEXTUAL_MODEL || "claude-sonnet-5";
 
 // Cap so a misread prompt can't dump a huge block into the editor. Internal
 // newlines are preserved (multi-paragraph rewrites are valid output).

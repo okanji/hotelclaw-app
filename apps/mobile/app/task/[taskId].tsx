@@ -36,6 +36,7 @@ import {
   type TaskStatus,
 } from "../../lib/api";
 import { useCatalogues } from "../../lib/catalogues";
+import { ENTITY_HEX, isDone, useStatusCatalog } from "../../lib/statuses";
 import { supabase } from "../../lib/supabase";
 
 const STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked", "done"];
@@ -56,6 +57,9 @@ export default function TaskDetailScreen() {
   );
   const { data: members } = useApi<ApiMember[]>(base ? `${base}/members` : null);
   const catalogues = useCatalogues(propertyId);
+  // The task's own pipeline (0114): the list's statuses, else the four
+  // legacy ones while the catalog loads.
+  const statusCatalog = useStatusCatalog(propertyId);
 
   // Field-change history (activity_log, migration 0106) — who moved,
   // reassigned or rescheduled this task. Comments stay on the web for now.
@@ -155,13 +159,13 @@ export default function TaskDetailScreen() {
         {due ? (
           <Text style={styles.due}>
             Due {due.toLowerCase()}
-            {task.status !== "done" && new Date(task.due_at!) < new Date()
+            {!isDone(task) && new Date(task.due_at!) < new Date()
               ? " · overdue"
               : ""}
           </Text>
         ) : null}
 
-        {task.status !== "done" ? (
+        {!isDone(task) ? (
           <Pressable
             style={styles.complete}
             onPress={() => patch({ status: "done" }, { status: "done" })}
@@ -205,17 +209,57 @@ export default function TaskDetailScreen() {
           />
         </Section>
 
-        <Section title="Status">
+        <Section
+          title="Status"
+          trailing={
+            task.list_id ? statusCatalog.listById.get(task.list_id)?.name : undefined
+          }
+        >
           <View style={styles.options}>
-            {STATUSES.map((s) => (
-              <Option
-                key={s}
-                label={STATUS_LABEL[s]}
-                color={STATUS_COLOR[s]}
-                selected={task.status === s}
-                onPress={() => patch({ status: s }, { status: s })}
-              />
-            ))}
+            {(() => {
+              const pipeline = statusCatalog.statusesOfList(task.list_id);
+              if (pipeline.length === 0) {
+                return STATUSES.map((s) => (
+                  <Option
+                    key={s}
+                    label={STATUS_LABEL[s]}
+                    color={STATUS_COLOR[s]}
+                    selected={task.status === s}
+                    onPress={() => patch({ status: s }, { status: s })}
+                  />
+                ));
+              }
+              return pipeline.map((s) => (
+                <Option
+                  key={s.id}
+                  label={s.name}
+                  color={ENTITY_HEX[s.color] ?? STATUS_COLOR.todo}
+                  selected={task.status_id ? task.status_id === s.id : task.status_name === s.name}
+                  onPress={() =>
+                    // The PATCH route accepts a status uuid (resolved against
+                    // the list by the DB); echo the row locally.
+                    patch(
+                      { status: s.id },
+                      {
+                        status_id: s.id,
+                        status_name: s.name,
+                        status_category: s.category,
+                        status_color: s.color,
+                        status_blocked: s.is_blocked,
+                        status:
+                          s.category === "active"
+                            ? s.is_blocked
+                              ? "blocked"
+                              : "in_progress"
+                            : s.category === "done" || s.category === "closed"
+                              ? "done"
+                              : "todo",
+                      },
+                    )
+                  }
+                />
+              ));
+            })()}
           </View>
         </Section>
 
@@ -313,11 +357,11 @@ export default function TaskDetailScreen() {
               style={styles.subRow}
             >
               <Ionicons
-                name={si.status === "done" ? "checkmark-circle" : "ellipse-outline"}
+                name={isDone(si) ? "checkmark-circle" : "ellipse-outline"}
                 size={18}
-                color={si.status === "done" ? STATUS_COLOR.done : "#9ca3af"}
+                color={isDone(si) ? STATUS_COLOR.done : "#9ca3af"}
               />
-              <Text style={[styles.subTitle, si.status === "done" && styles.subDone]} numberOfLines={2}>
+              <Text style={[styles.subTitle, isDone(si) && styles.subDone]} numberOfLines={2}>
                 {si.title}
               </Text>
               <Text style={styles.chevron}>›</Text>
@@ -442,14 +486,20 @@ function DueDateField({
 
 function Section({
   title,
+  trailing,
   children,
 }: {
   title: string;
+  /** Muted caption after the title (the task's list on the Status section). */
+  trailing?: string;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionTitle}>
+        {title}
+        {trailing ? <Text style={styles.sectionTrailing}> · {trailing}</Text> : null}
+      </Text>
       {children}
     </View>
   );
@@ -511,6 +561,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
+  sectionTrailing: { fontWeight: "400", color: "#9ca3af", textTransform: "none" },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: {
     paddingHorizontal: 12,

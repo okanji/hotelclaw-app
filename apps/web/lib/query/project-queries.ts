@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { EntityColor, ProjectStatus, TaskStatus } from "@/lib/db/types";
+import { isDone } from "@/lib/tasks/statuses";
 
 /**
  * React Query options for Spaces + Projects. Both fetch directly via the browser
@@ -236,7 +237,7 @@ export function projectsTrackingQueryOptions(propertyId: string) {
         if (!agg) continue;
         agg.counts[t.status] += 1;
         agg.total += 1;
-        if (t.status === "done") agg.done += 1;
+        if (isDone(t)) agg.done += 1;
         if (t.assignee_id) {
           const set = contributorSets.get(t.project_id)!;
           if (!set.has(t.assignee_id)) {

@@ -48,10 +48,10 @@ function teamsPulseQueryOptions(propertyId: string) {
           .gte("run_date", since28),
         supabase
           .from("tasks")
-          .select("space_id, updated_at")
+          .select("space_id, updated_at, completed_at")
           .eq("property_id", propertyId)
-          .eq("status", "done")
-          .gte("updated_at", new Date(now - 14 * 86_400_000).toISOString()),
+          .not("completed_at", "is", null)
+          .gte("completed_at", new Date(now - 14 * 86_400_000).toISOString()),
       ]);
       return {
         runs: (runsRes.data ?? []) as unknown as {

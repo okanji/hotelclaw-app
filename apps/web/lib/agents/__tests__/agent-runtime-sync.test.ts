@@ -31,6 +31,22 @@ describe("AGENT_TOOL_CATALOG ↔ eve executor sync", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("task tools speak list statuses, not the legacy enum (0114 PR 5)", () => {
+    // Lists own their status pipelines: the model must see the list's own
+    // status names and must not be offered the four legacy literals as a
+    // closed enum on create/update — the names are the contract now.
+    // (`list_open_tasks` keeps a three-value CATEGORY filter — that is a
+    // rollup, not a write.)
+    expect(
+      catalogSrc.includes('z.enum(["todo", "in_progress", "blocked", "done"])'),
+      "catalog.ts still offers the legacy status enum on a write",
+    ).toBe(false);
+    expect(catalogSrc.includes("status_category")).toBe(true);
+    expect(catalogSrc.includes("statuses!tasks_status_id_fkey")).toBe(true);
+    expect(catalogSrc.includes('status: "todo"'), "a create path still hardcodes status todo").toBe(false);
+    expect(podToolsSrc.includes('status: "todo"')).toBe(false);
+  });
+
   it("every catalog id has an executor gate in catalog.ts", () => {
     for (const id of AGENT_TOOL_IDS) {
       expect(

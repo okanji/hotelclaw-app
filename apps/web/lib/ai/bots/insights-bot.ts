@@ -434,7 +434,7 @@ export async function annotateAtRiskProjects(
 
 /* ── Automatic intelligence briefs: structured insights, not chat ─────────── */
 
-const BRIEF_MODEL = process.env.AI_BOT_MODEL ?? "claude-sonnet-5";
+const BRIEF_MODEL = process.env.AI_BOT_MODEL || "claude-sonnet-5";
 
 const InsightCardSchema = z.object({
   kind: z.enum(["trend", "risk", "anomaly", "win", "watch"]),

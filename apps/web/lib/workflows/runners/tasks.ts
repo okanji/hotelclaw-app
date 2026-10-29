@@ -1,6 +1,10 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
+import { statusPatchForTask } from "@/lib/tasks/status-resolve";
 import type { RunnerImpl } from "./types";
+import type { Database } from "@/lib/db/types";
+
+type TaskUpdate = Database["public"]["Tables"]["tasks"]["Update"];
 
 type CreateTaskConfig = {
   title: string;
@@ -67,7 +71,8 @@ export const createTaskRunner: RunnerImpl<
       priority: normalizePriority(config.priority),
       parent_id: config.parent_id ?? null,
       created_by: ctx.workflowOwnerId,
-      status: "todo",
+      // No status: the 0114 resolver files it in the team's default list (or
+      // General) at that list's open status.
       source: "workflow",
       source_workflow_id: ctx.workflowId,
       source_workflow_run_id: ctx.runId,
@@ -82,7 +87,8 @@ type UpdateTaskConfig = {
   task_id: string;
   title?: string;
   description?: string;
-  status?: "todo" | "in_progress" | "blocked" | "done";
+  /** Status name / id of the task's list, or a legacy literal (0114). */
+  status?: string;
   priority?: "none" | "low" | "medium" | "high" | "urgent";
   assignee_id?: string;
   due_at?: string;
@@ -95,11 +101,21 @@ export const updateTaskRunner: RunnerImpl<
   UpdateTaskConfig,
   { task: Record<string, unknown> }
 > = async ({ config, ctx }) => {
-  const { task_id, ...patch } = config;
+  const { task_id, status, ...rest } = config;
   if (ctx.dryRun) {
-    return { task: { id: task_id, ...patch } };
+    return { task: { id: task_id, ...rest, ...(status ? { status } : {}) } };
   }
   const supabase = createServiceClient();
+  const patch: TaskUpdate = { ...rest };
+  if (status) {
+    const { patch: statusPatch, names } = await statusPatchForTask(supabase, task_id, status);
+    if (!statusPatch) {
+      throw new Error(
+        `update_task failed: no status "${status}" in this task's list (valid: ${names.join(", ") || "none"})`,
+      );
+    }
+    Object.assign(patch, statusPatch);
+  }
   const { data, error } = await supabase
     .from("tasks")
     .update(patch)
@@ -363,12 +379,16 @@ export const queryTasksRunner: RunnerImpl<
     .order("updated_at", { ascending: true })
     .limit(Math.min(config.limit ?? 25, 50));
 
+  // `status` values are categories (0114): the legacy projection column IS
+  // the category rollup, so filtering on it covers every list's own names;
+  // "open" / "done" key on completed_at, the finished stamp.
   const status = config.status ?? "open";
-  if (status === "open") query = query.neq("status", "done");
+  if (status === "open") query = query.is("completed_at", null);
+  else if (status === "done") query = query.not("completed_at", "is", null);
   else query = query.eq("status", status);
   if (config.space_id) query = query.eq("space_id", config.space_id);
   if (config.due === "overdue") {
-    query = query.lt("due_at", new Date().toISOString()).neq("status", "done");
+    query = query.lt("due_at", new Date().toISOString()).is("completed_at", null);
   }
   if (config.stuck_days) {
     const cutoff = new Date(

@@ -40,7 +40,7 @@ export function buildPropertyTools(propertyId: string) {
           .enum(["todo", "in_progress", "blocked"])
           .optional()
           .describe(
-            "Filter to a single status. Omit to return all open statuses (todo + in_progress + blocked).",
+            "Filter by status CATEGORY: todo = not started, in_progress = active, blocked = active and blocked. Lists have their own status names (returned as `status_name`); omit to return everything that isn't finished.",
           ),
         assignee_name: z
           .string()
@@ -65,14 +65,28 @@ export function buildPropertyTools(propertyId: string) {
         // then resolve assignee names in a second batched query.
         let query = supabase
           .from("tasks")
-          .select("id, title, status, priority, due_at, assignee_id")
+          .select(
+            "id, title, status, priority, due_at, assignee_id, list_id, status_ref:statuses!tasks_status_id_fkey(name, category)",
+          )
           .eq("property_id", propertyId)
           .order("updated_at", { ascending: false })
           .limit(limit);
         if (status) query = query.eq("status", status);
-        else query = query.neq("status", "done");
-        const { data: tasks, error } = await query;
+        else query = query.is("completed_at", null);
+        const { data: rawTasks, error } = await query;
         if (error) return { error: error.message };
+        // The embed is typed by hand (Relationships: [] in lib/db/types.ts),
+        // so the nested status row arrives untyped — same as getTasks.
+        const tasks = (rawTasks ?? []) as unknown as Array<{
+          id: string;
+          title: string;
+          status: string;
+          priority: string;
+          due_at: string | null;
+          assignee_id: string | null;
+          list_id: string;
+          status_ref: { name: string; category: string } | null;
+        }>;
 
         // Resolve assignee names with one batched profile lookup.
         const assigneeIds = Array.from(
@@ -82,7 +96,7 @@ export function buildPropertyTools(propertyId: string) {
               .filter((id): id is string => !!id),
           ),
         );
-        let nameById = new Map<string, string>();
+        const nameById = new Map<string, string>();
         if (assigneeIds.length > 0) {
           const { data: profiles, error: profErr } = await supabase
             .from("profiles")
@@ -99,7 +113,9 @@ export function buildPropertyTools(propertyId: string) {
           // id is for deep links (render_ui link refs), not for prose.
           id: t.id,
           title: t.title,
-          status: STATUS_LABELS[t.status] ?? t.status,
+          // The list's own status name (0114), the legacy label as fallback.
+          status: t.status_ref?.name ?? STATUS_LABELS[t.status] ?? t.status,
+          status_category: t.status_ref?.category ?? null,
           priority: t.priority,
           due: t.due_at,
           assignee: t.assignee_id ? nameById.get(t.assignee_id) ?? null : null,

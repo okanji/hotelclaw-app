@@ -279,7 +279,6 @@ function buildCreateTicketTool(
           project_id: cfg.projectId ?? null,
           assignee_id: cfg.assigneeId ?? null,
           priority: cfg.priority,
-          status: "todo",
           source: "ai",
           // Guests are untrusted: their tickets wait in the Triage queue
           // (0111) until a teammate accepts them onto the board.

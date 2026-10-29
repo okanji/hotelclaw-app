@@ -74,7 +74,8 @@ export function matchesFamily(row: ActivityLogRow, family: ActivityFamily) {
         row.entity_kind === "milestone" ||
         row.entity_kind === "initiative" ||
         row.verb === "project_changed" ||
-        row.verb === "project_removed"
+        row.verb === "project_removed" ||
+        row.verb === "list_changed"
       );
   }
 }

@@ -41,12 +41,40 @@ const triggers: TriggerCatalogEntry[] = [
       "when a task moves from in_progress to done",
     ],
     outputSchema: z.object({
+      /** Legacy literals (`todo | in_progress | blocked | done`) — stable. */
       from: z.string(),
       to: z.string(),
+      /** 0114: the list's own status names + categories. */
+      from_status_id: z.string().nullable(),
+      to_status_id: z.string().nullable(),
+      from_name: z.string().nullable(),
+      to_name: z.string().nullable(),
+      from_category: z.string().nullable(),
+      to_category: z.string().nullable(),
+      to_blocked: z.boolean(),
       new: z.record(z.string(), z.unknown()),
     }),
     explain: (filter) =>
       explainTaskTrigger("task.status_changed", "When a task changes status", filter),
+  },
+  {
+    id: "task.moved_to_list",
+    surface: "tasks",
+    category: "trigger",
+    label: "When a task moves to another list",
+    description:
+      "Fires when a task is moved between lists (0114). You get the previous and new list ids plus the full task; its status is remapped onto the new list's pipeline by category.",
+    examplePrompts: [
+      "when a task is moved to the Maintenance requests list",
+      "whenever a task leaves the intake list",
+    ],
+    outputSchema: z.object({
+      from: z.string().nullable(),
+      to: z.string().nullable(),
+      new: z.record(z.string(), z.unknown()),
+    }),
+    explain: (filter) =>
+      explainTaskTrigger("task.moved_to_list", "When a task moves to another list", filter),
   },
   {
     id: "task.assigned",

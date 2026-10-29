@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -269,7 +270,7 @@ export function WorkloadView({ propertyId, tasks, assignees, hideDone }: Props) 
   // workload view we always exclude `done` from load math even when Backlog
   // is off, since completed work isn't future capacity. We still surface
   // "Done" elsewhere via the regular board.
-  const activeTasks = useMemo(() => tasks.filter((t) => t.status !== "done"), [tasks]);
+  const activeTasks = useMemo(() => tasks.filter((t) => !isDone(t)), [tasks]);
   void hideDone; // hideDone is honored by upstream filter; we keep this view consistent regardless
 
   /* ---------- Build per-member, per-day hour matrix --------------------- */

@@ -133,6 +133,16 @@ export type ApiTask = {
   /** Calendar time block, when the task has been scheduled (migration 0017). */
   scheduled_start?: string | null;
   scheduled_end?: string | null;
+  /** Lists + per-list statuses (web migration 0114). `status` above stays the
+   *  legacy CATEGORY projection; these carry the list's own status. All
+   *  optional so older API builds still parse. */
+  list_id?: string | null;
+  status_id?: string | null;
+  status_name?: string | null;
+  status_category?: "open" | "unstarted" | "active" | "done" | "closed" | null;
+  status_color?: "slate" | "blue" | "green" | "amber" | "rose" | "violet" | null;
+  status_blocked?: boolean | null;
+  completed_at?: string | null;
 };
 
 /** Team / project catalogues for the filter facets. Read straight from

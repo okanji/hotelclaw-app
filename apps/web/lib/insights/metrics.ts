@@ -18,11 +18,20 @@ import "server-only";
  */
 import { createServiceClient } from "@/lib/supabase/server";
 import type { InsightScope } from "./scope";
+import { isBlocked, isDone, isNotStarted, isStarted } from "@/lib/tasks/statuses";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
 export type OpenStatus = "todo" | "in_progress" | "blocked";
+
+/** The open-work buckets by CATEGORY (0114): to do = not started, in
+ *  progress = active and not blocked, blocked = active + blocked. */
+const OPEN_STATUS_MATCH: Record<OpenStatus, (t: TaskRow) => boolean> = {
+  todo: (t) => isNotStarted(t),
+  in_progress: (t) => isStarted(t) && !isBlocked(t),
+  blocked: (t) => isBlocked(t),
+};
 
 export type OpenWorkSnapshot = {
   byStatus: { status: OpenStatus; count: number; overdue: number }[];
@@ -176,11 +185,11 @@ type TaskRollup = {
 
 function rollupTasks(list: TaskRow[], now: number): TaskRollup {
   const total = list.length;
-  const done = list.filter((t) => t.status === "done").length;
-  const blocked = list.filter((t) => t.status === "blocked").length;
+  const done = list.filter((t) => isDone(t)).length;
+  const blocked = list.filter((t) => isBlocked(t)).length;
   const overdue = list.filter(
     (t) =>
-      t.status !== "done" && !!t.due_at && new Date(t.due_at).getTime() < now,
+      !isDone(t) && !!t.due_at && new Date(t.due_at).getTime() < now,
   ).length;
   return {
     total,
@@ -325,7 +334,7 @@ function computeSlipFlags(
 
   const flags: SlipFlag[] = [];
   for (const t of open) {
-    if (!t.due_at || t.status === "blocked" || t.status === "done") continue;
+    if (!t.due_at || isBlocked(t) || isDone(t)) continue;
     const dueIn = (new Date(t.due_at).getTime() - now) / DAY_MS;
     if (dueIn < 0) continue;
     const want: SlipCohort = isHot(t.priority) ? "urgent_high" : "standard";
@@ -458,13 +467,13 @@ export async function computeInsightsMetrics(
   const now = Date.now();
 
   // ── Open-work snapshot ────────────────────────────────────────────────────
-  const open = tasks.filter((t) => t.status !== "done");
+  const open = tasks.filter((t) => !isDone(t));
   const isOverdue = (t: TaskRow) =>
     !!t.due_at && new Date(t.due_at).getTime() < now;
   const statuses: OpenStatus[] = ["todo", "in_progress", "blocked"];
   const snapshot: OpenWorkSnapshot = {
     byStatus: statuses.map((status) => {
-      const rows = open.filter((t) => t.status === status);
+      const rows = open.filter((t) => OPEN_STATUS_MATCH[status](t));
       return {
         status,
         count: rows.length,
@@ -512,7 +521,7 @@ export async function computeInsightsMetrics(
     id ? (profileById.get(id)?.full_name ?? null) : null;
   const attention: AttentionItem[] = [];
   for (const t of open) {
-    if (t.status === "blocked") {
+    if (isBlocked(t)) {
       const since = blockedSince.get(t.id) ?? new Date(t.updated_at).getTime();
       attention.push({
         taskId: t.id,
@@ -713,7 +722,7 @@ export async function computeInsightsMetrics(
     if (!t.assignee_id) continue;
     const row = rowFor(t.assignee_id);
     row.open += 1;
-    if (t.status === "blocked") row.blocked += 1;
+    if (isBlocked(t)) row.blocked += 1;
     if (isOverdue(t)) row.overdue += 1;
     if (t.priority === "high" || t.priority === "urgent") row.urgent += 1;
   }
@@ -790,7 +799,7 @@ export async function computeMyWeek(
   const now = Date.now();
 
   const mine = tasks.filter((t) => t.assignee_id === userId);
-  const myOpen = mine.filter((t) => t.status !== "done");
+  const myOpen = mine.filter((t) => !isDone(t));
   const isOverdue = (t: TaskRow) =>
     !!t.due_at && new Date(t.due_at).getTime() < now;
 
@@ -816,7 +825,7 @@ export async function computeMyWeek(
   const attention: AttentionItem[] = [];
   for (const t of myOpen) {
     const name = profileById.get(userId)?.full_name ?? null;
-    if (t.status === "blocked") {
+    if (isBlocked(t)) {
       const since = blockedSince.get(t.id) ?? new Date(t.updated_at).getTime();
       attention.push({
         taskId: t.id,

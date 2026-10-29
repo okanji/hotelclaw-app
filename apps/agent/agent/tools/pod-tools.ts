@@ -45,7 +45,7 @@ export default defineDynamic({
           async execute({ status, limit }) {
             let query = serviceClient()
               .from("tasks")
-              .select("id, title, status, priority, due_at")
+              .select("id, title, status, priority, due_at, status_ref:statuses!tasks_status_id_fkey(name)")
               .eq("property_id", propertyId)
               .order("updated_at", { ascending: false })
               .limit(limit);
@@ -54,13 +54,20 @@ export default defineDynamic({
             if (error) return { error: error.message };
             return {
               count: (data ?? []).length,
-              tasks: (data ?? []).map((t) => ({
-                id: t.id,
-                title: t.title,
-                status: STATUS_LABELS[t.status] ?? t.status,
-                priority: t.priority,
-                due: t.due_at,
-              })),
+              tasks: (data ?? []).map((t) => {
+                const sref = (Array.isArray(t.status_ref) ? t.status_ref[0] : t.status_ref) as
+                  | { name?: string }
+                  | null
+                  | undefined;
+                return {
+                  id: t.id,
+                  title: t.title,
+                  status: sref?.name ?? STATUS_LABELS[t.status] ?? t.status,
+                  status_category: t.status,
+                  priority: t.priority,
+                  due: t.due_at,
+                };
+              }),
             };
           },
         });
@@ -83,7 +90,6 @@ export default defineDynamic({
                 title,
                 description: description ?? null,
                 priority,
-                status: "todo",
                 source: "ai",
                 created_by: userId,
               })
@@ -300,7 +306,6 @@ export default defineDynamic({
               title: `Process refund for ${booking.reference} (${booking.guest_name ?? "guest"})`,
               description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
               priority: "high",
-              status: "todo",
               source: "ai",
               created_by: userId,
             });
@@ -331,7 +336,6 @@ export default defineDynamic({
                 title: `Rate override approved: ${new_rate}${booking_reference ? ` (${booking_reference})` : ""}`,
                 description: `Approved via ${bot.displayName} bot. ${description}`,
                 priority: "high",
-                status: "todo",
                 source: "ai",
                 created_by: userId,
               })
@@ -367,7 +371,6 @@ export default defineDynamic({
                 title: `Comp night approved for ${booking.reference} (${booking.guest_name ?? "guest"})`,
                 description: `Approved via ${bot.displayName} bot. Reason: ${reason}`,
                 priority: "high",
-                status: "todo",
                 source: "ai",
                 created_by: userId,
               })

@@ -35,8 +35,8 @@ import {
   useApi,
   type ApiMember,
   type ApiTask,
-  type TaskStatus,
 } from "../../lib/api";
+import { isBlocked, isDone, isStarted, statusHexOf } from "../../lib/statuses";
 import { useCatalogues } from "../../lib/catalogues";
 import { useTaskListState, type Scope } from "../../lib/task-filter-store";
 import { useDayStart } from "../../lib/use-day-start";
@@ -82,7 +82,7 @@ function sectionTasks(tasks: ApiTask[], now: number): TaskSection[] {
     done: [],
   };
   for (const t of tasks) {
-    if (t.status === "done") {
+    if (isDone(t)) {
       buckets.done.push(t);
       continue;
     }
@@ -146,9 +146,9 @@ export default function TasksTab() {
   const tasks = useMemo(() => {
     let all = data ?? [];
     if (scope === "mine") {
-      all = all.filter((t) => t.assignee_id === userId && t.status !== "done");
+      all = all.filter((t) => t.assignee_id === userId && !isDone(t));
     } else if (scope === "open") {
-      all = all.filter((t) => t.status !== "done");
+      all = all.filter((t) => !isDone(t));
     }
     return applyTaskFilters(all, filters, now, catalogues.fieldValues);
   }, [data, scope, userId, filters, now, catalogues.fieldValues]);
@@ -159,7 +159,7 @@ export default function TasksTab() {
   // from the unfiltered rows so a facet doesn't change what each scope holds.
   const scopeCounts = useMemo(() => {
     const all = data ?? [];
-    const open = all.filter((t) => t.status !== "done");
+    const open = all.filter((t) => !isDone(t));
     return {
       mine: open.filter((t) => t.assignee_id === userId).length,
       open: open.length,
@@ -388,23 +388,21 @@ function TaskSearchBar({
 
 /** Leading status glyph — status reads at a glance without a pill shouting on
  *  every row (the section + glyph carry it; pills are saved for priority). */
-function StatusGlyph({ status }: { status: TaskStatus }) {
-  if (status === "done") {
-    return (
-      <Ionicons name="checkmark-circle" size={22} color={STATUS_COLOR.done} />
-    );
+function StatusGlyph({ task }: { task: ApiTask }) {
+  // Category decides the shape (0114), the list's status colour the tint.
+  const hex = statusHexOf(task);
+  if (isDone(task)) {
+    return <Ionicons name="checkmark-circle" size={22} color={hex} />;
   }
-  if (status === "blocked") {
-    return (
-      <Ionicons name="remove-circle" size={22} color={STATUS_COLOR.blocked} />
-    );
+  if (isBlocked(task)) {
+    return <Ionicons name="remove-circle" size={22} color={hex} />;
   }
-  const inProgress = status === "in_progress";
+  const inProgress = isStarted(task);
   return (
     <View
       style={[
         styles.glyphRing,
-        inProgress && { borderColor: STATUS_COLOR.in_progress },
+        inProgress && { borderColor: hex },
       ]}
     >
       {inProgress ? <View style={styles.glyphDot} /> : null}
@@ -429,7 +427,7 @@ function TaskRow({
   // its place.
   const dueText = due === "Today" || due === "Tomorrow" ? null : due;
   const overdue =
-    !!task.due_at && new Date(task.due_at) < new Date() && task.status !== "done";
+    !!task.due_at && new Date(task.due_at) < new Date() && !isDone(task);
   const urgent = task.priority === "urgent" || task.priority === "high";
   const hasMeta = !!dueText || urgent || !!task.project_name;
 
@@ -440,13 +438,13 @@ function TaskRow({
       <Row onPress={onPress}>
         <View style={styles.rowInner}>
           <View style={styles.glyphSlot}>
-            <StatusGlyph status={task.status} />
+            <StatusGlyph task={task} />
           </View>
           <View style={styles.rowMain}>
             <Text
               style={[
                 styles.taskTitle,
-                task.status === "done" && styles.taskDone,
+                isDone(task) && styles.taskDone,
               ]}
               numberOfLines={2}
             >

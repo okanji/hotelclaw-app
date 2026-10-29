@@ -35,6 +35,12 @@ export function useEveSession(options: {
   const turnsRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
+  // What the screen shows, for carrying it across a session swap (below).
+  const itemsRef = useRef<TranscriptItem[]>([]);
+  // Turns from an EARLIER session still shown above the current one. A 409
+  // (expired / stranded) starts a fresh session whose replay holds only the
+  // new turn — without this the whole conversation vanished on the swap.
+  const prefixRef = useRef<TranscriptItem[]>([]);
   const extraRef = useRef(extraHeaders);
   useEffect(() => {
     extraRef.current = extraHeaders;
@@ -46,9 +52,11 @@ export function useEveSession(options: {
   }, [propertyId]);
 
   const publish = useCallback((next: TranscriptItem[]) => {
-    const copy = [...next];
+    const copy = [...prefixRef.current, ...next];
+    itemsRef.current = copy;
     setItems(copy);
-    setPending(pendingInputRequests(copy));
+    // Only the CURRENT session can answer a parked question.
+    setPending(pendingInputRequests(next));
   }, []);
 
   const consume = useCallback(
@@ -66,6 +74,15 @@ export function useEveSession(options: {
           controller.abort();
         },
       });
+      // The replay starts from index 0, so its first events hold only the
+      // EARLIEST turns. Publishing those wiped the optimistic echo of the
+      // message just sent and shrank the transcript to its first exchange,
+      // then rebuilt it event by event — the prompt vanished, came back, and
+      // the whole list flashed while scrollToEnd chased the collapsing
+      // content. During a send/respond consume, hold the current items until
+      // the replay has caught up to the turn being consumed (the web hook's
+      // rule, which this port had missed).
+      const caughtUp = () => expectedTurns === null || userTurns >= expectedTurns;
       try {
         for await (const event of eveStream(
           id,
@@ -75,12 +92,12 @@ export function useEveSession(options: {
         )) {
           if (event.type === "message.received") userTurns += 1;
           reducer.handle(event);
-          publish(reducer.items);
+          if (caughtUp()) publish(reducer.items);
         }
       } catch (error) {
         if (!controller.signal.aborted) throw error;
       } finally {
-        publish(reducer.items);
+        if (caughtUp()) publish(reducer.items);
         turnsRef.current = Math.max(turnsRef.current, userTurns);
       }
     },
@@ -92,6 +109,7 @@ export function useEveSession(options: {
       const message = text.trim();
       if (!message || busy) return;
       setBusy(true);
+      const shown = itemsRef.current;
       setItems((prev) => [...prev, { kind: "user", text: message }]);
       try {
         const h = await headers();
@@ -103,7 +121,9 @@ export function useEveSession(options: {
           id = (await eveDeliver(sessionRef.current, h, { message: outbound })).sessionId;
         } catch (error) {
           if (!(error instanceof EveError && error.status === 409)) throw error;
-          // Expired / reset — continue in a fresh session.
+          // Expired / reset — continue in a fresh session, keeping what is
+          // already on screen above its turns.
+          prefixRef.current = shown;
           isFirstTurn = true;
           turnsRef.current = 0;
           const framed = frameFirstMessage ? frameFirstMessage(message) : message;

@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDraggable } from "@dnd-kit/core";
@@ -81,7 +82,7 @@ export function TaskScheduleRail({ propertyId }: { propertyId: string }) {
   const groups = useMemo(() => {
     const rows = (tasksQuery.data ?? []) as RailTask[];
     const unscheduled = rows.filter(
-      (t) => !t.scheduled_start && t.status !== "done",
+      (t) => !t.scheduled_start && !isDone(t),
     );
     const byPriority = new Map<keyof typeof PRIORITY_META, RailTask[]>();
     for (const task of unscheduled) {

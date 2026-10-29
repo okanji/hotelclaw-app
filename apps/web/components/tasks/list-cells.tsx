@@ -25,7 +25,7 @@ import type { AssigneeInfo } from "@/lib/tasks/use-assignees";
 import type { PropertyMember } from "@/lib/query/section-queries";
 import type { ResolvedColumn } from "@/lib/tasks/list-columns";
 import { PRIORITY_IDS, PRIORITY_META, type Task } from "./kanban";
-import { statusLabelOf } from "@/lib/tasks/statuses";
+import { statusLabelOf, isDone } from "@/lib/tasks/statuses";
 import { useTaskStatusOptions } from "@/lib/query/status-queries";
 import { PriorityBars, StatusIcon } from "./task-icons";
 import { CustomFieldValueEditor } from "./custom-field-value-editor";
@@ -281,7 +281,7 @@ function DueCell({
   const [editing, setEditing] = useState(false);
   const due = task.due_at ? new Date(task.due_at) : null;
   const overdue =
-    due != null && task.status !== "done" && due.getTime() < ctx.now;
+    due != null && !isDone(task) && due.getTime() < ctx.now;
 
   async function set(value: string) {
     setEditing(false);

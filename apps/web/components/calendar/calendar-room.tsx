@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -211,7 +212,7 @@ export function CalendarRoom({
     const to = new Date(range.to).getTime();
     const out: TaskEvent[] = [];
     for (const t of tasksQuery.data ?? []) {
-      if (!t.due_at || t.scheduled_start || t.status === "done") continue;
+      if (!t.due_at || t.scheduled_start || isDone(t)) continue;
       const due = new Date(t.due_at);
       if (Number.isNaN(due.getTime())) continue;
       const day = startOfDay(due);

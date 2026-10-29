@@ -18,6 +18,7 @@ export const TRIGGER_EVENT_TYPES = [
   "task.label_added",
   "task.added_to_space",
   "task.added_to_project",
+  "task.moved_to_list",
   "task.field_changed",
   "chat.message_posted",
   "chat.mention",
@@ -125,7 +126,12 @@ const QueryTasksStep = z.object({
   ...StepCommon,
   type: z.literal("action.task.query"),
   config: z.object({
-    /** 'open' = everything not done. */
+    /**
+     * 'open' = everything not finished. The other values are status
+     * CATEGORIES (0114): `todo` = not started, `in_progress` = active,
+     * `blocked` = active + blocked, `done` = done or closed — a list's own
+     * status names roll up into these.
+     */
     status: z
       .enum(["open", "todo", "in_progress", "blocked", "done"])
       .default("open"),
@@ -145,7 +151,12 @@ const UpdateTaskStep = z.object({
     task_id: TplString,
     title: z.string().optional(),
     description: z.string().optional(),
-    status: z.enum(["todo", "in_progress", "blocked", "done"]).optional(),
+    /**
+     * A status of the task's list (0114): its name ("Quote approved"), its
+     * id, or a legacy literal (`todo | in_progress | blocked | done`) that
+     * the DB maps onto the pipeline. Templatable.
+     */
+    status: TplString.optional(),
     priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
     assignee_id: z.string().optional(),
     due_at: z.string().optional(),

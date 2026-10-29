@@ -43,6 +43,7 @@ import {
   projectsQueryOptions,
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
+import { statusCatalogQueryOptions } from "@/lib/query/status-queries";
 import {
   activityLogQueryOptions,
   matchesFamily,
@@ -118,12 +119,16 @@ export type ActivityLookup = {
   members: Map<string, PropertyMember>;
   projects: Map<string, { id: string; name: string }>;
   spaces: Map<string, { id: string; name: string }>;
+  /** Lists (0114) — `list_changed` rows carry list ids. */
+  lists: Map<string, { id: string; name: string }>;
 };
 
 export function useActivityLookup(propertyId: string, meId?: string | null): ActivityLookup {
   const { data: members = [] } = useQuery(propertyMembersQueryOptions(propertyId));
   const { data: projects = [] } = useQuery(projectsQueryOptions(propertyId));
   const { data: spaces = [] } = useQuery(spacesQueryOptions(propertyId));
+  const { data: catalog } = useQuery(statusCatalogQueryOptions(propertyId));
+  const lists = catalog?.lists;
   return useMemo(
     () => ({
       propertyId,
@@ -131,8 +136,9 @@ export function useActivityLookup(propertyId: string, meId?: string | null): Act
       members: new Map(members.map((m) => [m.id, m])),
       projects: new Map(projects.map((p) => [p.id, { id: p.id, name: p.name }])),
       spaces: new Map(spaces.map((s) => [s.id, { id: s.id, name: s.name }])),
+      lists: new Map((lists ?? []).map((l) => [l.id, { id: l.id, name: l.name }])),
     }),
-    [propertyId, meId, members, projects, spaces],
+    [propertyId, meId, members, projects, spaces, lists],
   );
 }
 
@@ -371,7 +377,12 @@ export function describeActivity(
         Icon: RotateCcw,
         verb: "reopened",
         object: taskObj,
-        extra: d.to !== "todo" ? `as ${statusLabel("task", d.to)}` : null,
+        extra:
+          typeof d.to_name === "string"
+            ? `as ${d.to_name}`
+            : d.to !== "todo"
+              ? `as ${statusLabel("task", d.to)}`
+              : null,
       };
     case "status_changed":
       return {
@@ -379,7 +390,20 @@ export function describeActivity(
         Icon: ArrowRightLeft,
         verb: "moved",
         object: taskObj,
-        extra: `to ${statusLabel("task", d.to)}`,
+        // 0114 rows carry the list's own status names; older rows only the
+        // legacy literal.
+        extra: `to ${typeof d.to_name === "string" ? d.to_name : statusLabel("task", d.to)}`,
+      };
+    case "list_changed":
+      return {
+        ...base,
+        Icon: ArrowRightLeft,
+        verb: "moved",
+        object: taskObj,
+        extra: (() => {
+          const name = typeof d.to === "string" ? L.lists.get(d.to)?.name : undefined;
+          return name ? `to the ${name} list` : "to another list";
+        })(),
       };
     case "priority_changed":
       return {

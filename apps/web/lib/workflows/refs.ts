@@ -54,6 +54,8 @@ export interface RefCandidate {
 // TaskPriority). Those are type-only, so we keep runtime arrays here for the
 // field catalog. Update both together if the domain enums change.
 const TASK_STATUS_OPTIONS = ["todo", "in_progress", "blocked", "done"];
+/** 0114 status categories — a list's own status names roll up into these. */
+const TASK_CATEGORY_OPTIONS = ["open", "unstarted", "active", "done", "closed"];
 const TASK_PRIORITY_OPTIONS = ["none", "low", "medium", "high", "urgent"];
 
 /**
@@ -138,8 +140,17 @@ const TRIGGER_EXTRAS: Record<
   Array<{ path: string; label: string; type: RefType; options?: string[] }>
 > = {
   "task.status_changed": [
-    { path: "trigger.from", label: "Previous status", type: "string", options: TASK_STATUS_OPTIONS },
-    { path: "trigger.to", label: "New status", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.from", label: "Previous status (legacy literal)", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.to", label: "New status (legacy literal)", type: "string", options: TASK_STATUS_OPTIONS },
+    { path: "trigger.to_name", label: "New status name", type: "string" },
+    { path: "trigger.from_name", label: "Previous status name", type: "string" },
+    { path: "trigger.to_category", label: "New status category", type: "string", options: TASK_CATEGORY_OPTIONS },
+    { path: "trigger.from_category", label: "Previous status category", type: "string", options: TASK_CATEGORY_OPTIONS },
+    { path: "trigger.to_blocked", label: "New status is blocked", type: "boolean" },
+  ],
+  "task.moved_to_list": [
+    { path: "trigger.from", label: "Previous list id", type: "string" },
+    { path: "trigger.to", label: "New list id", type: "string" },
   ],
   "task.assigned": [
     { path: "trigger.from", label: "Previously assigned to", type: "string" },

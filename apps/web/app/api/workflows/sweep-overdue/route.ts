@@ -26,7 +26,7 @@ export async function GET(_request: NextRequest) {
     .select("id, property_id, title, due_at, assignee_id, priority, status, labels")
     .lt("due_at", new Date().toISOString())
     .is("overdue_notified_at", null)
-    .neq("status", "done")
+    .is("completed_at", null)
     .order("due_at", { ascending: true })
     .limit(BATCH);
 

@@ -259,11 +259,11 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       label: "Status",
       default: "open",
       options: [
-        { value: "open", label: "Open (not done)" },
-        { value: "todo", label: "To do" },
-        { value: "in_progress", label: "In progress" },
+        { value: "open", label: "Open (not finished)" },
+        { value: "todo", label: "Not started" },
+        { value: "in_progress", label: "In progress (any active status)" },
         { value: "blocked", label: "Blocked" },
-        { value: "done", label: "Done" },
+        { value: "done", label: "Finished (done or closed)" },
       ],
     },
     {
@@ -627,15 +627,11 @@ export const STEP_FIELDS: Partial<Record<StepType, FieldDef[]>> = {
       required: true,
     },
     {
-      kind: "enum",
+      kind: "template",
       key: "status",
       label: "Set status",
-      options: [
-        { value: "todo", label: "To do" },
-        { value: "in_progress", label: "In progress" },
-        { value: "blocked", label: "Blocked" },
-        { value: "done", label: "Done" },
-      ],
+      placeholder: "Status name in the task's list, e.g. Quote approved — or todo / in_progress / blocked / done",
+      help: "Resolved against the task's own pipeline: a status name, a status id, or one of the four legacy literals (mapped onto the list's statuses).",
     },
     {
       kind: "enum",

@@ -16,6 +16,7 @@ import {
   botRequests,
 } from "../ai/BotReply";
 import { asCustomAttachment, isCustomAttachment } from "./guards";
+import { ComposerAttachButton } from "../ComposerAttachButton";
 
 /**
  * Renders the app's custom Stream attachment types (`ai_ui`, `form`,
@@ -106,6 +107,8 @@ const overrides = {
   MessageContentTopView: BotReplyTrace,
   MessageText: BotMessageText,
   MessageContentBottomView: CustomAttachmentList,
+  // A bare "+" instead of Stream's 48pt outlined circle (see the component).
+  AttachButton: ComposerAttachButton,
 };
 
 /**

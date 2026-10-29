@@ -15,6 +15,8 @@ import { channelBotHeaders, eveSelfOrigin } from "../lib/channel-delivery";
 // call — the bundler reconstructs executes from stored closure variables on
 // replay and does not detect `execute: helperFn`.
 
+// Legacy category labels (0114): used only when a task row carries no joined
+// status name — every list has its own pipeline names now.
 const STATUS_LABELS: Record<string, string> = {
   todo: "To do",
   in_progress: "In progress",
@@ -58,21 +60,44 @@ export default defineDynamic({
       if (grants.has("list_open_tasks")) {
         tools.list_open_tasks = defineTool({
           description:
-            "List open tasks (not done) in this property. Returns count and tasks (title, status, priority, due, assignee). If empty, say so plainly — don't fabricate.",
+            "List open (unfinished) tasks in this property. Returns count and tasks (title, status — the list's own status name, status_category, list, priority, due, assignee). `status` filters by CATEGORY (todo = not started, in_progress = active, blocked); `list` narrows to one list by name (on no match you get the valid list names back). If empty, say so plainly — don't fabricate.",
           inputSchema: z.object({
             status: z.enum(["todo", "in_progress", "blocked"]).optional(),
+            list: z.string().max(120).optional().describe("List name to narrow to (fuzzy match)."),
             limit: z.number().int().min(1).max(20).default(10),
           }),
-          async execute({ status, limit }) {
+          async execute({ status, list, limit }) {
             const supabase = serviceClient();
+            let listId: string | null = null;
+            if (list) {
+              const { data: lists } = await supabase
+                .from("lists")
+                .select("id, name")
+                .eq("property_id", propertyId)
+                .is("archived_at", null);
+              const listNeedle = list.trim().toLowerCase();
+              const listMatch =
+                (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ??
+                (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+              if (!listMatch) {
+                return {
+                  error: `No list matches "${list}".`,
+                  lists: (lists ?? []).map((l) => l.name),
+                };
+              }
+              listId = listMatch.id;
+            }
             let query = supabase
               .from("tasks")
-              .select("id, title, status, priority, due_at, assignee_id")
+              .select(
+                "id, title, status, priority, due_at, assignee_id, list_id, status_ref:statuses!tasks_status_id_fkey(name, category), list_ref:lists!tasks_list_id_fkey(name)",
+              )
               .eq("property_id", propertyId)
               .order("updated_at", { ascending: false })
               .limit(limit);
             if (status) query = query.eq("status", status);
-            else query = query.neq("status", "done");
+            else query = query.is("completed_at", null);
+            if (listId) query = query.eq("list_id", listId);
             const { data: tasks, error } = await query;
             if (error) return { error: error.message };
 
@@ -95,16 +120,30 @@ export default defineDynamic({
             }
             return {
               count: (tasks ?? []).length,
-              tasks: (tasks ?? []).map((t) => ({
+              tasks: (tasks ?? []).map((t) => {
+                // To-one embeds arrive as objects; the untyped client infers
+                // arrays, so normalise either shape.
+                const sref = (Array.isArray(t.status_ref) ? t.status_ref[0] : t.status_ref) as
+                  | { name?: string; category?: string }
+                  | null
+                  | undefined;
+                const lref = (Array.isArray(t.list_ref) ? t.list_ref[0] : t.list_ref) as
+                  | { name?: string }
+                  | null
+                  | undefined;
+                return {
                 id: t.id,
                 title: t.title,
-                status: STATUS_LABELS[t.status] ?? t.status,
+                status: sref?.name ?? STATUS_LABELS[t.status] ?? t.status,
+                status_category: sref?.category ?? null,
+                list: lref?.name ?? null,
                 priority: t.priority,
                 due: t.due_at,
                 assignee: t.assignee_id
                   ? (nameById.get(t.assignee_id) ?? null)
                   : null,
-              })),
+                };
+              }),
             };
           },
         });
@@ -113,7 +152,7 @@ export default defineDynamic({
       if (grants.has("create_task")) {
         tools.create_task = defineTool({
           description:
-            "Create a task in this property's board. NEVER call this on a vague ask — first make sure you know the concrete deliverable, which team it belongs to, and any specifics the assignee will need (ask ONE short clarifying question if not); a task without context gets lost. Pass `team` when the user named one (fuzzy name match; on no match you get the valid team names back — re-ask, don't guess). Returns the task plus a `url` — always include it in your reply as a markdown link so people can open the task.",
+            "Create a task in this property's board. NEVER call this on a vague ask — first make sure you know the concrete deliverable, which team it belongs to, and any specifics the assignee will need (ask ONE short clarifying question if not); a task without context gets lost. Pass `team` when the user named one (fuzzy name match; on no match you get the valid team names back — re-ask, don't guess). Pass `list` when they named a list (lists have their own status pipelines; a miss returns the valid list names) and `status` only when they asked for a specific status of that list — otherwise the task starts in the list's first status. Returns the task plus a `url` — always include it in your reply as a markdown link so people can open the task.",
           inputSchema: z.object({
             title: z.string().min(3).max(200),
             description: z
@@ -133,8 +172,18 @@ export default defineDynamic({
               .datetime({ offset: true })
               .optional()
               .describe("Due date-time, ISO 8601 with offset."),
+            list: z
+              .string()
+              .max(120)
+              .optional()
+              .describe("List name to file the task in (fuzzy match, scoped to the team when one is given)."),
+            status: z
+              .string()
+              .max(60)
+              .optional()
+              .describe("A status NAME of that list's pipeline (e.g. 'Quoting'). Omit to start at the list's first status."),
           }),
-          async execute({ title, description, priority, team, due_at }, toolCtx) {
+          async execute({ title, description, priority, team, due_at, list, status }, toolCtx) {
             const supabase = serviceClient();
             let spaceId: string | null = null;
             if (team) {
@@ -156,6 +205,54 @@ export default defineDynamic({
               }
               spaceId = match.id;
             }
+            // Lists + per-list statuses (0114). A named list is matched
+            // within the team when one was given; a named status must be
+            // one of that list's pipeline — a miss returns the valid names
+            // so the model re-asks instead of guessing.
+            let listId: string | null = null;
+            let statusId: string | null = null;
+            if (list) {
+              let listQuery = supabase
+                .from("lists")
+                .select("id, name, space_id, status_set_id")
+                .eq("property_id", propertyId)
+                .is("archived_at", null);
+              if (spaceId) listQuery = listQuery.eq("space_id", spaceId);
+              const { data: lists } = await listQuery;
+              const listNeedle = list.trim().toLowerCase();
+              const listMatch =
+                (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ??
+                (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+              if (!listMatch) {
+                return {
+                  error: `No list matches "${list}"${spaceId ? " in that team" : ""}.`,
+                  lists: (lists ?? []).map((l) => l.name),
+                };
+              }
+              listId = listMatch.id;
+              if (!spaceId && listMatch.space_id) spaceId = listMatch.space_id;
+              if (status) {
+                const { data: statuses } = await supabase
+                  .from("statuses")
+                  .select("id, name")
+                  .eq("status_set_id", listMatch.status_set_id)
+                  .is("archived_at", null)
+                  .order("position", { ascending: true });
+                const statusNeedle = status.trim().toLowerCase();
+                const statusMatch =
+                  (statuses ?? []).find((s) => s.name.toLowerCase() === statusNeedle) ??
+                  (statuses ?? []).find((s) => s.name.toLowerCase().startsWith(statusNeedle));
+                if (!statusMatch) {
+                  return {
+                    error: `No status "${status}" in list "${listMatch.name}".`,
+                    statuses: (statuses ?? []).map((s) => s.name),
+                  };
+                }
+                statusId = statusMatch.id;
+              }
+            } else if (status) {
+              return { error: "Pass `list` together with `status` — statuses belong to a list's pipeline." };
+            }
             const { data, error } = await supabase
               .from("tasks")
               .insert({
@@ -163,10 +260,11 @@ export default defineDynamic({
                 title,
                 description: description ?? null,
                 priority,
-                status: "todo",
                 source: "ai",
                 created_by: userId,
                 ...(spaceId ? { space_id: spaceId } : {}),
+                ...(listId ? { list_id: listId } : {}),
+                ...(statusId ? { status_id: statusId } : {}),
                 ...(due_at ? { due_at } : {}),
               })
               .select("id, title, space_id")
@@ -428,10 +526,19 @@ export default defineDynamic({
       if (grants.has("update_task")) {
         tools.update_task = defineTool({
           description:
-            "Update a task's status, priority, due date, assignee, title, description, labels, or project. Get the task id from list_open_tasks/search_tasks first. Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
+            "Update a task's status, priority, due date, assignee, title, description, labels, project, or list. Get the task id from list_open_tasks/search_tasks first. `status` is a status NAME of the task's list (each list has its own pipeline — on no match you get the valid names back; the legacy words todo / in_progress / blocked / done also work and map onto the pipeline). `list` moves the task to another list by name (its status is remapped by category). Assignee is matched by person name (fuzzy; on no match you get valid names back — re-ask, don't guess). project_name moves the task into a project by name (empty string removes it). The Postgres triggers fire the same workflow automations the app UI does; assignment changes notify the assignee.",
           inputSchema: z.object({
             task_id: z.string().uuid(),
-            status: z.enum(["todo", "in_progress", "blocked", "done"]).optional(),
+            status: z
+              .string()
+              .max(60)
+              .optional()
+              .describe("Status name of the task's list (or todo / in_progress / blocked / done)."),
+            list: z
+              .string()
+              .max(120)
+              .optional()
+              .describe("List name to move the task to (fuzzy match)."),
             priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
             due_at: z.iso.datetime({ offset: true }).nullish(),
             assignee_name: z
@@ -449,18 +556,71 @@ export default defineDynamic({
               .optional()
               .describe("Project to move the task into (fuzzy name match); empty string to remove from its project."),
           }),
-          async execute({ task_id, status, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
+          async execute({ task_id, status, list, priority, due_at, assignee_name, title, description, labels_add, labels_remove, project_name }) {
             const supabase = serviceClient();
             const { data: task } = await supabase
               .from("tasks")
-              .select("id, title, assignee_id, labels")
+              .select("id, title, assignee_id, labels, list_id")
               .eq("id", task_id)
               .eq("property_id", propertyId)
               .maybeSingle();
             if (!task) return { error: "Task not found in this property." };
 
             const patch: Record<string, unknown> = {};
-            if (status) patch.status = status;
+            // Lists + per-list statuses (0114): a list move is resolved
+            // first so a status named in the same call is looked up in the
+            // DESTINATION list's pipeline.
+            let targetListId: string | null = task.list_id ?? null;
+            if (list) {
+              const { data: lists } = await supabase
+                .from("lists")
+                .select("id, name")
+                .eq("property_id", propertyId)
+                .is("archived_at", null);
+              const listNeedle = list.trim().toLowerCase();
+              const listMatch =
+                (lists ?? []).find((l) => l.name.toLowerCase() === listNeedle) ??
+                (lists ?? []).find((l) => l.name.toLowerCase().includes(listNeedle));
+              if (!listMatch) {
+                return {
+                  error: `No list matches "${list}".`,
+                  lists: (lists ?? []).map((l) => l.name),
+                };
+              }
+              patch.list_id = listMatch.id;
+              targetListId = listMatch.id;
+            }
+            if (status) {
+              const legacy = status.trim().toLowerCase();
+              const { data: targetList } = targetListId
+                ? await supabase
+                    .from("lists")
+                    .select("status_set_id")
+                    .eq("id", targetListId)
+                    .maybeSingle()
+                : { data: null };
+              const { data: statuses } = targetList
+                ? await supabase
+                    .from("statuses")
+                    .select("id, name")
+                    .eq("status_set_id", targetList.status_set_id)
+                    .is("archived_at", null)
+                    .order("position", { ascending: true })
+                : { data: [] };
+              const statusMatch =
+                (statuses ?? []).find((s) => s.name.toLowerCase() === legacy) ??
+                (statuses ?? []).find((s) => s.name.toLowerCase().startsWith(legacy));
+              if (statusMatch) {
+                patch.status_id = statusMatch.id;
+              } else if (["todo", "in_progress", "blocked", "done"].includes(legacy)) {
+                patch.status = legacy;
+              } else {
+                return {
+                  error: `No status "${status}" in this task's list.`,
+                  statuses: (statuses ?? []).map((s) => s.name),
+                };
+              }
+            }
             if (priority) patch.priority = priority;
             if (due_at !== undefined) patch.due_at = due_at;
             if (title) patch.title = title;

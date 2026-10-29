@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -599,7 +600,7 @@ function usePersonalSummary(propertyId: string, userId: string) {
 
   return useMemo(() => {
     const mineOpen = tasks.filter(
-      (t) => t.assignee_id === userId && t.status !== "done",
+      (t) => t.assignee_id === userId && !isDone(t),
     );
     // eslint-disable-next-line react-hooks/purity
     const cutoff = Date.now() + 7 * 24 * 60 * 60 * 1000;

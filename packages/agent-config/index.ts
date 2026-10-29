@@ -63,16 +63,15 @@ export function parseAgentConfig(raw: unknown): AgentConfig {
 /** Model tier → Anthropic model id. Mirrors CHATBOT_TIER_MODELS so the two
  * builders describe cost the same way.
  *
- * `advanced` runs Opus 5 ($5/$25 per MTok). Note it thinks by DEFAULT, which
- * would make turns slower than the Sonnet 4.6 it replaced — apps/agent/agent.ts
- * pins `effort: "medium"` to buy the intelligence back without the latency
- * (Anthropic's guidance: Opus 5 at low/medium often beats prior models at
- * xhigh). `standard` must stay on a model that accepts neither `effort` nor
- * adaptive thinking — Haiku 4.5 errors on both, so the settings middleware is
- * applied to the advanced tier only. */
+ * `advanced` runs Sonnet 5.5 (2026-10-27; was Opus 5 — switched for turn
+ * latency, the channel bot and Assistant felt slow). It accepts adaptive
+ * thinking + `effort`, so apps/agent/agent.ts keeps `reasoning: "medium"` on
+ * this tier. `standard` must stay on a model that accepts neither `effort`
+ * nor adaptive thinking — Haiku 4.5 errors on both, so the settings
+ * middleware is applied to the advanced tier only. */
 export const AGENT_TIER_MODELS: Record<AgentConfig["modelTier"], string> = {
   standard: "claude-haiku-4-5-20251001",
-  advanced: "claude-opus-5",
+  advanced: "claude-sonnet-5-5",
 };
 
 /**
@@ -93,7 +92,7 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
   {
     id: "list_open_tasks",
     label: "Read tasks",
-    summary: "List open tasks (title, status, priority, assignee).",
+    summary: "List open tasks (title, list, the list's own status name, priority, assignee).",
     category: "read",
   },
   {
@@ -106,14 +105,14 @@ export const AGENT_TOOL_CATALOG: AgentToolMeta[] = [
   {
     id: "create_task",
     label: "Create tasks",
-    summary: "File new tasks into the property's board.",
+    summary: "File new tasks into the property's board — into a named team, list and pipeline status.",
     category: "write",
   },
   {
     id: "update_task",
     label: "Update tasks",
     summary:
-      "Change a task's status, priority, due date, assignee, title, or description.",
+      "Change a task's status (by its list's status name), list, priority, due date, assignee, title, or description.",
     category: "write",
   },
   {

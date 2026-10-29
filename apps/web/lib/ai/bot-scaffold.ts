@@ -52,7 +52,7 @@ function getBotUserId(): string {
 }
 
 function getBotModelId(): string {
-  return process.env.LIVEBLOCKS_BOT_MODEL ?? MODEL_ID_DEFAULT;
+  return process.env.LIVEBLOCKS_BOT_MODEL || MODEL_ID_DEFAULT;
 }
 
 function buildBot(): Bot {

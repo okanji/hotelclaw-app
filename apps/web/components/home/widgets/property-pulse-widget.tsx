@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -41,7 +42,7 @@ export function PropertyPulseWidget({ propertyId }: { propertyId: string }) {
 
   const { series, thisWeek, openTotal } = useMemo(() => {
     if (nowTs === null) return { series: [], thisWeek: 0, openTotal: 0 };
-    const done = tasks.filter((t) => t.status === "done");
+    const done = tasks.filter((t) => isDone(t));
     const buckets = Array.from({ length: WEEKS }, (_, i) => {
       const end = nowTs - (WEEKS - 1 - i) * 7 * DAY_MS;
       const start = end - 7 * DAY_MS;
@@ -59,7 +60,7 @@ export function PropertyPulseWidget({ propertyId }: { propertyId: string }) {
     return {
       series: buckets.map((b) => ({ label: b.label, done: b.count })),
       thisWeek: buckets[buckets.length - 1]?.count ?? 0,
-      openTotal: tasks.filter((t) => t.status !== "done").length,
+      openTotal: tasks.filter((t) => !isDone(t)).length,
     };
   }, [tasks, nowTs]);
 

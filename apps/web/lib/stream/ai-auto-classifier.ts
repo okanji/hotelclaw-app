@@ -32,7 +32,7 @@ import { prefixUser, type HistoryTurn } from "./ai-history";
 export type ChimeSensitivity = "conservative" | "balanced" | "eager";
 
 const CLASSIFIER_MODEL_ID =
-  process.env.STREAM_BOT_CLASSIFIER_MODEL ?? "claude-haiku-4-5";
+  process.env.STREAM_BOT_CLASSIFIER_MODEL || "claude-haiku-4-5";
 
 // The two ALWAYS-respond rules are answered as their OWN fields before the
 // verdict, and enforced in code below — asking the model to honour them

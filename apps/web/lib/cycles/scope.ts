@@ -1,4 +1,9 @@
 import type { TaskStatus } from "@/lib/db/types";
+import {
+  isDone,
+  isStarted as isStartedRow,
+  type StatusLike,
+} from "@/lib/tasks/statuses";
 
 /**
  * Cycle scope math (Linear's model). Scope is measured in POINTS: a task's
@@ -15,14 +20,15 @@ import type { TaskStatus } from "@/lib/db/types";
 /** The estimate scale offered by the pickers (Fibonacci, Linear's default). */
 export const ESTIMATE_SCALE = [0, 1, 2, 3, 5, 8, 13] as const;
 
-export type ScopeTask = { status: TaskStatus; estimate: number | null };
+export type ScopeTask = StatusLike & { estimate: number | null };
 
 export function taskPoints(estimate: number | null | undefined): number {
   return estimate ?? 1;
 }
 
+/** Legacy-literal form of `isStarted` (0114: category `active`). */
 export function isStarted(status: TaskStatus) {
-  return status === "in_progress" || status === "blocked";
+  return isStartedRow({ status });
 }
 
 export type ScopeStats = {
@@ -51,10 +57,10 @@ export function scopeStats(tasks: Iterable<ScopeTask>): ScopeStats {
     const p = taskPoints(t.estimate);
     s.scope += p;
     s.count++;
-    if (t.status === "done") {
+    if (isDone(t)) {
       s.completed += p;
       s.completedCount++;
-    } else if (isStarted(t.status)) {
+    } else if (isStartedRow(t)) {
       s.started += p;
       s.startedCount++;
     }
@@ -120,7 +126,7 @@ export function breakdown<T extends ScopeTask>(
       }
       g.scope += p;
       g.count++;
-      if (t.status === "done") g.completed += p;
+      if (isDone(t)) g.completed += p;
     }
   }
   return [...groups.values()]

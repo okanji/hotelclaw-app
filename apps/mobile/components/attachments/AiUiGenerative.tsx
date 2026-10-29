@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -11,7 +11,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import Svg, { Circle, Path, Polygon, Polyline, Rect, Text as SvgText } from "react-native-svg";
-import { useChannelContext, useMessageContext } from "stream-chat-expo";
+import { ChannelContext, MessageContext } from "stream-chat-expo";
 import {
   chartSeries,
   formatFormSubmission,
@@ -41,11 +41,17 @@ const BORDER = "#e5e7eb";
 
 /** The sender for a rendered element: the surface's override (Assistant)
  *  or the channel the message lives in (beside the bot message, or into
- *  its thread when it has one). */
-function useReplySender(): ((text: string) => Promise<void>) | null {
+ *  its thread when it has one).
+ *
+ *  Reads Stream's contexts with plain `useContext`, NOT `useChannelContext()`
+ *  — that hook THROWS outside a <Channel>, and the Assistant transcript
+ *  renders these same elements with no channel around them. */
+export function useReplySender(): ((text: string) => Promise<void>) | null {
   const override = useOptionalChatUiSend();
-  const channelCtx = useChannelContext() as { channel?: { sendMessage: (m: Record<string, unknown>) => Promise<unknown> } };
-  const messageCtx = useMessageContext() as { message?: { parent_id?: string } };
+  const channelCtx = useContext(ChannelContext) as {
+    channel?: { sendMessage: (m: Record<string, unknown>) => Promise<unknown> };
+  } | null;
+  const messageCtx = useContext(MessageContext) as { message?: { parent_id?: string } } | null;
   if (override) return async (text) => void (await override(text));
   const channel = channelCtx?.channel;
   if (!channel) return null;

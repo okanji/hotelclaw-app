@@ -1,4 +1,5 @@
 import type { TaskStatus, UpdateHealth } from "@/lib/db/types";
+import { isDone, isStarted } from "@/lib/tasks/statuses";
 
 /* -------------------------------------------------------------------------- */
 /* Linear-parity planning math (migration 0111) — pure, no I/O, client-safe.  */
@@ -124,10 +125,10 @@ export function progressStats(tasks: ProgressTask[]): ProgressStats {
     const pts = taskPoints(t);
     s.scope += pts;
     s.tasks += 1;
-    if (t.status === "done") {
+    if (isDone(t)) {
       s.completed += pts;
       s.doneTasks += 1;
-    } else if (t.status === "in_progress" || t.status === "blocked") {
+    } else if (isStarted(t)) {
       s.started += pts;
     }
   }
@@ -178,7 +179,7 @@ export function milestoneProgress(
     if (!t.milestone_id) continue;
     const m = out.get(t.milestone_id) ?? { done: 0, total: 0, pct: 0 };
     m.total += 1;
-    if (t.status === "done") m.done += 1;
+    if (isDone(t)) m.done += 1;
     out.set(t.milestone_id, m);
   }
   for (const m of out.values()) m.pct = pct(m.done, m.total);

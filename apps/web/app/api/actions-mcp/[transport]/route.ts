@@ -75,7 +75,10 @@ const handler = createMcpHandler((server) => {
     "list_tasks",
     "List tasks in the key's property (title, status, priority, due date). Optionally filter by status.",
     {
-      status: z.enum(["todo", "in_progress", "blocked", "done"]).optional(),
+      status: z
+        .enum(["todo", "in_progress", "blocked", "done"])
+        .optional()
+        .describe("Status category (0114): todo = not started, in_progress = active, blocked, done = finished. Each task also returns its list's own status_name."),
       limit: z.number().int().min(1).max(30).default(15),
     },
     async ({ status, limit }, extra) => {
@@ -83,15 +86,23 @@ const handler = createMcpHandler((server) => {
       const supabase = createServiceClient();
       let query = supabase
         .from("tasks")
-        .select("id, title, status, priority, due_at")
+        .select("id, title, status, priority, due_at, status_name:statuses!tasks_status_id_fkey(name)")
         .eq("property_id", propertyId)
         .order("updated_at", { ascending: false })
         .limit(limit);
       if (status) query = query.eq("status", status);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
+      // Hand-typed embed (Relationships: [] in lib/db/types.ts), as in getTasks.
+      const rows = (data ?? []) as unknown as Array<
+        Record<string, unknown> & { status_name: { name: string } | null }
+      >;
+      const tasks = rows.map(({ status_name, ...t }) => ({
+        ...t,
+        status_name: status_name?.name ?? null,
+      }));
       return {
-        content: [{ type: "text", text: JSON.stringify({ count: (data ?? []).length, tasks: data ?? [] }) }],
+        content: [{ type: "text", text: JSON.stringify({ count: tasks.length, tasks }) }],
       };
     },
   );
@@ -114,7 +125,6 @@ const handler = createMcpHandler((server) => {
           title,
           description: description ?? null,
           priority,
-          status: "todo",
           source: "ai",
           created_by: userId,
         })

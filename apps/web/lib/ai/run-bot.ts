@@ -36,7 +36,7 @@ import { samplingParams } from "@/lib/ai/model-settings";
 import { buildMemoryTools } from "@/lib/memory/tools";
 import { buildDelegateTool } from "@/lib/ai/tools/delegate";
 
-const MODEL_ID = process.env.AI_BOT_MODEL ?? "claude-sonnet-5";
+const MODEL_ID = process.env.AI_BOT_MODEL || "claude-sonnet-5";
 
 /**
  * Why the bot is being invoked. Used to compose the system prompt so the

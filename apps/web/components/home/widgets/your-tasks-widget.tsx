@@ -1,5 +1,6 @@
 "use client";
 
+import { isBlocked, isDone } from "@/lib/tasks/statuses";
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ export function YourTasksWidget({
     () => tasks.filter((t) => t.assignee_id === userId),
     [tasks, userId],
   );
-  const open = useMemo(() => mine.filter((t) => t.status !== "done"), [mine]);
+  const open = useMemo(() => mine.filter((t) => !isDone(t)), [mine]);
   const dueSoon = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
     const cutoff = Date.now() + WEEK_MS;
@@ -56,7 +57,7 @@ export function YourTasksWidget({
     ).length;
   }, [open]);
   const blocked = useMemo(
-    () => open.filter((t) => t.status === "blocked").length,
+    () => open.filter((t) => isBlocked(t)).length,
     [open],
   );
   const counts = useMemo(() => {

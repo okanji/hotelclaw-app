@@ -28,7 +28,7 @@ import {
   type MemoryStore,
 } from "@hotelclaw/memory";
 
-const CAPTURE_MODEL = process.env.AI_FAST_MODEL ?? "claude-haiku-5-5";
+const CAPTURE_MODEL = process.env.AI_FAST_MODEL || "claude-haiku-5-5";
 const MIN_TEXT_WITHOUT_TOOLS = 300;
 const MAX_TRANSCRIPT_CHARS = 14_000;
 

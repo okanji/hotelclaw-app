@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -88,7 +89,7 @@ export function YouBlock({
     return tasks.filter(
       (t) =>
         t.assignee_id === userId &&
-        t.status !== "done" &&
+        !isDone(t) &&
         !!t.due_at &&
         new Date(t.due_at) <= endOfToday,
     ).length;

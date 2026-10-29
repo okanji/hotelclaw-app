@@ -31,7 +31,7 @@ import { BOT_DISPLAY_NAME } from "@/lib/ai/bot-identity";
 import { prefixUser, type HistoryTurn } from "./ai-history";
 
 const CLASSIFIER_MODEL_ID =
-  process.env.STREAM_BOT_CLASSIFIER_MODEL ?? "claude-haiku-4-5";
+  process.env.STREAM_BOT_CLASSIFIER_MODEL || "claude-haiku-4-5";
 
 const DecisionSchema = z.object({
   decision: z

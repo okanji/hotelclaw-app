@@ -1,5 +1,6 @@
 "use client";
 
+import { isBlocked, isDone, isNotStarted, isStarted } from "@/lib/tasks/statuses";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -354,9 +355,9 @@ function FocusTab({
   const { byBucket, overdue, blocked, delegated, doneThisWeek, openCount, dueTodayCount } =
     useMemo(() => {
       const mine = tasks.filter((t) => t.assignee_id === userId && !t.parent_id);
-      const open = mine.filter((t) => t.status !== "done");
-      const blockedTasks = open.filter((t) => t.status === "blocked");
-      const actionable = open.filter((t) => t.status !== "blocked");
+      const open = mine.filter((t) => !isDone(t));
+      const blockedTasks = open.filter((t) => isBlocked(t));
+      const actionable = open.filter((t) => !isBlocked(t));
 
       const groups: Record<ScheduleBucketId, Task[]> = {
         today: [],
@@ -393,14 +394,14 @@ function FocusTab({
             t.created_by === userId &&
             t.assignee_id &&
             t.assignee_id !== userId &&
-            t.status !== "done" &&
+            !isDone(t) &&
             !t.parent_id,
         )
         .sort(byDue);
 
       const weekAgo = now.getTime() - 7 * DAY;
       const recentDone = mine.filter(
-        (t) => t.status === "done" && new Date(t.updated_at).getTime() >= weekAgo,
+        (t) => isDone(t) && new Date(t.completed_at ?? t.updated_at).getTime() >= weekAgo,
       );
 
       return {
@@ -747,7 +748,7 @@ function TaskRow({
       : dueStart === today + DAY
         ? "Tomorrow"
         : due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const overdue = dueStart !== null && dueStart < today && task.status !== "done";
+  const overdue = dueStart !== null && dueStart < today && !isDone(task);
   const priority = PRIORITY_META[task.priority];
 
   return (
@@ -825,7 +826,7 @@ function TaskRow({
         </span>
       ) : null}
 
-      {task.status === "in_progress" && !readOnly ? (
+      {isStarted(task) && !isBlocked(task) && !readOnly ? (
         <span className="flex shrink-0 items-center gap-1 text-xs text-info">
           <span className="size-1.5 rounded-full bg-info" />
           In progress
@@ -844,7 +845,7 @@ function TaskRow({
         </span>
       ) : null}
 
-      {!readOnly && task.status === "todo" ? (
+      {!readOnly && isNotStarted(task) ? (
         <Button
           variant="ghost"
           size="xs"

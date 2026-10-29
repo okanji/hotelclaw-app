@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -160,7 +161,7 @@ function spaceDetailQuery(spaceId: string) {
         }[]) {
           const a = agg.get(t.project_id) ?? { done: 0, total: 0 };
           a.total += 1;
-          if (t.status === "done") a.done += 1;
+          if (isDone(t)) a.done += 1;
           agg.set(t.project_id, a);
         }
         projects = (
@@ -253,7 +254,7 @@ export function SpaceDetail({
     [pinnedDocs],
   );
   const doneCount = useMemo(
-    () => tasks.filter((t) => t.status === "done").length,
+    () => tasks.filter((t) => isDone(t)).length,
     [tasks],
   );
 

@@ -28,7 +28,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/server";
 import { memoryStore } from "@/lib/memory/store";
 
-const CONSOLIDATE_MODEL = process.env.AI_FAST_MODEL ?? "claude-haiku-5-5";
+const CONSOLIDATE_MODEL = process.env.AI_FAST_MODEL || "claude-haiku-5-5";
 /** Auto memories per scope before a merge pass is worth a model call. */
 export const CONSOLIDATE_THRESHOLD = 25;
 const CONSOLIDATE_MIN_AGE_DAYS = 7;

@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import {
   useCallback,
   useMemo,
@@ -335,7 +336,7 @@ export function CommandPalette({ propertyId }: { propertyId: string }) {
 
   const filteredTasks = useMemo(() => {
     if (!showData) return [];
-    if (!hasQuery) return allTasks.filter((t) => t.status !== "done").slice(0, 4);
+    if (!hasQuery) return allTasks.filter((t) => !isDone(t)).slice(0, 4);
     const q = term.toLowerCase();
     return allTasks
       .filter(

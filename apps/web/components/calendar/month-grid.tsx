@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
@@ -224,7 +225,7 @@ function DeadlineChip({
         eventChipClass(event),
         "flex items-center gap-1 cursor-grab touch-none",
         isDragging && "opacity-40",
-        event.status === "done" && "line-through opacity-70",
+        isDone(event) && "line-through opacity-70",
       )}
     >
       <span className="shrink-0 text-[10px] uppercase tracking-wide opacity-70">Due</span>

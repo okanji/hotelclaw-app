@@ -81,7 +81,7 @@ export default defineTool({
             .from("tasks")
             .select("title, status, priority")
             .eq("property_id", property.id)
-            .neq("status", "done")
+            .is("completed_at", null)
             .in("priority", ["high", "urgent"])
             .limit(10),
         ]);

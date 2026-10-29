@@ -88,11 +88,19 @@ export function useEveSession(options: UseEveSessionOptions): UseEveSession {
   const turnsRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
+  // What the pane shows, for carrying it across a session swap (below).
+  const itemsRef = useRef<TranscriptItem[]>([]);
+  // Turns from an EARLIER session still shown above the current one. A 409
+  // (expired / stranded) starts a fresh session whose replay holds only the
+  // new turn — without this the whole conversation vanished on the swap.
+  const prefixRef = useRef<TranscriptItem[]>([]);
 
   const publish = useCallback((next: TranscriptItem[]) => {
-    const copy = [...next];
+    const copy = [...prefixRef.current, ...next];
+    itemsRef.current = copy;
     setItems(copy);
-    setPending(pendingInputRequests(copy));
+    // Only the CURRENT session can answer a parked question.
+    setPending(pendingInputRequests(next));
   }, []);
 
   const consumeStream = useCallback(
@@ -192,7 +200,10 @@ export function useEveSession(options: UseEveSessionOptions): UseEveSession {
         { method: "POST", headers: headers(), body: JSON.stringify(body) },
       );
       if (isFollowUp && response.status === 409 && "message" in body) {
-        // Expired / reset / stranded — continue in a fresh session.
+        // Expired / reset / stranded — continue in a fresh session, keeping
+        // what is already on screen above its turns (itemsRef never holds
+        // the optimistic echo, which only goes through setItems).
+        prefixRef.current = itemsRef.current;
         isFollowUp = false;
         sessionRef.current = null;
         turnsRef.current = 0;
@@ -280,6 +291,7 @@ export function useEveSession(options: UseEveSessionOptions): UseEveSession {
     sessionRef.current = null;
     turnsRef.current = 0;
     setSessionId(null);
+    prefixRef.current = [];
     publish([]);
   }, [publish]);
 

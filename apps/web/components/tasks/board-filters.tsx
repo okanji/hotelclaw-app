@@ -1,5 +1,6 @@
 "use client";
 
+import { isDone } from "@/lib/tasks/statuses";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -283,7 +284,7 @@ function taskDueBuckets(task: Task, now: number): DueBucket[] {
   const endToday = startToday + 86_400_000;
   const endWeek = startToday + 7 * 86_400_000;
   const out: DueBucket[] = [];
-  if (t < startToday && task.status !== "done") out.push("overdue");
+  if (t < startToday && !isDone(task)) out.push("overdue");
   if (t >= startToday && t < endToday) out.push("today");
   if (t >= startToday && t < endWeek) out.push("week");
   return out;
