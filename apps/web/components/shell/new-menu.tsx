@@ -32,8 +32,9 @@ export function NewMenu({
   variant = "icon",
 }: {
   propertyId: string;
-  /** "button" = gr8r's topbar `New ▾` secondary button (2026-10-29). */
-  variant?: "icon" | "button";
+  /** "button" = gr8r's topbar `New ▾` secondary button (2026-10-29);
+   *  "split" = ClickUp's sidebar-header `+ ▾` (no label). */
+  variant?: "icon" | "button" | "split";
 }) {
   const router = useRouter();
   const base = `/p/${propertyId}`;
@@ -52,6 +53,15 @@ export function NewMenu({
             <Gi icon={Plus} size={14} />
             <span className="hide-m">New</span>
             <Gi icon={ChevronDown} size={12} className="hide-m" />
+          </DropdownMenuTrigger>
+        ) : variant === "split" ? (
+          <DropdownMenuTrigger
+            aria-label="Create new"
+            title="Create"
+            className="btn btn-secondary side-create"
+          >
+            <Gi icon={Plus} size={16} />
+            <Gi icon={ChevronDown} size={11} className="faint" />
           </DropdownMenuTrigger>
         ) : (
           <DropdownMenuTrigger

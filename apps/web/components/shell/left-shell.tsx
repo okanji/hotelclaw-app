@@ -2,15 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { CloseSidebarIcon } from "./clickup-icons";
 import { useShellSection } from "./shell-section-context";
 import { SectionSidebar } from "./section-sidebar";
+import { AppRail } from "./app-rail";
 import { LastPathRecorder } from "./last-path-recorder";
 import { RouteTitle } from "./route-title";
 import type { Membership } from "@/lib/auth/session";
@@ -41,8 +35,11 @@ type User = {
 };
 
 /**
- * The whole left region: the one sidebar (see `SectionSidebar`) with its
- * resize handle, the collapse shortcut, and the » button that brings it back.
+ * The whole left region: the app rail (`AppRail` — Home / Chat / Docs /
+ * AI / Insights / More, 2026-10-29), then the one sidebar (see
+ * `SectionSidebar`) with its resize handle and the collapse shortcut.
+ * Collapse hides the sidebar only — the rail is the persistent chrome, and
+ * its footer button brings the sidebar back.
  */
 export function LeftShell({
   currentPropertyId,
@@ -65,6 +62,9 @@ export function LeftShell({
 }) {
   const { sidebarHidden, sidebarCollapsed, setSidebarCollapsed } =
     useShellSection();
+  const role = memberships.find((m) => m.property_id === currentPropertyId)?.role;
+  const isGuest = role === "guest";
+  const isManagement = role === "owner" || role === "manager";
   // Collapse hides the sidebar fully (the original « / » behaviour — the
   // user preferred it over gr8r's 52px icon rail, 2026-10-29).
   const showSidebar = forceExpanded || (!sidebarHidden && !sidebarCollapsed);
@@ -160,13 +160,23 @@ export function LeftShell({
     // `peer-data-[sidebar-open]:…`) react to the sidebar being attached.
     <div
       data-sidebar-open={showSidebar ? "" : undefined}
-      className={cn("relative flex shrink-0 flex-col bg-sidebar", className)}
+      className={cn("flex shrink-0 bg-sidebar", className)}
     >
       {/* Records each section's last route to localStorage so the sidebar
           and property switcher can jump straight back to it. Renders nothing. */}
       <LastPathRecorder propertyId={currentPropertyId} />
       {/* Route-aware document.title. Renders nothing. */}
       {!forceExpanded && <RouteTitle propertyId={currentPropertyId} />}
+      {/* The rail survives every collapse / hide — it is how you get to the
+          other sidebars. */}
+      <AppRail
+        propertyId={currentPropertyId}
+        userId={user.id}
+        isGuest={isGuest}
+        isManagement={isManagement}
+      />
+      {/* The sidebar column: width slot + its resize handle. */}
+      <div className="relative flex min-h-0 flex-col max-md:min-w-0 max-md:flex-1">
       {(forceExpanded || !sidebarHidden) && (
         // Width slot that animates open/closed (ClickUp-style slide). The
         // sidebar stays MOUNTED while collapsed — the slot just shrinks to
@@ -221,34 +231,7 @@ export function LeftShell({
           )}
         />
       )}
-      {!showSidebar && !forceExpanded && (
-        // Linear's » at the top-left of the page while the sidebar is
-        // hidden: the one piece of shell that survives a collapse. Fixed so
-        // it escapes the zero-width slot; quiet (fill on hover only).
-        <TooltipProvider delay={0}>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={() => setSidebarCollapsed(false)}
-                  aria-label="Open sidebar"
-                  className="fixed top-2 left-2 z-30 flex size-[30px] items-center justify-center rounded-md text-faint-foreground outline-hidden transition-colors hover:bg-accent hover:text-secondary-ink focus-visible:shadow-focus max-md:hidden"
-                >
-                  {/* ClickUp's closeLeft glyph, mirrored to point at the sidebar. */}
-                  <CloseSidebarIcon className="size-4 -scale-x-100" />
-                </button>
-              }
-            />
-            <TooltipContent side="right">
-              Open sidebar
-              <kbd className="ml-1.5 font-sans text-xs font-normal opacity-60">
-                ⌘\
-              </kbd>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      </div>
       {dragging && (
         // While dragging, blanket the viewport so iframes/editors under the
         // cursor can't swallow the pointermove stream, and text doesn't get

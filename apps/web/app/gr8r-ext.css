@@ -1775,3 +1775,120 @@
     .g8 .g8-ch-lbl button > span[aria-hidden] { display: none; }
   }
 }
+
+@layer components {
+  /* ClickUp's thin global top bar (components/shell/top-bar.tsx): one
+     strip across rail + sidebar + content on the chrome plane. gr8r has
+     no such element — its `.topbar` is the page header — so this is
+     hand-written in the same vocabulary (`.ws` picker, `.ibtn`,
+     `.topsearch`, `.btn`). */
+  .g8 .gtop {
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 10px 0 8px;
+    background: var(--g8-bg-side);
+    border-bottom: 1px solid var(--g8-border);
+  }
+  /* The org picker hugs its name (the switcher's `.grow` is for the old
+     sidebar slot); long names still cap and truncate. */
+  .g8 .gtop .ws {
+    width: auto;
+    flex: 0 1 auto;
+    max-width: 240px;
+    padding: 3px 6px;
+    margin-right: 2px;
+  }
+  .g8 .gtop .gtop-page:empty {
+    display: none;
+  }
+  .g8 .gtop .gtop-page {
+    margin-left: 6px;
+  }
+
+  /* ClickUp's sidebar header: section title, hover-only tools, "+ ▾".
+     Measured against ClickUp, then trimmed twice (user, 2026-10-29):
+     17px/600 title, 26px icon buttons with 16px glyphs, and a 30px "+ ▾"
+     split button (r 8px, hairline + soft shadow).
+     The tools slide in from the "+" side and fade (reverse on leave). */
+  .g8 .side-h {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 40px;
+    padding: 0 0 0 8px;
+  }
+  .g8 .side-ttl {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--g8-text);
+  }
+  .g8 .side-tools {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 4px;
+    opacity: 0;
+    transform: translateX(10px);
+    pointer-events: none;
+    transition:
+      opacity 160ms var(--g8-ease),
+      transform 220ms var(--g8-ease);
+  }
+  .g8 .side:hover .side-tools,
+  .g8 .side-tools:focus-within {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+  .g8 .side-tools .ibtn {
+    width: 26px;
+    height: 26px;
+    color: var(--g8-text-2);
+  }
+  .g8 .btn.side-create {
+    height: 30px;
+    padding: 0 5px 0 6px;
+    gap: 3px;
+    border-radius: 8px;
+  }
+  /* ClickUp's selected sidebar row: a flat gray pill — no white card,
+     ring or shadow (gr8r's `.sitem.on`) — r 8px, the icon at full ink.
+     Hover stays a lighter wash of the same family. */
+  .g8 .side .sitem,
+  .g8.g8-port .sitem {
+    border-radius: 8px;
+  }
+  .g8 .side .sitem.on {
+    background: color-mix(in srgb, var(--g8-text) 7%, transparent);
+    box-shadow: none;
+    font-weight: 450;
+  }
+  .g8 .side .sitem.on .i {
+    color: var(--g8-text);
+  }
+  .dark .g8 .side .sitem.on {
+    background: color-mix(in srgb, var(--g8-text) 10%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .g8 .side-tools {
+      transform: none;
+      transition: opacity 120ms linear;
+    }
+  }
+}
+
+@layer components {
+  /* Light-mode sidebar plane = ClickUp's #f9f9f9 (user, 2026-10-29), not
+     gr8r's warm #f4f3f0. Same specificity as gr8r.css's `.g8` token block
+     and imported after it, so it wins; `.dark .g8` still restores gr8r's
+     dark value. Paired with `--sidebar` in app/globals.css (shell gutter,
+     mobile drawer). */
+  .g8 {
+    --g8-bg-side: #f9f9f9;
+  }
+}

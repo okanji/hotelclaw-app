@@ -31,6 +31,18 @@ export const MAX_PINNED_RESOURCES = 8;
 
 export type DocPinCardSize = "default" | "compact";
 
+/** Pastel card fills (the brand tint palette, 2026-10-29) — the same family
+ *  as the rail's More tiles. Dividers and meta ink follow the tone. */
+export type DocPinTone = "lavender" | "blue" | "sage" | "coral" | "honey";
+export const DOC_PIN_TONES: DocPinTone[] = ["blue", "sage", "lavender", "honey", "coral"];
+const TONE_FILL: Record<DocPinTone, string> = {
+  lavender: "bg-tint-lavender text-tint-lavender-ink",
+  blue: "bg-tint-blue text-tint-blue-ink",
+  sage: "bg-tint-sage text-tint-sage-ink",
+  coral: "bg-tint-coral text-tint-coral-ink",
+  honey: "bg-tint-honey text-tint-honey-ink",
+};
+
 const CARD_SHELL: Record<
   DocPinCardSize,
   { shell: string; pad: string; title: string; body: string; footer: string; snippetLines: number }
@@ -84,7 +96,10 @@ export function DocPinCard({
   wrapperStyle,
   dragAttributes,
   dragListeners,
+  tone,
 }: {
+  /** A pastel fill instead of the plain card surface. */
+  tone?: DocPinTone;
   doc: DocPinCardData;
   propertyId: string;
   accentDotClass: string;
@@ -118,12 +133,23 @@ export function DocPinCard({
   }
 
   const linkClass = cn(
-    "flex flex-col overflow-hidden bg-card text-left shadow-card transition-colors",
+    "flex flex-col overflow-hidden text-left transition-[background-color,filter]",
     s.shell,
-    draggable
-      ? "cursor-grab active:cursor-grabbing group-hover/card:bg-accent"
-      : "hover:bg-accent",
+    tone ? TONE_FILL[tone] : "bg-card shadow-card",
+    draggable ? "cursor-grab active:cursor-grabbing" : null,
+    tone
+      ? draggable
+        ? "group-hover/card:brightness-[0.97]"
+        : "hover:brightness-[0.97]"
+      : draggable
+        ? "group-hover/card:bg-accent"
+        : "hover:bg-accent",
   );
+  // On a pastel fill, text and rules take the tone's ink instead of the
+  // neutral greys (which read muddy on color).
+  const ink = tone
+    ? { title: "text-current", body: "text-current/75", faint: "text-current/60", rule: "bg-current/15", border: "border-current/15" }
+    : { title: "text-foreground", body: "text-muted-foreground", faint: "text-faint-foreground", rule: "bg-border", border: "border-border" };
 
   const unpinButton = (
     <button
@@ -230,21 +256,22 @@ export function DocPinCard({
         className={linkClass}
       >
         <div className={cn("flex-1 overflow-hidden", s.pad)}>
-          <h3 className={cn("line-clamp-2 pr-6 text-foreground", s.title)}>
+          <h3 className={cn("line-clamp-2 pr-6", ink.title, s.title)}>
             {doc.title || "Untitled"}
           </h3>
-          <div className="my-2 h-px bg-border" />
+          <div className={cn("my-2 h-px", ink.rule)} />
           {snippet ? (
-            <p className={cn("whitespace-pre-line text-muted-foreground", s.body)}>
+            <p className={cn("whitespace-pre-line", ink.body, s.body)}>
               {snippet}
             </p>
           ) : (
-            <p className={cn("text-faint-foreground", s.body)}>Empty</p>
+            <p className={cn(ink.faint, s.body)}>Empty</p>
           )}
         </div>
         <div
           className={cn(
-            "flex items-center justify-between gap-1 border-t border-border",
+            "flex items-center justify-between gap-1 border-t",
+            ink.border,
             s.footer,
           )}
         >
@@ -253,7 +280,7 @@ export function DocPinCard({
               className={cn("size-1 shrink-0 rounded-full", accentDotClass)}
               aria-hidden="true"
             />
-            <span className="truncate text-faint-foreground tabular-nums">
+            <span className={cn("truncate tabular-nums", ink.faint)}>
               {doc.updated_at ? relativeTime(doc.updated_at) : "—"}
             </span>
           </span>

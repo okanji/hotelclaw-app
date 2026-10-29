@@ -81,7 +81,7 @@ export function PropertySwitcher({
           {/* gr8r `.ws` (shell/layout.js renderSidebar): logo tile, name,
               faint chevrons-up-down. */}
           <DropdownMenuTrigger
-            className="ws grow"
+            className="ws"
             aria-label="Switch workspace"
           >
             <span

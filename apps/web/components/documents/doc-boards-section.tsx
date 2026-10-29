@@ -40,7 +40,12 @@ import {
   type BoardColor,
   type DocumentBoardRow,
 } from "@/lib/query/section-queries";
-import { DocPinCard, DocumentPinPicker } from "@/components/documents/doc-pin-card";
+import {
+  DOC_PIN_TONES,
+  DocPinCard,
+  DocumentPinPicker,
+  type DocPinTone,
+} from "@/components/documents/doc-pin-card";
 import { LABEL_DOT, LABEL_WASH } from "@/components/labels/label-tokens";
 import {
   useDocsHomePresenceMap,
@@ -296,9 +301,12 @@ function BoardStrip({
     />
   );
 
-  const cards = items.map((item) => {
+  // Pastel cards (2026-10-29): each card takes the next tint in the
+  // palette so a shelf reads as a row of colored pages, not white boxes.
+  const cards = items.map((item, i) => {
     const doc = docsById.get(item.document_id);
     if (!doc) return null;
+    const tone = DOC_PIN_TONES[i % DOC_PIN_TONES.length];
     return pinMode === "picker" ? (
       <DocPinCard
         key={doc.id}
@@ -306,6 +314,7 @@ function BoardStrip({
         propertyId={propertyId}
         accentDotClass={COLOR_DOT[board.color]}
         onUnpin={handleUnpin}
+        tone={tone}
       />
     ) : (
       <DocCard
@@ -314,6 +323,7 @@ function BoardStrip({
         propertyId={propertyId}
         boardColor={board.color}
         onUnpin={handleUnpin}
+        tone={tone}
       />
     );
   });
@@ -545,11 +555,13 @@ function DocCard({
   propertyId,
   boardColor,
   onUnpin,
+  tone,
 }: {
   doc: DocRow;
   propertyId: string;
   boardColor: BoardColor;
   onUnpin: (documentId: string) => void;
+  tone?: DocPinTone;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -563,6 +575,7 @@ function DocCard({
       propertyId={propertyId}
       accentDotClass={COLOR_DOT[boardColor]}
       onUnpin={onUnpin}
+      tone={tone}
       draggable
       isDragging={isDragging}
       wrapperRef={setNodeRef}

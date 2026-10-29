@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { Breadcrumbs, type BreadcrumbItem } from "./breadcrumbs";
-import { TopbarActions } from "./topbar-actions";
 
 /**
  * The app topbar. Notion's is **44px tall and completely transparent** — no
@@ -42,15 +41,12 @@ export function PageHeader({
 }) {
   // gr8r `renderTopbar()` (shell/layout.js): `.topbar` (46px, surface,
   // hairline bottom, content on the gutter) › `.crumbs` › spacer › page
-  // actions › search / bell / New (`TopbarActions`).
+  // actions. Search / bell / New moved to the global `TopBar` and the
+  // sidebar header's `+ ▾` (2026-10-29).
   return (
     <header
       className={cn(
         "topbar",
-        // Leave room for LeftShell's fixed » (top-2 left-2, 30px) while the
-        // desktop sidebar is collapsed — its root carries
-        // `data-sidebar-open` only while attached.
-        "md:[body:not(:has([data-sidebar-open]))_&]:pl-11",
         className,
       )}
     >
@@ -73,7 +69,6 @@ export function PageHeader({
       {meta ? <span className="faint hide-m trunc" style={{ fontSize: "var(--g8-fs-sm)" }}>{meta}</span> : null}
       <span className="sp" />
       {actions ? <div className="row" style={{ gap: 2 }}>{actions}</div> : null}
-      <TopbarActions />
     </header>
   );
 }

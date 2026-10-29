@@ -144,7 +144,7 @@ function SheetInner({
   return (
     <div className="g8-doc flex h-full min-h-0 flex-col">
       {/* gr8r `.topbar`: `.crumbs` trail, then last-edited + presence. */}
-      <header className="topbar g8-doc-top md:[body:not(:has([data-sidebar-open]))_&]:pl-11">
+      <header className="topbar g8-doc-top">
         {/* The native shell hides its stack header on this screen — the
             embed-only chevron (hidden elsewhere) is its way back. */}
         <EmbedBackButton />

@@ -542,7 +542,7 @@ function EditorInner({
       {/* Top row = gr8r's `.topbar`: `.crumbs` trail (left) + document
           metadata (right). Keeping "Edited by" / History / presence up here
           lets the formatting toolbar below stay a single slim band. */}
-      <header className="topbar g8-doc-top md:[body:not(:has([data-sidebar-open]))_&]:pl-11">
+      <header className="topbar g8-doc-top">
         <div className="row" style={{ minWidth: 0, gap: 4 }}>
           <EmbedBackButton />
           <DocumentBreadcrumbs

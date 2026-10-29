@@ -1,108 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import type { ReactElement } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ellipsis, Pin } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TintIcon } from "@/components/ui/tint-card";
-import { Gi } from "@/components/gr8r/icon";
-import { NAV_APPS, NAV_GROUP_LABEL, type NavApp, type NavAppId } from "./nav-apps";
+import type { TintTone } from "@/components/ui/tint-card";
+import { NAV_APPS, type NavApp, type NavAppId } from "./nav-apps";
 
 /**
- * The sidebar's "More" row → the app launcher (restored 2026-10-29 from the
- * pre-gr8r `app-launcher.tsx`, the grid people recognised — ClickUp's More,
- * Slack's "Agents & tools"): a popover beside the row with EVERY app as a
- * tile, grouped Work / Build & automate / Admin. Apps that have their own
- * sidebar row carry a small pin, so the grid also reads as "what's already in
- * my sidebar"; the rest (Meetings, Initiatives, Org chart) live only here.
- * The popover portals outside `.g8`, so it is Tailwind over our tokens.
+ * Apps that are rail items — left out of the More grid (ClickUp's More only
+ * lists what the rail doesn't already show).
  */
-export function MoreLauncher({
+export const ON_RAIL: ReadonlySet<NavAppId> = new Set<NavAppId>(["home", "insights", "workflows"]);
+
+/** Pastel tile fill + matching ink per tone (the brand tint palette). */
+const TILE: Record<TintTone, string> = {
+  lavender: "bg-tint-lavender text-tint-lavender-ink",
+  blue: "bg-tint-blue text-tint-blue-ink",
+  sage: "bg-tint-sage text-tint-sage-ink",
+  coral: "bg-tint-coral text-tint-coral-ink",
+  honey: "bg-tint-honey text-tint-honey-ink",
+};
+
+/**
+ * The rail's "More" → ClickUp's app launcher (2026-10-29): a popover beside
+ * the rail button, a soft gray frame around a white panel holding a 3-up
+ * grid of pastel rounded-square icon tiles (tint palette) with labels
+ * underneath, and "Customize navigation" (→ Settings › Sidebar) at the
+ * foot. Lists every app the rail doesn't already carry; picking one tells
+ * the rail (`onPick`) so it can sit there until you leave it. Portals
+ * outside `.g8`, so it is Tailwind over our tokens.
+ */
+export function MoreMenu({
   base,
-  collapsed,
-  inSidebar,
-  active,
+  open,
+  onOpenChange,
+  onPick,
+  trigger,
 }: {
   base: string;
-  collapsed: boolean;
-  /** Apps with their own sidebar row — their tiles carry the pin. */
-  inSidebar: ReadonlySet<NavAppId>;
-  /** The current page is one of the More-only apps. */
-  active: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPick: (app: NavApp) => void;
+  /** The rail button (rendered as the popover's trigger). */
+  trigger: ReactElement;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const groups = (["work", "build", "admin"] as const).map((g) => ({
-    id: g,
-    apps: NAV_APPS.filter((a) => a.group === g),
-  }));
+  const apps = NAV_APPS.filter((a) => !ON_RAIL.has(a.id));
 
   function openApp(app: NavApp) {
-    setOpen(false);
+    onOpenChange(false);
+    onPick(app);
     router.push(`${base}${app.path}`);
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className={open || active ? "sitem on" : "sitem"}
-            aria-label="More apps"
-            title={collapsed ? "More" : undefined}
-          />
-        }
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger render={trigger} />
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={10}
+        alignOffset={-8}
+        className="w-[17.5rem] gap-0 rounded-[16px] bg-muted p-1.5"
       >
-        <Gi icon={Ellipsis} />
-        <span className="trunc">More</span>
-      </PopoverTrigger>
-      <PopoverContent side="right" align="start" sideOffset={8} className="w-[22rem] gap-3 p-3">
-        {groups.map((g) => (
-          <section key={g.id} className="flex flex-col gap-1.5">
-            <h3 className="px-1 text-xs font-medium text-faint-foreground">
-              {NAV_GROUP_LABEL[g.id]}
-            </h3>
-            <div className="grid grid-cols-3 gap-1">
-              {g.apps.map((app) => (
-                <LauncherTile
-                  key={app.id}
-                  app={app}
-                  pinned={inSidebar.has(app.id)}
-                  onOpen={() => openApp(app)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
+        <div className="flex flex-col gap-3 rounded-[12px] bg-surface px-2 pt-4 pb-1.5 ring-1 ring-border">
+          <div className="grid grid-cols-3 gap-y-3">
+            {apps.map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                onClick={() => openApp(app)}
+                title={app.hint}
+                className="group/tile flex flex-col items-center gap-1.5 rounded-md px-0.5 py-1 text-[13px] text-foreground outline-hidden focus-visible:shadow-focus"
+              >
+                <span
+                  className={`flex size-10 items-center justify-center rounded-[10px] transition-[filter] group-hover/tile:brightness-95 ${TILE[app.tone]}`}
+                >
+                  <app.icon className="size-5" />
+                </span>
+                <span className="max-w-full truncate">{app.label}</span>
+              </button>
+            ))}
+          </div>
+          <Link
+            href={`${base}/settings?sec=sidebar`}
+            onClick={() => onOpenChange(false)}
+            className="-mx-1 flex h-8 items-center justify-center gap-1.5 rounded-md text-[12.5px] text-muted-foreground transition-colors outline-hidden hover:bg-accent hover:text-foreground focus-visible:shadow-focus"
+          >
+            <Settings className="size-3.5" />
+            Customize navigation
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-function LauncherTile({
-  app,
-  pinned,
-  onOpen,
-}: {
-  app: NavApp;
-  pinned: boolean;
-  onOpen: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      title={pinned ? `${app.hint} · in your sidebar` : app.hint}
-      className="relative flex flex-col items-center gap-1.5 rounded-md px-1 py-2.5 text-xs text-secondary-ink outline-hidden transition-colors hover:bg-accent focus-visible:shadow-focus"
-    >
-      <TintIcon tone={app.tone}>
-        <app.icon />
-      </TintIcon>
-      <span className="max-w-full truncate">{app.label}</span>
-      {pinned ? (
-        <Pin aria-hidden="true" className="absolute top-1.5 right-2 size-3 text-faint-foreground" />
-      ) : null}
-    </button>
   );
 }

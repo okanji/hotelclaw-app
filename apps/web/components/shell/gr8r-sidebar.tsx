@@ -23,10 +23,10 @@ import {
   Link2,
   List,
   ListChecks,
-  MessagesSquare,
+  ListFilter,
   Plus,
+  Search,
   Settings,
-  Sparkles,
   SquareKanban,
   Star,
   Users,
@@ -50,8 +50,7 @@ import {
   spacesQueryOptions,
 } from "@/lib/query/project-queries";
 import { useStatusCatalog } from "@/lib/query/status-queries";
-import { MoreLauncher } from "./more-launcher";
-import type { NavAppId } from "./nav-apps";
+import { railModeFor, type RailMode } from "./app-rail";
 import { useOpenProject } from "@/lib/projects/use-open-project";
 import { useFavorites } from "@/lib/favorites/use-favorites";
 import { FavMark } from "@/components/gr8r/favorite-star";
@@ -70,7 +69,9 @@ import { DocumentsTreeSection } from "@/components/documents/documents-tree-sect
 import { ChatSection } from "./sections/chat-section";
 import { AssistantSection } from "./sections/assistant-section";
 import { FormsSection } from "./sections/forms-section";
-import { PropertySwitcher } from "./property-switcher";
+import { InsightsSection } from "./sections/insights-section";
+import { WorkflowsSection } from "./sections/workflows-section";
+import { NewMenu } from "./new-menu";
 import { UserMenu } from "./user-menu";
 import { useNotifications } from "./use-notifications";
 import { target } from "./nav-node";
@@ -87,14 +88,16 @@ import type { Membership } from "@/lib/auth/session";
 /**
  * THE sidebar — gr8r-studio's `renderSidebar` (src/shell/layout.js) rendered
  * as React with gr8r's own classes (`app/gr8r.css`, scoped under `.g8`):
- * `.side` › `.side-top` (`.ws` switcher + collapse) › `.side-scroll` (top
- * block, WORKSPACE, PROJECTS tree, TEAMS) › `.side-bot` (Help, Settings,
- * user). Our extra apps sit in gr8r markup (user decision 2026-10-29): Chat,
- * Docs, Forms, Assistant after Favorites (Notifications is the Inbox); Cycles
- * then More close WORKSPACE — More is the app-launcher grid and the only way
- * to Meetings, Workflows, Chatbots, Agents, Insights, Initiatives and Org
- * chart (no BUILD group); each team expands to Triage + its lists the way a
- * project expands to its views. `collapsed` = gr8r's 52px icon rail.
+ * `.side` › `.side-top` (`.ws` switcher + collapse) › `.side-scroll` ›
+ * `.side-bot` (Help, Settings, user). The `.side-scroll` body follows the
+ * app rail beside it (`app-rail.tsx`, 2026-10-29): in `home` mode it is
+ * gr8r's tree (top block, WORKSPACE, PROJECTS, TEAMS — Forms sits after
+ * Favorites; each team expands to Triage + its lists the way a project
+ * expands to its views); in `chat` / `docs` / `assistant` / `insights` mode
+ * it is that section's own navigation (the old `sections/*` bodies), full
+ * height. More is a rail button (the app-launcher modal) and the only way to
+ * Meetings, Workflows, Chatbots, Agents, Initiatives and Org chart.
+ * `collapsed` = gr8r's 52px icon rail.
  */
 export function Gr8rSidebar({
   currentPropertyId: propertyId,
@@ -116,6 +119,7 @@ export function Gr8rSidebar({
   const { navigate } = useSectionNavigation(propertyId);
   const { unseenCount } = useNotifications(user.id);
   const { setSidebarCollapsed } = useShellSection();
+  const { toggle: togglePalette } = useCommandPalette();
   const { hidden } = useNavPrefs(DEFAULT_PINS);
 
   // gr8r's My Tasks count: mine, open, due today or overdue.
@@ -132,17 +136,17 @@ export function Gr8rSidebar({
     ).length;
   }, [tasks, user.id]);
 
-  // Chat / Docs / Assistant / Inbox resume their last path (pushState fast
-  // path for the client-rendered sections).
+  // Inbox resumes its last path (pushState fast path for the client-rendered
+  // sections); Chat + Docs are warmed here even though their rows now live on
+  // the rail, so the first rail click is a cache hit.
   const inbox = useMemo(() => target(base, "activity", "/activity", "/activity"), [base]);
-  const chat = useMemo(() => target(base, "chat", "/chat"), [base]);
-  const docs = useMemo(() => target(base, "docs", "/documents", "/documents"), [base]);
-  const assistant = useMemo(
-    () => target(base, "assistant", "/assistant", "/assistant"),
+  const prewarm = useMemo(
+    () => [target(base, "chat", "/chat"), target(base, "docs", "/documents", "/documents")],
     [base],
   );
-  const prewarm = useMemo(() => [chat, docs], [chat, docs]);
   usePrewarmSections(propertyId, user.id, prewarm);
+  // The rail decides which body this sidebar shows.
+  const mode: RailMode = railModeFor(base, pathname);
 
   const at = (path: string) =>
     pathname === `${base}${path}` || pathname.startsWith(`${base}${path}/`);
@@ -183,20 +187,59 @@ export function Gr8rSidebar({
 
   return (
     <nav className="side" aria-label="Main" style={{ height: "100%" }}>
+      {/* ClickUp's sidebar header (2026-10-29): the section's name, then
+          tools that slide + fade in only while the pointer is over the
+          sidebar (search → ⌘K, filter → Settings › Sidebar, « collapse),
+          then the always-visible "+ ▾" create menu. The org picker moved to
+          the global top bar. */}
       <div className="side-top">
-        <div className="row" style={{ gap: 2 }}>
-          <PropertySwitcher
-            currentPropertyId={propertyId}
-            memberships={memberships}
-            email={user.email}
-          />
-          {/* The original ClickUp-style « (user preference, 2026-10-29):
-              invisible until the pointer is over the sidebar, collapses it
-              fully; LeftShell's » brings it back. */}
-          <SidebarCollapseButton onCollapse={() => setSidebarCollapsed(true)} />
+        <div className="side-h">
+          <h2 className="side-ttl trunc">{SECTION_TITLE[mode]}</h2>
+          <span className="sp" />
+          <div className="side-tools">
+            <button
+              type="button"
+              className="ibtn"
+              title="Search (⌘K)"
+              aria-label="Search and commands"
+              onClick={togglePalette}
+            >
+              <Gi icon={Search} size={16} />
+            </button>
+            {isGuest ? null : (
+              <Link
+                href={`${base}/settings?sec=sidebar`}
+                className="ibtn"
+                title="Customize sidebar"
+                aria-label="Customize sidebar"
+              >
+                <Gi icon={ListFilter} size={16} />
+              </Link>
+            )}
+            <SidebarCollapseButton onCollapse={() => setSidebarCollapsed(true)} />
+          </div>
+          {isGuest ? null : <NewMenu propertyId={propertyId} variant="split" />}
         </div>
       </div>
 
+      {mode !== "home" ? (
+        // A section's own navigation fills the sidebar (the rail picked it).
+        <div className="side-scroll">
+          <Suspense fallback={null}>
+            {mode === "chat" ? (
+              <ChatSection propertyId={propertyId} userId={user.id} isChannelAdmin={isManagement} />
+            ) : mode === "docs" ? (
+              <DocumentsTreeSection propertyId={propertyId} />
+            ) : mode === "assistant" ? (
+              <AssistantSection propertyId={propertyId} />
+            ) : mode === "automations" ? (
+              <WorkflowsSection propertyId={propertyId} />
+            ) : (
+              <InsightsSection propertyId={propertyId} isManagement={isManagement} />
+            )}
+          </Suspense>
+        </div>
+      ) : (
       <div className="side-scroll">
         {row("home", `${base}/home`, "Home", House, pathname === `${base}/home` || pathname === base)}
         {row(
@@ -211,24 +254,10 @@ export function Gr8rSidebar({
           ct: dueMine,
         })}
         {row("favorites", `${base}/favorites`, "Favorites", Star, at("/favorites"))}
-        {row("chat", chat.href, "Chat", MessagesSquare, at("/chat") || at("/dms") || at("/threads"), {
-          onClick: resume(chat),
-          body: <ChatSection propertyId={propertyId} userId={user.id} isChannelAdmin={isManagement} />,
-        })}
-        {row("docs", docs.href, "Docs", FileText, at("/documents"), {
-          onClick: resume(docs),
-          body: <DocumentsTreeSection propertyId={propertyId} />,
-        })}
         {isGuest
           ? null
           : row("forms", `${base}/forms`, "Forms", ClipboardList, at("/forms"), {
               body: <FormsSection propertyId={propertyId} />,
-            })}
-        {isGuest
-          ? null
-          : row("assistant", assistant.href, "Assistant", Sparkles, at("/assistant"), {
-              onClick: resume(assistant),
-              body: <AssistantSection propertyId={propertyId} />,
             })}
 
         {isGuest ? (
@@ -253,12 +282,6 @@ export function Gr8rSidebar({
               {row("timeline", `${base}/timeline`, "Timeline", ChartGantt, at("/timeline"))}
               {row("members", `${base}/members`, "Members", Users, at("/members"))}
               {row("cycles", `${base}/cycles`, "Cycles", IterationCcw, at("/cycles"))}
-              <MoreLauncher
-                base={base}
-                collapsed={collapsed}
-                inSidebar={IN_SIDEBAR}
-                active={MORE_ONLY.some((p) => at(p))}
-              />
             </div>
           </>
         )}
@@ -271,6 +294,7 @@ export function Gr8rSidebar({
           canTriage={role !== undefined && !isGuest}
         />
       </div>
+      )}
 
       <div className="side-bot">
         {isGuest ? null : <HelpMenu collapsed={collapsed} />}
@@ -281,7 +305,7 @@ export function Gr8rSidebar({
   );
 }
 
-/** ClickUp-style « close button, revealed on sidebar hover. */
+/** ClickUp-style « close button — part of the hover-only `.side-tools`. */
 function SidebarCollapseButton({ onCollapse }: { onCollapse: () => void }) {
   return (
     <Tooltip>
@@ -291,7 +315,7 @@ function SidebarCollapseButton({ onCollapse }: { onCollapse: () => void }) {
             type="button"
             onClick={onCollapse}
             aria-label="Close sidebar"
-            className="ml-auto flex size-[30px] shrink-0 items-center justify-center rounded-md text-secondary-ink opacity-0 outline-hidden transition-[opacity,background-color] group-hover/section-sidebar:opacity-100 hover:bg-sidebar-accent focus-visible:opacity-100 focus-visible:shadow-focus max-md:hidden"
+            className="ibtn max-md:hidden"
           >
             <CloseSidebarIcon className="size-4" />
           </button>
@@ -378,10 +402,16 @@ function SItem({
   );
 }
 
-/** Apps with their own sidebar row — pinned in the More launcher's grid. */
-const IN_SIDEBAR: ReadonlySet<NavAppId> = new Set<NavAppId>(["home", "tasks", "calendar", "forms", "archive"]);
-/** Pages that live only behind More — the More row reads as active on them. */
-const MORE_ONLY = ["/meetings", "/workflows", "/chatbots", "/agents", "/home/insights", "/initiatives", "/home/org"];
+/** The sidebar header's title per rail mode (and the heading over a
+ *  section's own navigation). */
+const SECTION_TITLE: Record<RailMode, string> = {
+  home: "Home",
+  chat: "Chat",
+  docs: "Docs",
+  assistant: "Assistant",
+  insights: "Insights",
+  automations: "Auto",
+};
 
 function HelpMenu({ collapsed }: { collapsed: boolean }) {
   const { setOpen } = useCommandPalette();

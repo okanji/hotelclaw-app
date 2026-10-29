@@ -11,6 +11,7 @@ import { getNotifications } from "@/lib/notifications/server";
 import { requireUser, getUserMemberships } from "@/lib/auth/session";
 import { isOnboarded } from "@/lib/auth/onboarding";
 import { LeftShell } from "@/components/shell/left-shell";
+import { TopBar, TopBarSlotProvider } from "@/components/shell/top-bar";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import { ShellSectionProvider } from "@/components/shell/shell-section-context";
 import { BrowserNotifications } from "@/components/chat/inbox/browser-notifications";
@@ -173,6 +174,15 @@ export default async function PropertyLayout({
                         avatarUrl: profile.data?.avatar_url ?? null,
                       }}
                     />
+                    <TopBarSlotProvider>
+                    {/* ClickUp's thin global top bar: org picker, today,
+                        per-page slot, search / bell / AI Chats. */}
+                    <TopBar
+                      propertyId={propertyId}
+                      memberships={memberships}
+                      user={{ id: user.id, email: user.email ?? "" }}
+                      isGuest={currentRole === "guest"}
+                    />
                     <div className="flex min-h-0 flex-1">
                     <LeftShell
                       className="peer max-md:hidden"
@@ -277,6 +287,7 @@ export default async function PropertyLayout({
                       </div>
                     </main>
                     </div>
+                    </TopBarSlotProvider>
                   </div>
                   <CommandPalette propertyId={propertyId} />
                   <ChatEventNotifier propertyId={propertyId} />

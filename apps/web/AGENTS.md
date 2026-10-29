@@ -39,32 +39,70 @@ progress log: `~/.claude/plans/gr8r-ui-port.md`.
   (`components/gr8r/icon.tsx`) = the Lucide glyph gr8r's `ic('name')` names,
   stroke 1.8, class `i`. Shared glyph helpers: `components/gr8r/*-glyphs.tsx`
   (StIcon, PrIcon, Av, AvStack, ProgBar, PStatus, G8_COLOR).
-- **Shell.** Sidebar = gr8r's `renderSidebar` (`components/shell/gr8r-sidebar.tsx`):
-  `.ws` property switcher › Home, Inbox (`/activity`, accent count), My Tasks
-  (due today/overdue count), Favorites (Notifications folded into Inbox — `/notifications`
-  redirects to `/activity`, the topbar bell opens `?view=unread`), then our Chat, Docs,
-  Forms (right under Docs) › WORKSPACE (Overview, Projects, Tasks, Calendar,
-  Timeline, Members, Cycles, then **More** — the workspace Activity feed is
-  an Inbox tab, `/activity?view=workspace`; Triage is part of Tasks,
-  Linear-style: a Triage row under each team, `/triage?team=`, + a "N in
-  triage" chip on the Tasks board). **No BUILD group** (2026-10-29): More is
-  the restored app-launcher grid (`components/shell/more-launcher.tsx`, every
-  `NAV_APPS` tile grouped Work / Build & automate / Admin, a pin on apps with
-  their own row) and is the ONLY way to Meetings, Workflows, Chatbots,
-  Agents, Insights, Initiatives, Org chart ›
-  PROJECTS (`.sproj`: tile, status dot, hover … menu + chevron, Board / List /
-  Timeline / Docs → `?tab=` aliases in project-detail; completed hidden;
-  Archive) › TEAMS (each expands to its lists → `/tasks?list=`) › `.side-bot`
-  Help, Settings, account. Chat, Docs, Assistant and Forms are gr8r `.sproj`
-  tree nodes: a hover chevron, and the section's OWN navigation (the old
+- **Shell.** **Top bar + app rail + sidebar** (ClickUp's shell, 2026-10-29).
+  The **top bar** (`components/shell/top-bar.tsx`, `.gtop` in gr8r-ext.css,
+  40px, desktop only) runs across everything: the org picker
+  (`PropertySwitcher`), a Today → `/calendar` icon, a per-page slot
+  (`<TopBarPage>` portals a page's own controls up there — `TopBarSlotProvider`
+  in the property layout), then ⌘K search, the bell and "AI Chats" (→
+  Assistant). The old page-`.topbar` right cluster (`TopbarActions`:
+  search / bell / New) is gone — `PageHeader` keeps crumbs + page actions.
+  The **rail** is the PRE-gr8r icon rail's UI, brought back at the user's
+  request (`app-rail.tsx`, Tailwind over our tokens — NOT gr8r classes): a
+  floating warm near-black island (`dark` scoped subtree with `--sidebar`
+  pinned to `--rail`, `w-(--rail-width)` = 56px, m-2 gutter, `rounded-card`
+  + `shadow-card`), stacked icon-tile + label items with the Slack-style
+  left marker bar, and — while the sidebar is collapsed — ClickUp's » at
+  the very top above a short divider to bring it back. **Hovering a rail
+  item opens a peek card** (`rail-peek.tsx`, a `HoverCard` with `g8
+  g8-port` so gr8r `.sitem` rows work inside; delays on the TRIGGER in this
+  Base UI): Home = Inbox / My Tasks / Favorites + Workspace shortcuts; Chat
+  = Mentions / Replies, the 6 most recent team channels from
+  `client.activeChannels` (unread counts) and DMs; Docs = All documents +
+  7 recently edited; AI = New chat, projects, recent conversations;
+  Insights = the lens shortcuts (`InsightsSection`). Items: Home
+  (unseen-notification badge) ·
+  Chat · Docs · AI · Insights ("My week" for staff) · More; guests see Home
+  / Chat / Docs. A rail button navigates into its section
+  (`useSectionNavigation`, last-path resume) and the sidebar body follows
+  the URL — `railModeFor(base, pathname)` picks
+  `home | chat | docs | assistant | insights`, never stored state. **More**
+  is the app-launcher MODAL (`MoreDialog` in `more-launcher.tsx`: every
+  `NAV_APPS` tile grouped Work / Build & automate / Admin, a pin on apps in
+  `IN_NAV`) and the ONLY way to Meetings, Workflows, Chatbots, Agents,
+  Initiatives, Org chart. (2026-10-29, later): **More is ClickUp's launcher
+  POPOVER** (`MoreMenu`: 3-up grid of white icon tiles with colored glyphs,
+  every app not on the rail — `ON_RAIL` — plus "Customize navigation" →
+  Settings › Sidebar), its rail icon is a 3×3 dot grid (`Grip`), and an
+  app picked there sits on the rail as a **temporary item** (above More,
+  lit) until you navigate away from it. **Auto** (Workflows) is a rail
+  item: sidebar = `WorkflowsSection`, peek = views + recently run.
+  Sidebar = gr8r's `renderSidebar` (`components/shell/gr8r-sidebar.tsx`):
+  ClickUp's header (`.side-h`: the section title per rail mode, then
+  `.side-tools` — search → ⌘K and the « collapse — visible ONLY while the
+  pointer is over the sidebar, then the always-visible `+ ▾` create menu,
+  `NewMenu variant="split"`) › body by rail mode › `.side-bot` Help,
+  Settings, account. **Home mode**: Home, Inbox (`/activity`, accent count), My Tasks
+  (due today/overdue count), Favorites (Notifications folded into Inbox —
+  `/notifications` redirects to `/activity`, the topbar bell opens
+  `?view=unread`), Forms (a `.sproj` node with the form list in its `.sub`)
+  › WORKSPACE (Overview, Projects, Tasks, Calendar, Timeline, Members,
+  Cycles — the workspace Activity feed is an Inbox tab,
+  `/activity?view=workspace`; Triage is part of Tasks, Linear-style: a
+  Triage row under each team, `/triage?team=`, + a "N in triage" chip on
+  the Tasks board) › PROJECTS (`.sproj`: tile, status dot, hover … menu +
+  chevron, Board / List / Timeline / Docs → `?tab=` aliases in
+  project-detail; completed hidden; Archive) › TEAMS (each expands to its
+  lists → `/tasks?list=`). **Chat / Docs / Assistant / Insights mode**: a
+  `.sgroup-h` title then that section's OWN navigation full-height (the
   `components/shell/sections/*` bodies — channels + DMs, the docs tree,
-  assistant projects, form list…) in a `.sub` beneath,
-  open while you're in that section (`SItem` `body` in gr8r-sidebar.tsx;
-  mounted only while open). Collapse keeps the ORIGINAL behaviour (user preference over gr8r's 52px
-  rail, 2026-10-29): a ClickUp-style « in the sidebar header, invisible until
-  the pointer is over the sidebar, hides the sidebar fully; a fixed » "Open
-  sidebar" at the content's top-left brings it back (topbars pad for it via
-  `md:[body:not(:has([data-sidebar-open]))_&]:pl-11`); ⌘\ or `[` toggle. Topbar = `PageHeader` rendered as gr8r's
+  assistant projects + recents, insight lens shortcuts). Collapse keeps the
+  ORIGINAL behaviour (user preference over gr8r's 52px rail, 2026-10-29) and
+  hides the SIDEBAR only — the rail stays: the header's hover-only « hides
+  it; the rail's top » (collapsed only) brings it back — the old fixed »
+  button over the content and the `pl-11` topbar pads for it are gone; ⌘\
+  or `[` toggle.
+  The mobile drawer (19rem) holds rail + sidebar. Topbar = `PageHeader` rendered as gr8r's
   `.topbar` (crumbs, `.topsearch` → ⌘K palette, bell, `New ▾`). ≤640px: gr8r's
   `.bottomnav` (in `mobile-top-bar.tsx`). Appearance prefs (accent / density
   / motion, Settings → Appearance) are `data-*` on the `.g8` root via
